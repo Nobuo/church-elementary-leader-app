@@ -203,4 +203,4 @@ npm run build          # ビルド
 
 ## ライセンス
 
-Private
+[MIT License](LICENSE)

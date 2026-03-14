@@ -2,6 +2,7 @@
   "name": "mach-leader",
   "version": "1.0.0",
   "description": "Church elementary school class leader assignment app",
+  "license": "MIT",
   "type": "module",
   "scripts": {
     "build": "tsc",
