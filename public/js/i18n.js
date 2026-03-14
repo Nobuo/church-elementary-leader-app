@@ -1,0 +1,224 @@
+const I18N = {
+  ja: {
+    appTitle: 'リーダー管理',
+    navMembers: 'メンバー管理',
+    navSchedules: 'スケジュール設定',
+    navAssignments: '割り当て結果',
+    year: '年度',
+    month: '月',
+    membersTitle: 'メンバー管理',
+    name: '氏名',
+    gender: '性別',
+    male: '男性',
+    female: '女性',
+    language: '言語',
+    japanese: '日本語',
+    english: '英語',
+    both: '両方',
+    gradeGroup: '担当区分',
+    lower: '低学年',
+    upper: '高学年',
+    memberType: '種別',
+    parentCouple: '夫婦で参加',
+    parentSingle: '片方のみ',
+    helper: 'ヘルパー',
+    sameGenderOnly: '同性制限',
+    spouse: '配偶者',
+    status: '状態',
+    actions: '操作',
+    add: '追加',
+    edit: '編集',
+    save: '保存',
+    cancel: 'キャンセル',
+    deactivate: '無効化',
+    showInactive: '無効メンバーも表示',
+    active: '有効',
+    inactive: '無効',
+    addMember: 'メンバー追加',
+    editMember: 'メンバー編集',
+    none: 'なし',
+    schedulesTitle: 'スケジュール設定',
+    generateSchedule: 'スケジュール生成',
+    exclude: '除外する',
+    include: '含める',
+    excluded: '除外日',
+    event: 'イベント',
+    eventDay: 'イベント日',
+    assignmentsTitle: '割り当て結果',
+    autoGenerate: '自動生成',
+    exportCsv: 'CSV出力',
+    exportLine: 'LINE用テキスト',
+    copy: 'コピー',
+    copied: 'コピーしました',
+    close: '閉じる',
+    group: 'グループ',
+    warnings: '警告',
+    noAssignments: '割り当てがありません',
+    yes: 'はい',
+    no: 'いいえ',
+    sun: '日',
+    exportMembersCsv: 'CSVダウンロード',
+    importMembersCsv: 'CSVアップロード',
+    importCreated: '新規登録',
+    importUpdated: '更新',
+    replace: '差し替え',
+    confirm: '確定',
+    assignmentCounts: '担当回数',
+    max: '最大',
+    min: '最少',
+    average: '平均',
+    tooMany: '多すぎ',
+    tooFew: '少なすぎ',
+    times: '回',
+    difference: '差分',
+    clear: 'クリア',
+    clearConfirm: 'この日の割り当てをクリアしますか？',
+    pastAssignmentWarning: '過去の割り当てを変更しようとしています。続けますか？',
+    cannotClearPast: '過去の割り当てはクリアできません',
+    'violations.languageCoverage': '{missing}の言語カバーがありません',
+    'violations.sameGender': '{name}は同性ペアが必要です',
+    'violations.monthlyDuplicate': '当月に既に割り当てられています',
+    'violations.spouseSameGroup': '{name1}と{name2}は配偶者で同じグループです',
+    'violations.minInterval': '2週間以内に割り当てがあります',
+    'violations.excessiveCount': '{name}: {count}回（目安 ~{expected}回、{direction}）',
+    'violations.notEnoughMembers': '{date}のメンバーが不足: 高学年{upper}名、低学年{lower}名',
+    'violations.cannotFormGroup': '{date}のグループ{group}を編成できません',
+    'violations.monthlyDuplicateNamed': '{name}は当月に既に割り当てられています',
+    'violations.spousesPaired': '{name1}と{name2}（配偶者）が同じグループです',
+    'violations.sameGenderViolated': '{name1}または{name2}の同性ペア制約に違反しています',
+    'violations.helperOnEventDay': 'イベント日にはヘルパーを割り当てできません',
+    'violations.tooMany': '多すぎ',
+    'violations.tooFew': '少なすぎ',
+  },
+  en: {
+    appTitle: 'Leader Management',
+    navMembers: 'Members',
+    navSchedules: 'Schedules',
+    navAssignments: 'Assignments',
+    year: 'Year',
+    month: 'Month',
+    membersTitle: 'Member Management',
+    name: 'Name',
+    gender: 'Gender',
+    male: 'Male',
+    female: 'Female',
+    language: 'Language',
+    japanese: 'Japanese',
+    english: 'English',
+    both: 'Both',
+    gradeGroup: 'Grade',
+    lower: 'Lower (1-3)',
+    upper: 'Upper (4-6)',
+    memberType: 'Type',
+    parentCouple: 'Couple',
+    parentSingle: 'Single',
+    helper: 'Helper',
+    sameGenderOnly: 'Same-gender',
+    spouse: 'Spouse',
+    status: 'Status',
+    actions: 'Actions',
+    add: 'Add',
+    edit: 'Edit',
+    save: 'Save',
+    cancel: 'Cancel',
+    deactivate: 'Deactivate',
+    showInactive: 'Show inactive',
+    active: 'Active',
+    inactive: 'Inactive',
+    addMember: 'Add Member',
+    editMember: 'Edit Member',
+    none: 'None',
+    schedulesTitle: 'Schedule Settings',
+    generateSchedule: 'Generate Schedule',
+    exclude: 'Exclude',
+    include: 'Include',
+    excluded: 'Excluded',
+    event: 'Event',
+    eventDay: 'Event Day',
+    assignmentsTitle: 'Assignment Results',
+    autoGenerate: 'Auto Generate',
+    exportCsv: 'Export CSV',
+    exportLine: 'LINE Message',
+    copy: 'Copy',
+    copied: 'Copied!',
+    close: 'Close',
+    group: 'Group',
+    warnings: 'Warnings',
+    noAssignments: 'No assignments',
+    yes: 'Yes',
+    no: 'No',
+    sun: 'Sun',
+    exportMembersCsv: 'Export CSV',
+    importMembersCsv: 'Import CSV',
+    importCreated: 'Created',
+    importUpdated: 'Updated',
+    replace: 'Replace',
+    confirm: 'Confirm',
+    assignmentCounts: 'Assignment Counts',
+    max: 'Max',
+    min: 'Min',
+    average: 'Avg',
+    tooMany: 'Too many',
+    tooFew: 'Too few',
+    times: 'times',
+    difference: 'Diff',
+    clear: 'Clear',
+    clearConfirm: 'Clear assignments for this date?',
+    pastAssignmentWarning: 'You are about to modify a past assignment. Continue?',
+    cannotClearPast: 'Cannot clear past assignments',
+    'violations.languageCoverage': 'Group lacks {missing} language coverage',
+    'violations.sameGender': '{name} requires same-gender pairing',
+    'violations.monthlyDuplicate': 'Member is already assigned this month',
+    'violations.spouseSameGroup': 'Spouses {name1} and {name2} are in the same group',
+    'violations.minInterval': 'Member was assigned within the last 2 weeks',
+    'violations.excessiveCount': '{name}: {count} assignments (expected ~{expected}, {direction})',
+    'violations.notEnoughMembers': 'Not enough members for {date}: {upper} upper, {lower} lower',
+    'violations.cannotFormGroup': 'Could not form group {group} for {date}',
+    'violations.monthlyDuplicateNamed': '{name} is already assigned this month',
+    'violations.spousesPaired': 'Spouses {name1} and {name2} paired together',
+    'violations.sameGenderViolated': 'Same-gender constraint violated for {name1} or {name2}',
+    'violations.helperOnEventDay': 'HELPER members cannot be assigned on event days',
+    'violations.tooMany': 'too many',
+    'violations.tooFew': 'too few',
+  },
+};
+
+let currentLang = 'ja';
+
+function t(key) {
+  return I18N[currentLang][key] || key;
+}
+
+function setLanguage(lang) {
+  currentLang = lang;
+  updateUILanguage();
+}
+
+function updateUILanguage() {
+  document.getElementById('app-title').textContent = t('appTitle');
+  document.getElementById('nav-members').textContent = t('navMembers');
+  document.getElementById('nav-schedules').textContent = t('navSchedules');
+  document.getElementById('nav-assignments').textContent = t('navAssignments');
+  document.getElementById('label-year').textContent = t('year');
+  document.getElementById('label-month').textContent = t('month');
+  document.getElementById('members-title').textContent = t('membersTitle');
+  document.getElementById('btn-add-member').textContent = t('add');
+  document.getElementById('label-show-inactive').textContent = t('showInactive');
+  document.getElementById('th-name').textContent = t('name');
+  document.getElementById('th-gender').textContent = t('gender');
+  document.getElementById('th-language').textContent = t('language');
+  document.getElementById('th-grade').textContent = t('gradeGroup');
+  document.getElementById('th-type').textContent = t('memberType');
+  document.getElementById('th-same-gender').textContent = t('sameGenderOnly');
+  document.getElementById('th-spouse').textContent = t('spouse');
+  document.getElementById('th-status').textContent = t('status');
+  document.getElementById('th-actions').textContent = t('actions');
+  document.getElementById('schedules-title').textContent = t('schedulesTitle');
+  document.getElementById('btn-generate-schedule').textContent = t('generateSchedule');
+  document.getElementById('assignments-title').textContent = t('assignmentsTitle');
+  document.getElementById('btn-generate-assignments').textContent = t('autoGenerate');
+  document.getElementById('btn-export-csv').textContent = t('exportCsv');
+  document.getElementById('btn-export-line').textContent = t('exportLine');
+  document.getElementById('btn-export-members-csv').textContent = t('exportMembersCsv');
+  document.getElementById('btn-import-members-csv').textContent = t('importMembersCsv');
+}

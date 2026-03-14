@@ -1,0 +1,329 @@
+import { MemberId, ScheduleId } from '@shared/types';
+import { Member } from '@domain/entities/member';
+import { Schedule } from '@domain/entities/schedule';
+import { Assignment } from '@domain/entities/assignment';
+import { GradeGroup } from '@domain/value-objects/grade-group';
+import { MemberType } from '@domain/value-objects/member-type';
+import { coversJapanese, coversEnglish } from '@domain/value-objects/language';
+import {
+  ConstraintViolation,
+  ViolationType,
+  Severity,
+} from '@domain/value-objects/constraint-violation';
+
+interface GenerationContext {
+  schedules: Schedule[];
+  members: Member[];
+  existingAssignments: Assignment[];
+  assignmentCounts: Map<MemberId, number>;
+  scheduleIdToDate: Map<ScheduleId, string>;
+}
+
+interface GenerationResult {
+  assignments: Assignment[];
+  violations: ConstraintViolation[];
+}
+
+function pairKey(a: MemberId, b: MemberId): string {
+  return [a, b].sort().join('-');
+}
+
+/**
+ * Score a candidate pair for a group assignment.
+ * Lower score = better candidate.
+ */
+function scorePair(
+  member1: Member,
+  member2: Member,
+  context: GenerationContext,
+  monthAssignments: Assignment[],
+  dayAssignments: Assignment[],
+  pastPairCounts: Map<string, number>,
+): { score: number; violations: ConstraintViolation[] } {
+  let score = 0;
+  const violations: ConstraintViolation[] = [];
+
+  // HARD: Language balance - each group needs both Japanese and English coverage
+  const hasJapanese = coversJapanese(member1.language) || coversJapanese(member2.language);
+  const hasEnglish = coversEnglish(member1.language) || coversEnglish(member2.language);
+  if (!hasJapanese || !hasEnglish) {
+    score += 100000; // effectively impossible
+  }
+
+  // HARD: Same-gender constraint
+  if (
+    (member1.sameGenderOnly || member2.sameGenderOnly) &&
+    member1.gender !== member2.gender
+  ) {
+    score += 100000;
+    violations.push({
+      type: ViolationType.SAME_GENDER,
+      severity: Severity.WARNING,
+      memberIds: [member1.id, member2.id],
+      message: `Same-gender constraint violated for ${member1.name} or ${member2.name}`,
+      messageKey: 'violations.sameGenderViolated',
+      messageParams: { name1: member1.name, name2: member2.name },
+    });
+  }
+
+  // Monthly duplicate (100 penalty per member already assigned this month)
+  for (const m of [member1, member2]) {
+    const alreadyAssigned = monthAssignments.some((a) => a.containsMember(m.id));
+    if (alreadyAssigned) {
+      score += 100;
+      violations.push({
+        type: ViolationType.MONTHLY_DUPLICATE,
+        severity: Severity.WARNING,
+        memberIds: [m.id],
+        message: `${m.name} is already assigned this month`,
+        messageKey: 'violations.monthlyDuplicateNamed',
+        messageParams: { name: m.name },
+      });
+    }
+  }
+
+  // Equal distribution (50 per assignment count difference from minimum)
+  const counts = context.assignmentCounts;
+  const minCount = Math.min(...context.members.filter((m) => m.isActive).map((m) => counts.get(m.id) ?? 0));
+  for (const m of [member1, member2]) {
+    const memberCount = counts.get(m.id) ?? 0;
+    score += (memberCount - minCount) * 50;
+  }
+
+  // Spouse avoidance (30 penalty) — only for PARENT_COUPLE
+  if (
+    member1.memberType === MemberType.PARENT_COUPLE &&
+    member2.memberType === MemberType.PARENT_COUPLE &&
+    member1.spouseId === member2.id
+  ) {
+    score += 30;
+    violations.push({
+      type: ViolationType.SPOUSE_SAME_GROUP,
+      severity: Severity.WARNING,
+      memberIds: [member1.id, member2.id],
+      message: `Spouses ${member1.name} and ${member2.name} paired together`,
+      messageKey: 'violations.spousesPaired',
+      messageParams: { name1: member1.name, name2: member2.name },
+    });
+  }
+
+  // Spouse on same day different group (30 penalty) — only for PARENT_COUPLE
+  for (const dayAssignment of dayAssignments) {
+    for (const m of [member1, member2]) {
+      if (m.memberType !== MemberType.PARENT_COUPLE) continue;
+      if (m.spouseId && dayAssignment.containsMember(m.spouseId)) {
+        score += 30;
+      }
+    }
+  }
+
+  // Pair diversity (10 penalty per previous pairing)
+  const pk = pairKey(member1.id, member2.id);
+  const pairCount = pastPairCounts.get(pk) ?? 0;
+  score += pairCount * 10;
+
+  return { score, violations };
+}
+
+export function generateAssignments(
+  schedules: Schedule[],
+  allMembers: Member[],
+  existingAssignmentsAll: Assignment[],
+  assignmentCounts: Map<MemberId, number>,
+): GenerationResult {
+  const activeMembers = allMembers.filter((m) => m.isActive);
+  const allAssignments: Assignment[] = [];
+  const allViolations: ConstraintViolation[] = [];
+
+  // Build schedule-to-date map
+  const scheduleIdToDate = new Map<ScheduleId, string>();
+  for (const s of schedules) {
+    scheduleIdToDate.set(s.id, s.date);
+  }
+  // Build past pair counts from existing assignments
+  const pastPairCounts = new Map<string, number>();
+  for (const a of existingAssignmentsAll) {
+    const pk = pairKey(a.memberIds[0], a.memberIds[1]);
+    pastPairCounts.set(pk, (pastPairCounts.get(pk) ?? 0) + 1);
+  }
+
+  // Copy counts so we can update during generation
+  const counts = new Map(assignmentCounts);
+  for (const m of activeMembers) {
+    if (!counts.has(m.id)) counts.set(m.id, 0);
+  }
+
+  const activeDates = schedules.filter((s) => !s.isExcluded).sort((a, b) => a.date.localeCompare(b.date));
+
+  const monthAssignments: Assignment[] = [];
+
+  const context: GenerationContext = {
+    schedules,
+    members: activeMembers,
+    existingAssignments: existingAssignmentsAll,
+    assignmentCounts: counts,
+    scheduleIdToDate,
+  };
+
+  for (const schedule of activeDates) {
+    const dateStr = schedule.date;
+    const dayAssignments: Assignment[] = [];
+
+    // Get available members for this date
+    // On event days, exclude HELPER members
+    const available = activeMembers
+      .filter((m) => m.isAvailableOn(dateStr))
+      .filter((m) => !schedule.isEvent || m.memberType !== MemberType.HELPER);
+
+    const upperMembers = available.filter((m) => m.gradeGroup === GradeGroup.UPPER);
+    const lowerMembers = available.filter((m) => m.gradeGroup === GradeGroup.LOWER);
+
+    if (upperMembers.length < 2 || lowerMembers.length < 2) {
+      allViolations.push({
+        type: ViolationType.UNEQUAL_COUNT,
+        severity: Severity.WARNING,
+        memberIds: [],
+        message: `Not enough members for ${dateStr}: ${upperMembers.length} upper, ${lowerMembers.length} lower`,
+        messageKey: 'violations.notEnoughMembers',
+        messageParams: { date: dateStr, upper: String(upperMembers.length), lower: String(lowerMembers.length) },
+      });
+      // Try with whatever we have
+      if (upperMembers.length < 1 || lowerMembers.length < 1) continue;
+    }
+
+    // For each group, pick 1 UPPER + 1 LOWER
+    // Group 1
+    const group1Result = pickBestPair(
+      upperMembers,
+      lowerMembers,
+      context,
+      monthAssignments,
+      dayAssignments,
+      pastPairCounts,
+    );
+
+    if (group1Result) {
+      const assignment1 = Assignment.create(schedule.id, 1, [
+        group1Result.upper.id,
+        group1Result.lower.id,
+      ]);
+      dayAssignments.push(assignment1);
+      monthAssignments.push(assignment1);
+      allAssignments.push(assignment1);
+      allViolations.push(...group1Result.violations);
+
+      // Update counts
+      counts.set(group1Result.upper.id, (counts.get(group1Result.upper.id) ?? 0) + 1);
+      counts.set(group1Result.lower.id, (counts.get(group1Result.lower.id) ?? 0) + 1);
+
+      // Update pair counts
+      const pk = pairKey(group1Result.upper.id, group1Result.lower.id);
+      pastPairCounts.set(pk, (pastPairCounts.get(pk) ?? 0) + 1);
+
+      // Group 2: exclude members already assigned to group 1
+      const usedIds = new Set([group1Result.upper.id, group1Result.lower.id]);
+      const remainingUpper = upperMembers.filter((m) => !usedIds.has(m.id));
+      const remainingLower = lowerMembers.filter((m) => !usedIds.has(m.id));
+
+      const group2Result = pickBestPair(
+        remainingUpper,
+        remainingLower,
+        context,
+        monthAssignments,
+        dayAssignments,
+        pastPairCounts,
+      );
+
+      if (group2Result) {
+        const assignment2 = Assignment.create(schedule.id, 2, [
+          group2Result.upper.id,
+          group2Result.lower.id,
+        ]);
+        dayAssignments.push(assignment2);
+        monthAssignments.push(assignment2);
+        allAssignments.push(assignment2);
+        allViolations.push(...group2Result.violations);
+
+        counts.set(group2Result.upper.id, (counts.get(group2Result.upper.id) ?? 0) + 1);
+        counts.set(group2Result.lower.id, (counts.get(group2Result.lower.id) ?? 0) + 1);
+
+        const pk2 = pairKey(group2Result.upper.id, group2Result.lower.id);
+        pastPairCounts.set(pk2, (pastPairCounts.get(pk2) ?? 0) + 1);
+      } else {
+        allViolations.push({
+          type: ViolationType.UNEQUAL_COUNT,
+          severity: Severity.WARNING,
+          memberIds: [],
+          message: `Could not form group 2 for ${dateStr}`,
+          messageKey: 'violations.cannotFormGroup',
+          messageParams: { group: '2', date: dateStr },
+        });
+      }
+    } else {
+      allViolations.push({
+        type: ViolationType.UNEQUAL_COUNT,
+        severity: Severity.WARNING,
+        memberIds: [],
+        message: `Could not form group 1 for ${dateStr}`,
+        messageKey: 'violations.cannotFormGroup',
+        messageParams: { group: '1', date: dateStr },
+      });
+    }
+  }
+
+  return { assignments: allAssignments, violations: allViolations };
+}
+
+interface PairResult {
+  upper: Member;
+  lower: Member;
+  violations: ConstraintViolation[];
+}
+
+function pickBestPair(
+  upperCandidates: Member[],
+  lowerCandidates: Member[],
+  context: GenerationContext,
+  monthAssignments: Assignment[],
+  dayAssignments: Assignment[],
+  pastPairCounts: Map<string, number>,
+): PairResult | null {
+  if (upperCandidates.length === 0 || lowerCandidates.length === 0) return null;
+
+  let bestScore = Infinity;
+  let bestPair: PairResult | null = null;
+
+  for (const upper of upperCandidates) {
+    for (const lower of lowerCandidates) {
+      const { score, violations } = scorePair(
+        upper,
+        lower,
+        context,
+        monthAssignments,
+        dayAssignments,
+        pastPairCounts,
+      );
+
+      if (score < bestScore) {
+        bestScore = score;
+        bestPair = { upper, lower, violations: score >= 100000 ? violations : [] };
+      }
+    }
+  }
+
+  // If best score is very high (hard constraint violations), still return but with violations
+  if (bestPair && bestScore >= 100000) {
+    const { upper, lower } = bestPair;
+    const { violations } = scorePair(
+      upper,
+      lower,
+      context,
+      monthAssignments,
+      dayAssignments,
+      pastPairCounts,
+    );
+    bestPair.violations = violations;
+  }
+
+  return bestPair;
+}

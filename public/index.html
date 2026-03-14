@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Leader Management</title>
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+  <header>
+    <h1 id="app-title">リーダー管理</h1>
+    <nav>
+      <button class="nav-btn active" data-page="members" id="nav-members">メンバー管理</button>
+      <button class="nav-btn" data-page="schedules" id="nav-schedules">スケジュール設定</button>
+      <button class="nav-btn" data-page="assignments" id="nav-assignments">割り当て結果</button>
+    </nav>
+    <div class="header-controls">
+      <select id="lang-select">
+        <option value="ja">日本語</option>
+        <option value="en">English</option>
+      </select>
+      <div class="year-month-select">
+        <label><span id="label-year">年度</span>:
+          <select id="fiscal-year"></select>
+        </label>
+        <label><span id="label-month">月</span>:
+          <select id="month-select"></select>
+        </label>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <section id="page-members" class="page active">
+      <h2 id="members-title">メンバー管理</h2>
+      <div class="toolbar">
+        <button id="btn-add-member" class="btn-primary">追加</button>
+        <button id="btn-export-members-csv" class="btn-secondary">CSVダウンロード</button>
+        <button id="btn-import-members-csv" class="btn-secondary">CSVアップロード</button>
+        <input type="file" id="csv-file-input" accept=".csv" style="display:none">
+        <label>
+          <input type="checkbox" id="show-inactive"> <span id="label-show-inactive">無効メンバーも表示</span>
+        </label>
+      </div>
+      <table id="members-table">
+        <thead>
+          <tr>
+            <th id="th-name">氏名</th>
+            <th id="th-gender">性別</th>
+            <th id="th-language">言語</th>
+            <th id="th-grade">担当区分</th>
+            <th id="th-type">種別</th>
+            <th id="th-same-gender">同性制限</th>
+            <th id="th-spouse">配偶者</th>
+            <th id="th-status">状態</th>
+            <th id="th-actions">操作</th>
+          </tr>
+        </thead>
+        <tbody id="members-body"></tbody>
+      </table>
+
+      <!-- Member form modal -->
+      <dialog id="member-dialog">
+        <form id="member-form">
+          <h3 id="form-title">メンバー追加</h3>
+          <input type="hidden" id="form-member-id">
+          <div class="form-group">
+            <label for="form-name">氏名</label>
+            <input type="text" id="form-name" required>
+          </div>
+          <div class="form-group">
+            <label for="form-gender">性別</label>
+            <select id="form-gender">
+              <option value="MALE">男性</option>
+              <option value="FEMALE">女性</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="form-language">言語</label>
+            <select id="form-language">
+              <option value="JAPANESE">日本語</option>
+              <option value="ENGLISH">英語</option>
+              <option value="BOTH">両方</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="form-grade">担当区分</label>
+            <select id="form-grade">
+              <option value="LOWER">低学年</option>
+              <option value="UPPER">高学年</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="form-type">メンバー種別</label>
+            <select id="form-type">
+              <option value="PARENT_COUPLE">夫婦で参加</option>
+              <option value="PARENT_SINGLE">片方の親のみ</option>
+              <option value="HELPER">ヘルパー</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>
+              <input type="checkbox" id="form-same-gender"> 同性ペア制限
+            </label>
+          </div>
+          <div class="form-group" id="spouse-group">
+            <label for="form-spouse">配偶者</label>
+            <select id="form-spouse">
+              <option value="">なし</option>
+            </select>
+          </div>
+          <div class="form-actions">
+            <button type="submit" class="btn-primary">保存</button>
+            <button type="button" id="btn-cancel-member" class="btn-secondary">キャンセル</button>
+          </div>
+        </form>
+      </dialog>
+    </section>
+
+    <section id="page-schedules" class="page">
+      <h2 id="schedules-title">スケジュール設定</h2>
+      <div class="toolbar">
+        <button id="btn-generate-schedule" class="btn-primary">スケジュール生成</button>
+      </div>
+      <div id="schedule-list" class="schedule-grid"></div>
+    </section>
+
+    <section id="page-assignments" class="page">
+      <h2 id="assignments-title">割り当て結果</h2>
+      <div class="toolbar">
+        <button id="btn-generate-assignments" class="btn-primary">自動生成</button>
+        <button id="btn-export-csv" class="btn-secondary">CSV出力</button>
+        <button id="btn-export-line" class="btn-secondary">LINE用テキスト</button>
+      </div>
+      <div id="violations-area" class="warnings" style="display:none"></div>
+      <div id="assignments-list"></div>
+
+      <div id="assignment-counts-section" style="display:none">
+        <h3 id="counts-title"></h3>
+        <div id="counts-summary" class="counts-summary"></div>
+        <div id="counts-list" class="counts-list"></div>
+      </div>
+
+      <dialog id="line-dialog">
+        <h3>LINE用テキスト</h3>
+        <textarea id="line-text" readonly rows="20" cols="40"></textarea>
+        <div class="form-actions">
+          <button id="btn-copy-line" class="btn-primary">コピー</button>
+          <button id="btn-close-line" class="btn-secondary">閉じる</button>
+        </div>
+      </dialog>
+    </section>
+  </main>
+
+  <script src="/js/api.js"></script>
+  <script src="/js/i18n.js"></script>
+  <script src="/js/members.js"></script>
+  <script src="/js/schedules.js"></script>
+  <script src="/js/assignments.js"></script>
+  <script src="/js/app.js"></script>
+</body>
+</html>
