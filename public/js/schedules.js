@@ -28,19 +28,30 @@ function renderSchedules(schedules) {
       <div class="date">${label}</div>
       <div>${tags}</div>
       <div class="schedule-actions">
-        <button class="btn-small" onclick="toggleScheduleExclusion('${s.id}')">
+        <button class="btn-small" data-action="toggle-exclusion" data-id="${escapeHtml(s.id)}">
           ${s.isExcluded ? t('include') : t('exclude')}
         </button>
-        <button class="btn-small btn-event ${s.isEvent ? 'active' : ''}" onclick="toggleScheduleEvent('${s.id}')" ${s.isExcluded ? 'disabled' : ''}>
+        <button class="btn-small btn-event ${s.isEvent ? 'active' : ''}" data-action="toggle-event" data-id="${escapeHtml(s.id)}" ${s.isExcluded ? 'disabled' : ''}>
           ${t('event')}
         </button>
-        <button class="btn-small btn-split ${s.isSplitClass ? 'active' : ''}" onclick="toggleScheduleSplitClass('${s.id}')" ${s.isExcluded ? 'disabled' : ''}>
+        <button class="btn-small btn-split ${s.isSplitClass ? 'active' : ''}" data-action="toggle-split-class" data-id="${escapeHtml(s.id)}" ${s.isExcluded ? 'disabled' : ''}>
           ${t('splitClass')}
         </button>
       </div>
     </div>`;
   }).join('');
 }
+
+// Event delegation for schedule actions
+document.getElementById('schedule-list')?.addEventListener('click', (e) => {
+  const btn = e.target.closest('[data-action]');
+  if (!btn) return;
+  const action = btn.dataset.action;
+  const id = btn.dataset.id;
+  if (action === 'toggle-exclusion') toggleScheduleExclusion(id);
+  if (action === 'toggle-event') toggleScheduleEvent(id);
+  if (action === 'toggle-split-class') toggleScheduleSplitClass(id);
+});
 
 async function generateSchedules() {
   const month = getSelectedMonth();

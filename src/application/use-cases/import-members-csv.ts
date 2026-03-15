@@ -123,6 +123,10 @@ export function importMembersCsv(
   const processedNames = new Set<string>();
   const spouseLinks: { name: string; spouseName: string; memberType: string }[] = [];
 
+  // Load all members once and maintain a lookup map
+  const allMembers = memberRepo.findAll(false);
+  const memberByName = new Map<string, Member>(allMembers.map((m) => [m.name, m]));
+
   for (let i = 0; i < dataLines.length; i++) {
     const rowNum = i + 2; // 1-indexed, skip header
     const fields = parseCsvLine(dataLines[i]);
@@ -139,9 +143,7 @@ export function importMembersCsv(
     }
     processedNames.add(parsed.name);
 
-    // Re-query to get latest state (handles case where repo was updated by earlier rows)
-    const allCurrent = memberRepo.findAll(false);
-    const existing = allCurrent.find((m) => m.name === parsed.name);
+    const existing = memberByName.get(parsed.name);
 
     if (existing) {
       // Update existing
@@ -161,6 +163,7 @@ export function importMembersCsv(
       }
 
       memberRepo.save(updateResult.value);
+      memberByName.set(updateResult.value.name, updateResult.value);
       result.updated++;
     } else {
       // Create new
@@ -186,6 +189,7 @@ export function importMembersCsv(
       }
 
       memberRepo.save(member);
+      memberByName.set(member.name, member);
       result.created++;
     }
 
@@ -195,12 +199,14 @@ export function importMembersCsv(
   }
 
   // Phase 2: Link spouses (re-query to get latest saved state)
+  const finalMembers = memberRepo.findAll(false);
+  const finalByName = new Map<string, Member>(finalMembers.map((m) => [m.name, m]));
+
   for (const link of spouseLinks) {
     if (link.memberType !== MemberType.PARENT_COUPLE) continue;
 
-    const allMembers = memberRepo.findAll(false);
-    const member = allMembers.find((m) => m.name === link.name);
-    const spouse = allMembers.find((m) => m.name === link.spouseName);
+    const member = finalByName.get(link.name);
+    const spouse = finalByName.get(link.spouseName);
 
     if (!member || !spouse) {
       result.errors.push({

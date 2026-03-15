@@ -7,6 +7,7 @@ import {
   toggleSplitClass,
   listSchedules,
 } from '@application/use-cases/generate-monthly-schedule';
+import { isValidYear, isValidMonth } from '@shared/validators';
 
 export function createScheduleController(scheduleRepo: ScheduleRepository): Router {
   const router = Router();
@@ -18,6 +19,8 @@ export function createScheduleController(scheduleRepo: ScheduleRepository): Rout
       res.status(400).json({ error: 'year and month are required' });
       return;
     }
+    if (!isValidYear(year)) { res.status(400).json({ error: 'year must be between 2000 and 2100' }); return; }
+    if (!isValidMonth(month)) { res.status(400).json({ error: 'month must be between 1 and 12' }); return; }
     res.json(listSchedules(year, month, scheduleRepo));
   });
 
@@ -27,6 +30,8 @@ export function createScheduleController(scheduleRepo: ScheduleRepository): Rout
       res.status(400).json({ error: 'year and month are required' });
       return;
     }
+    if (!isValidYear(year)) { res.status(400).json({ error: 'year must be between 2000 and 2100' }); return; }
+    if (!isValidMonth(month)) { res.status(400).json({ error: 'month must be between 1 and 12' }); return; }
     const result = generateMonthlySchedule(year, month, scheduleRepo);
     if (!result.ok) {
       res.status(400).json({ error: result.error });

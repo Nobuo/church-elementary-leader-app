@@ -1,6 +1,8 @@
-import express from 'express';
+import express, { Request, Response, NextFunction } from 'express';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import helmet from 'helmet';
+import rateLimit from 'express-rate-limit';
 import type { AppDatabase } from '@infrastructure/persistence/app-database';
 import { MemberRepository } from '@domain/repositories/member-repository';
 import { ScheduleRepository } from '@domain/repositories/schedule-repository';
@@ -24,6 +26,22 @@ export function createServer(
 ) {
   const app = express();
 
+  // Security headers (CSP disabled until inline onclick handlers are fully removed)
+  app.use(helmet({ contentSecurityPolicy: false }));
+
+  // Rate limiting on API routes (skip in test environment)
+  if (process.env.NODE_ENV !== 'test') {
+    app.use(
+      '/api/',
+      rateLimit({
+        windowMs: 60 * 1000,
+        max: 100,
+        standardHeaders: true,
+        legacyHeaders: false,
+      }),
+    );
+  }
+
   app.use(express.json());
   const publicDir = options?.staticDir ?? path.join(__dirname, '../../public');
   app.use(express.static(publicDir));
@@ -40,6 +58,13 @@ export function createServer(
       res.json({ success: true });
     });
   }
+
+  // Global error handler
+  app.use((err: Error, _req: Request, res: Response, _next: NextFunction) => {
+    console.error(err.stack);
+    const message = process.env.NODE_ENV === 'production' ? 'Internal server error' : err.message;
+    res.status(500).json({ error: message });
+  });
 
   return app;
 }

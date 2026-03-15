@@ -1,4 +1,5 @@
 import { Router, Request, Response } from 'express';
+import { isValidYear, isValidMonth, isValidDateString } from '@shared/validators';
 import { MemberId } from '@shared/types';
 import { Member } from '@domain/entities/member';
 import { MemberRepository } from '@domain/repositories/member-repository';
@@ -38,6 +39,8 @@ export function createAssignmentController(
       res.status(400).json({ error: 'year and month are required' });
       return;
     }
+    if (!isValidYear(year)) { res.status(400).json({ error: 'year must be between 2000 and 2100' }); return; }
+    if (!isValidMonth(month)) { res.status(400).json({ error: 'month must be between 1 and 12' }); return; }
     res.json(getAssignmentsForMonth(year, month, memberRepo, scheduleRepo, assignmentRepo));
   });
 
@@ -47,6 +50,8 @@ export function createAssignmentController(
       res.status(400).json({ error: 'year and month are required' });
       return;
     }
+    if (!isValidYear(year)) { res.status(400).json({ error: 'year must be between 2000 and 2100' }); return; }
+    if (!isValidMonth(month)) { res.status(400).json({ error: 'month must be between 1 and 12' }); return; }
     const result = generateMonthlyAssignments(year, month, memberRepo, scheduleRepo, assignmentRepo);
     if (!result.ok) {
       res.status(400).json({ error: result.error });
@@ -72,6 +77,8 @@ export function createAssignmentController(
       res.status(400).json({ error: 'year and month are required' });
       return;
     }
+    if (!isValidYear(year)) { res.status(400).json({ error: 'year must be between 2000 and 2100' }); return; }
+    if (!isValidMonth(month)) { res.status(400).json({ error: 'month must be between 1 and 12' }); return; }
     deleteAssignments(year, month, scheduleRepo, assignmentRepo);
     res.json({ success: true });
   });
@@ -82,6 +89,7 @@ export function createAssignmentController(
       res.status(400).json({ error: 'date is required' });
       return;
     }
+    if (!isValidDateString(date)) { res.status(400).json({ error: 'Invalid date format' }); return; }
     const today = new Date().toISOString().slice(0, 10);
     if (date < today) {
       res.status(400).json({ error: 'Cannot clear past assignments' });
@@ -104,6 +112,7 @@ export function createAssignmentController(
       res.status(400).json({ error: 'date is required' });
       return;
     }
+    if (!isValidDateString(date)) { res.status(400).json({ error: 'Invalid date format' }); return; }
 
     // Check schedule flags
     const schedule = scheduleRepo.findByDate(date);
@@ -196,6 +205,7 @@ export function createAssignmentController(
       res.status(400).json({ error: 'fiscalYear is required' });
       return;
     }
+    if (!isValidYear(fiscalYear)) { res.status(400).json({ error: 'fiscalYear must be between 2000 and 2100' }); return; }
     res.json(getAssignmentCounts(fiscalYear, memberRepo, assignmentRepo));
   });
 
@@ -207,6 +217,8 @@ export function createAssignmentController(
       res.status(400).json({ error: 'year and month are required' });
       return;
     }
+    if (!isValidYear(year)) { res.status(400).json({ error: 'year must be between 2000 and 2100' }); return; }
+    if (!isValidMonth(month)) { res.status(400).json({ error: 'month must be between 1 and 12' }); return; }
 
     const schedules = scheduleRepo.findByMonth(year, month);
     const scheduleIds = schedules.map((s) => s.id);
@@ -229,6 +241,8 @@ export function createAssignmentController(
       res.status(400).json({ error: 'year and month are required' });
       return;
     }
+    if (!isValidYear(year)) { res.status(400).json({ error: 'year must be between 2000 and 2100' }); return; }
+    if (!isValidMonth(month)) { res.status(400).json({ error: 'month must be between 1 and 12' }); return; }
 
     const schedules = scheduleRepo.findByMonth(year, month);
     const scheduleIds = schedules.map((s) => s.id);

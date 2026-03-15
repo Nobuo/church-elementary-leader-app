@@ -20,6 +20,16 @@ interface MemberRow {
   is_active: number;
 }
 
+function parseAvailableDates(json: string | null, memberId: string): string[] | null {
+  if (!json) return null;
+  try {
+    return JSON.parse(json);
+  } catch {
+    console.warn(`Invalid JSON in available_dates for member ${memberId}`);
+    return null;
+  }
+}
+
 function rowToMember(row: MemberRow): Member {
   return Member.reconstruct({
     id: asMemberId(row.id),
@@ -30,7 +40,7 @@ function rowToMember(row: MemberRow): Member {
     memberType: row.member_type as MemberType,
     sameGenderOnly: row.same_gender_only === 1,
     spouseId: row.spouse_id ? asMemberId(row.spouse_id) : null,
-    availableDates: row.available_dates ? JSON.parse(row.available_dates) : null,
+    availableDates: parseAvailableDates(row.available_dates, row.id),
     isActive: row.is_active === 1,
   });
 }

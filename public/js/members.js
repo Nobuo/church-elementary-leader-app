@@ -31,14 +31,25 @@ function renderMembers() {
       <td>${datesLabel}</td>
       <td class="${m.isActive ? 'status-active' : 'status-inactive'}">${m.isActive ? t('active') : t('inactive')}</td>
       <td>
-        <button class="btn-small" onclick="editMember('${m.id}')">${t('edit')}</button>
+        <button class="btn-small" data-action="edit" data-id="${escapeHtml(m.id)}">${t('edit')}</button>
         ${m.isActive
-          ? `<button class="btn-danger" onclick="deactivateMemberAction('${m.id}')">${t('deactivate')}</button>`
-          : `<button class="btn-small" onclick="reactivateMemberAction('${m.id}')">${t('reactivate')}</button>`}
+          ? `<button class="btn-danger" data-action="deactivate" data-id="${escapeHtml(m.id)}" data-name="${escapeHtml(m.name)}">${t('deactivate')}</button>`
+          : `<button class="btn-small" data-action="reactivate" data-id="${escapeHtml(m.id)}">${t('reactivate')}</button>`}
       </td>
     </tr>`;
   }).join('');
 }
+
+// Event delegation for member table actions
+document.getElementById('members-body')?.addEventListener('click', (e) => {
+  const btn = e.target.closest('[data-action]');
+  if (!btn) return;
+  const action = btn.dataset.action;
+  const id = btn.dataset.id;
+  if (action === 'edit') editMember(id);
+  if (action === 'deactivate') deactivateMemberAction(id);
+  if (action === 'reactivate') reactivateMemberAction(id);
+});
 
 function escapeHtml(str) {
   const div = document.createElement('div');
@@ -74,7 +85,7 @@ function openMemberForm(member) {
   // Also add current spouse if editing
   if (member?.spouseId) {
     const currentSpouse = allMembers.find(m => m.id === member.spouseId);
-    if (currentSpouse && !spouseSelect.querySelector(`option[value="${currentSpouse.id}"]`)) {
+    if (currentSpouse && !spouseSelect.querySelector(`option[value="${CSS.escape(currentSpouse.id)}"]`)) {
       const opt = document.createElement('option');
       opt.value = currentSpouse.id;
       opt.textContent = currentSpouse.name;
@@ -91,7 +102,7 @@ function openMemberForm(member) {
     allDatesCheck.checked = false;
     datesPicker.style.display = 'block';
     datesList.innerHTML = member.availableDates.map(d =>
-      `<li data-date="${d}">${d} <button type="button" class="btn-small btn-danger" onclick="removeDate(this)">&times;</button></li>`
+      `<li data-date="${escapeHtml(d)}">${escapeHtml(d)} <button type="button" class="btn-small btn-danger" data-action="remove-date">&times;</button></li>`
     ).join('');
   } else {
     allDatesCheck.checked = true;
@@ -102,6 +113,12 @@ function openMemberForm(member) {
   updateSpouseVisibility();
   dialog.showModal();
 }
+
+// Event delegation for date removal
+document.getElementById('dates-list')?.addEventListener('click', (e) => {
+  const btn = e.target.closest('[data-action="remove-date"]');
+  if (btn) btn.parentElement.remove();
+});
 
 function updateSpouseVisibility() {
   const type = document.getElementById('form-type').value;
@@ -127,17 +144,13 @@ document.getElementById('btn-add-date')?.addEventListener('click', () => {
   if (!date) return;
   const datesList = document.getElementById('dates-list');
   // Prevent duplicates
-  if (datesList.querySelector(`[data-date="${date}"]`)) return;
+  if (datesList.querySelector(`[data-date="${CSS.escape(date)}"]`)) return;
   const li = document.createElement('li');
   li.dataset.date = date;
-  li.innerHTML = `${date} <button type="button" class="btn-small btn-danger" onclick="removeDate(this)">&times;</button>`;
+  li.innerHTML = `${escapeHtml(date)} <button type="button" class="btn-small btn-danger" data-action="remove-date">&times;</button>`;
   datesList.appendChild(li);
   input.value = '';
 });
-
-function removeDate(btn) {
-  btn.parentElement.remove();
-}
 
 function getSelectedDates() {
   if (document.getElementById('form-all-dates').checked) return null;

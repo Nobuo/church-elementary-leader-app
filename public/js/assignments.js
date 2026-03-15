@@ -70,7 +70,7 @@ function renderAssignments(assignments, scheduleMap = {}) {
     const todayStr = new Date().toISOString().slice(0, 10);
     const canClear = date >= todayStr;
     const clearBtn = canClear
-      ? ` <button class="btn-small btn-clear-day" onclick="clearDayAssignments('${date}')">${t('clear')}</button>`
+      ? ` <button class="btn-small btn-clear-day" data-action="clear-day" data-date="${escapeHtml(date)}">${t('clear')}</button>`
       : '';
 
     return `<div class="assignment-day">
@@ -82,8 +82,8 @@ function renderAssignments(assignments, scheduleMap = {}) {
             const count = memberCountMap[m.id];
             const countStr = count != null ? `(${count})` : '';
             const partnerId = g.members[1 - idx]?.id || '';
-            return `<span class="member-name" data-member-id="${m.id}">${escapeHtml(m.name)}</span>${countStr}` +
-              ` <button class="replace-btn" onclick="startReplace('${g.id}','${m.id}',this)" data-assigned='${JSON.stringify([...assignedOnDate])}' data-date="${date}" data-partner-id="${partnerId}">${t('replace')}</button>`;
+            return `<span class="member-name" data-member-id="${escapeHtml(m.id)}">${escapeHtml(m.name)}</span>${countStr}` +
+              ` <button class="replace-btn" data-action="start-replace" data-assignment-id="${escapeHtml(g.id)}" data-member-id="${escapeHtml(m.id)}" data-assigned='${escapeHtml(JSON.stringify([...assignedOnDate]))}' data-date="${escapeHtml(date)}" data-partner-id="${escapeHtml(partnerId)}">${t('replace')}</button>`;
           }).join(currentLang === 'ja' ? ' ・ ' : ' & ')}</span>
         </div>
       `).join('')}
@@ -92,6 +92,15 @@ function renderAssignments(assignments, scheduleMap = {}) {
 
   container.innerHTML = html;
 }
+
+// Event delegation for assignment actions
+document.getElementById('assignments-list')?.addEventListener('click', (e) => {
+  const btn = e.target.closest('[data-action]');
+  if (!btn) return;
+  const action = btn.dataset.action;
+  if (action === 'clear-day') clearDayAssignments(btn.dataset.date);
+  if (action === 'start-replace') startReplace(btn.dataset.assignmentId, btn.dataset.memberId, btn);
+});
 
 async function generateAssignmentsAction() {
   const month = getSelectedMonth();
@@ -152,7 +161,7 @@ function showViolations(violations) {
     }
   }
   for (const id of warningMemberIds) {
-    document.querySelectorAll(`[data-member-id="${id}"]`).forEach(el => el.classList.add('warning-member'));
+    document.querySelectorAll(`[data-member-id="${CSS.escape(id)}"]`).forEach(el => el.classList.add('warning-member'));
   }
 }
 
@@ -247,22 +256,28 @@ async function startReplace(assignmentId, memberId, btnEl) {
   const sel = document.createElement('select');
   sel.className = 'replace-select';
   const timesLabel = currentLang === 'ja' ? '回' : 'x';
-  sel.innerHTML = `<option value="">--</option>` +
-    candidates.map(m => {
-      const prefix = m.recommended ? '★ ' : (m.warnings && m.warnings.length > 0 ? '⚠ ' : '');
-      const countLabel = m.count != null ? ` (${m.count}${timesLabel})` : '';
-      return `<option value="${m.id}">${prefix}${escapeHtml(m.name)}${countLabel}</option>`;
-    }).join('');
+  const defaultOpt = document.createElement('option');
+  defaultOpt.value = '';
+  defaultOpt.textContent = '--';
+  sel.appendChild(defaultOpt);
+  for (const m of candidates) {
+    const opt = document.createElement('option');
+    opt.value = m.id;
+    const prefix = m.recommended ? '★ ' : (m.warnings && m.warnings.length > 0 ? '⚠ ' : '');
+    const countLabel = m.count != null ? ` (${m.count}${timesLabel})` : '';
+    opt.textContent = `${prefix}${m.name}${countLabel}`;
+    sel.appendChild(opt);
+  }
 
   const confirmBtn = document.createElement('button');
   confirmBtn.className = 'replace-btn';
   confirmBtn.textContent = t('confirm');
-  confirmBtn.onclick = () => doReplace(assignmentId, memberId, sel.value, wrapper);
+  confirmBtn.addEventListener('click', () => doReplace(assignmentId, memberId, sel.value, wrapper));
 
   const cancelBtn = document.createElement('button');
   cancelBtn.className = 'replace-btn';
   cancelBtn.textContent = t('cancel');
-  cancelBtn.onclick = () => wrapper.remove();
+  cancelBtn.addEventListener('click', () => wrapper.remove());
 
   wrapper.appendChild(sel);
   wrapper.appendChild(confirmBtn);

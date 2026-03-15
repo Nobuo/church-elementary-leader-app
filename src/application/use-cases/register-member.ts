@@ -4,6 +4,7 @@ import { Member, CreateMemberInput } from '@domain/entities/member';
 import { MemberRepository } from '@domain/repositories/member-repository';
 import { MemberType } from '@domain/value-objects/member-type';
 import { MemberDto, toMemberDto } from '@application/dto/member-dto';
+import { isValidGender, isValidLanguage, isValidGradeGroup, isValidMemberType } from '@shared/validators';
 
 export interface RegisterMemberInput {
   name: string;
@@ -20,6 +21,11 @@ export function registerMember(
   input: RegisterMemberInput,
   memberRepo: MemberRepository,
 ): Result<MemberDto> {
+  if (!isValidGender(input.gender)) return err(`Invalid gender: ${input.gender}`);
+  if (!isValidLanguage(input.language)) return err(`Invalid language: ${input.language}`);
+  if (!isValidGradeGroup(input.gradeGroup)) return err(`Invalid gradeGroup: ${input.gradeGroup}`);
+  if (!isValidMemberType(input.memberType)) return err(`Invalid memberType: ${input.memberType}`);
+
   const spouseId = input.spouseId ? asMemberId(input.spouseId) : null;
 
   // Validate spouse exists

@@ -49,6 +49,9 @@ export class Member {
     if (!input.name.trim()) {
       return err('Name is required');
     }
+    if (input.name.length > 200) {
+      return err('Name must be 200 characters or less');
+    }
 
     if (input.memberType !== MemberType.PARENT_COUPLE && input.spouseId) {
       return err('Only PARENT_COUPLE can have a spouseId');
@@ -72,6 +75,9 @@ export class Member {
 
     if (!updated.name.trim()) {
       return err('Name is required');
+    }
+    if (updated.name.length > 200) {
+      return err('Name must be 200 characters or less');
     }
 
     if (updated.memberType !== MemberType.PARENT_COUPLE && updated.spouseId) {

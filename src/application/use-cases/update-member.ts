@@ -2,6 +2,7 @@ import { Result, ok, err } from '@shared/result';
 import { asMemberId } from '@shared/types';
 import { MemberRepository } from '@domain/repositories/member-repository';
 import { MemberDto, toMemberDto } from '@application/dto/member-dto';
+import { isValidGender, isValidLanguage, isValidGradeGroup, isValidMemberType } from '@shared/validators';
 
 export interface UpdateMemberInput {
   id: string;
@@ -21,6 +22,11 @@ export function updateMember(
 ): Result<MemberDto> {
   const member = memberRepo.findById(asMemberId(input.id));
   if (!member) return err('Member not found');
+
+  if (input.gender !== undefined && !isValidGender(input.gender)) return err(`Invalid gender: ${input.gender}`);
+  if (input.language !== undefined && !isValidLanguage(input.language)) return err(`Invalid language: ${input.language}`);
+  if (input.gradeGroup !== undefined && !isValidGradeGroup(input.gradeGroup)) return err(`Invalid gradeGroup: ${input.gradeGroup}`);
+  if (input.memberType !== undefined && !isValidMemberType(input.memberType)) return err(`Invalid memberType: ${input.memberType}`);
 
   const changes: Record<string, unknown> = {};
   if (input.name !== undefined) changes.name = input.name;
