@@ -1,7 +1,7 @@
 import express from 'express';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import type Database from 'better-sqlite3';
+import type { AppDatabase } from '@infrastructure/persistence/app-database';
 import { MemberRepository } from '@domain/repositories/member-repository';
 import { ScheduleRepository } from '@domain/repositories/schedule-repository';
 import { AssignmentRepository } from '@domain/repositories/assignment-repository';
@@ -12,7 +12,8 @@ import { createAssignmentController } from './controllers/assignment-controller.
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 export interface ServerOptions {
-  db?: Database.Database;
+  db?: AppDatabase;
+  staticDir?: string;
 }
 
 export function createServer(
@@ -24,7 +25,8 @@ export function createServer(
   const app = express();
 
   app.use(express.json());
-  app.use(express.static(path.join(__dirname, '../../public')));
+  const publicDir = options?.staticDir ?? path.join(__dirname, '../../public');
+  app.use(express.static(publicDir));
 
   app.use('/api/members', createMemberController(memberRepo));
   app.use('/api/schedules', createScheduleController(scheduleRepo));

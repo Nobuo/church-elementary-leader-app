@@ -1,4 +1,4 @@
-import Database from 'better-sqlite3';
+import type { AppDatabase } from './app-database.js';
 import { ScheduleId, asScheduleId } from '@shared/types';
 import { Schedule } from '@domain/entities/schedule';
 import { ScheduleRepository } from '@domain/repositories/schedule-repository';
@@ -24,7 +24,7 @@ function rowToSchedule(row: ScheduleRow): Schedule {
 }
 
 export class SqliteScheduleRepository implements ScheduleRepository {
-  constructor(private db: Database.Database) {}
+  constructor(private db: AppDatabase) {}
 
   save(schedule: Schedule): void {
     this.db

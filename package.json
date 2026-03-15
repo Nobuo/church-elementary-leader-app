@@ -14,7 +14,9 @@
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",
     "lint": "eslint src/ tests/",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "build:binary": "bun build --compile ./src/main-bun.ts --outfile dist/leader-app",
+    "build:binary:all": "bun build --compile --target=bun-darwin-arm64 ./src/main-bun.ts --outfile dist/leader-app-darwin-arm64 && bun build --compile --target=bun-darwin-x64 ./src/main-bun.ts --outfile dist/leader-app-darwin-x64 && bun build --compile --target=bun-windows-x64 ./src/main-bun.ts --outfile dist/leader-app-windows-x64.exe"
   },
   "engines": {
     "node": ">=20"

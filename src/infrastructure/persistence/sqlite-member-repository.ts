@@ -1,4 +1,4 @@
-import Database from 'better-sqlite3';
+import type { AppDatabase } from './app-database.js';
 import { MemberId, asMemberId } from '@shared/types';
 import { Member } from '@domain/entities/member';
 import { MemberRepository } from '@domain/repositories/member-repository';
@@ -36,7 +36,7 @@ function rowToMember(row: MemberRow): Member {
 }
 
 export class SqliteMemberRepository implements MemberRepository {
-  constructor(private db: Database.Database) {}
+  constructor(private db: AppDatabase) {}
 
   save(member: Member): void {
     this.db

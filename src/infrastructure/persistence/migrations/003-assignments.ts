@@ -1,6 +1,6 @@
-import Database from 'better-sqlite3';
+import type { AppDatabase } from '../app-database.js';
 
-export function migration003(db: Database.Database): void {
+export function migration003(db: AppDatabase): void {
   db.exec(`
     CREATE TABLE assignments (
       id TEXT PRIMARY KEY,

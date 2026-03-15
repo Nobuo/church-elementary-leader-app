@@ -1,4 +1,4 @@
-import Database from 'better-sqlite3';
+import type { AppDatabase } from './app-database.js';
 import { AssignmentId, ScheduleId, MemberId, asAssignmentId, asScheduleId, asMemberId } from '@shared/types';
 import { Assignment } from '@domain/entities/assignment';
 import { AssignmentRepository } from '@domain/repositories/assignment-repository';
@@ -21,7 +21,7 @@ function rowToAssignment(row: AssignmentRow): Assignment {
 }
 
 export class SqliteAssignmentRepository implements AssignmentRepository {
-  constructor(private db: Database.Database) {}
+  constructor(private db: AppDatabase) {}
 
   save(assignment: Assignment): void {
     this.db

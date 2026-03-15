@@ -1,4 +1,4 @@
-import Database from 'better-sqlite3';
+import type { AppDatabase } from '../app-database.js';
 import { migration001 } from './001-initial-schema.js';
 import { migration002 } from './002-schedules.js';
 import { migration003 } from './003-assignments.js';
@@ -7,7 +7,7 @@ import { migration005 } from './005-schedule-split-class.js';
 
 const migrations = [migration001, migration002, migration003, migration004, migration005];
 
-export function runMigrations(db: Database.Database): void {
+export function runMigrations(db: AppDatabase): void {
   db.exec(`
     CREATE TABLE IF NOT EXISTS schema_migrations (
       version INTEGER PRIMARY KEY,
