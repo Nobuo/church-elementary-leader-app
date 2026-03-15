@@ -45,7 +45,7 @@ const DB_FILENAME = 'leader-app.db';
 - `migrateOldDbIfNeeded()` はtmpディレクトリでの実ファイルコピーテスト
 
 ## 完了条件
-- [ ] `resolveDataDir()` が macOS/Windows/Linux で正しいパスを返す
-- [ ] `resolveDbPath()` が `DB_PATH` 優先で動作する
-- [ ] `migrateOldDbIfNeeded()` がコピーと非破壊を保証する
-- [ ] ユニットテストが通る
+- [x] `resolveDataDir()` が macOS/Windows/Linux で正しいパスを返す
+- [x] `resolveDbPath()` が `DB_PATH` 優先で動作する
+- [x] `migrateOldDbIfNeeded()` がコピーと非破壊を保証する
+- [x] ユニットテストが通る

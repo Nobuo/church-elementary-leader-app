@@ -79,7 +79,7 @@ describe('handleMigrateTarget', () => {
 - ファイル操作テスト: tmpディレクトリを使った実ファイルコピー検証
 
 ## 完了条件
-- [ ] `data-dir.test.ts` の全テストケースが通る
-- [ ] `migrations.test.ts` の全テストケースが通る
-- [ ] 既存テスト (`npm run test`) が全て通る
-- [ ] `npm run test:e2e` が通る（DB_PATH指定で既存動作を維持）
+- [x] `data-dir.test.ts` の全テストケースが通る
+- [x] `migrations.test.ts` の全テストケースが通る
+- [x] 既存テスト (`npm run test`) が全て通る
+- [x] `npm run test:e2e` が通る（DB_PATH指定で既存動作を維持）
