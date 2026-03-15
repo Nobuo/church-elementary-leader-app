@@ -51,6 +51,9 @@ test('E1.4 deactivate a member', async ({ page, request }) => {
 
   const initialRows = await page.locator('#members-body tr').count();
 
+  // Accept the confirmation dialog
+  page.on('dialog', dialog => dialog.accept());
+
   // Click first deactivate button
   await page.click('#members-body tr:first-child button:has-text("無効化")');
   await page.waitForTimeout(500);
@@ -63,6 +66,9 @@ test('E1.5 show inactive members', async ({ page, request }) => {
   await seedStandardMembers(request);
   await page.goto('/');
   await page.waitForSelector('#members-body tr');
+
+  // Accept the confirmation dialog
+  page.on('dialog', dialog => dialog.accept());
 
   // Deactivate one
   await page.click('#members-body tr:first-child button:has-text("無効化")');
