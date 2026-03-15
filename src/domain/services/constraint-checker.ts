@@ -1,7 +1,7 @@
 import { MemberId } from '@shared/types';
 import { Member } from '@domain/entities/member';
 import { Assignment } from '@domain/entities/assignment';
-import { coversJapanese, coversEnglish } from '@domain/value-objects/language';
+import { Language, coversJapanese, coversEnglish } from '@domain/value-objects/language';
 import { MemberType } from '@domain/value-objects/member-type';
 import {
   ConstraintViolation,
@@ -164,6 +164,25 @@ export function checkExcessiveCount(
   }
 
   return violations;
+}
+
+export function checkClassLanguageCoverage(
+  allMembers: Member[],
+): ConstraintViolation[] {
+  const bothCount = allMembers.filter((m) => m.language === Language.BOTH).length;
+  if (bothCount < 2) {
+    return [
+      {
+        type: ViolationType.CLASS_LANGUAGE_COVERAGE,
+        severity: Severity.WARNING,
+        memberIds: allMembers.map((m) => m.id),
+        message: `Not enough bilingual leaders for split-class day (required: 2, actual: ${bothCount})`,
+        messageKey: 'violations.classLanguageCoverage',
+        messageParams: { count: String(bothCount) },
+      },
+    ];
+  }
+  return [];
 }
 
 export function checkAll(

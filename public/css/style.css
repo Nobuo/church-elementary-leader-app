@@ -179,6 +179,26 @@ dialog::backdrop { background: rgba(0,0,0,0.3); }
   font-weight: 600;
 }
 
+.schedule-card.split-class {
+  background: #fefce8;
+  border-color: #fde68a;
+}
+.btn-split.active {
+  background: #ca8a04;
+  color: #fff;
+  border-color: #ca8a04;
+}
+.split-tag {
+  display: inline-block;
+  background: #fef3c7;
+  color: #92400e;
+  font-size: 0.75rem;
+  padding: 1px 6px;
+  border-radius: 4px;
+  margin-left: 4px;
+  font-weight: 600;
+}
+
 .assignment-day {
   border: 1px solid #ddd;
   border-radius: 8px;

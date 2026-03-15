@@ -23,8 +23,9 @@ function renderSchedules(schedules) {
     const tags = [
       s.isExcluded ? t('excluded') : '',
       s.isEvent ? t('eventDay') : '',
+      s.isSplitClass ? t('splitClassDay') : '',
     ].filter(Boolean).join(' / ');
-    return `<div class="schedule-card ${s.isExcluded ? 'excluded' : ''} ${s.isEvent ? 'event-day' : ''}">
+    return `<div class="schedule-card ${s.isExcluded ? 'excluded' : ''} ${s.isEvent ? 'event-day' : ''} ${s.isSplitClass ? 'split-class' : ''}">
       <div class="date">${label}</div>
       <div>${tags}</div>
       <div class="schedule-actions">
@@ -33,6 +34,9 @@ function renderSchedules(schedules) {
         </button>
         <button class="btn-small btn-event ${s.isEvent ? 'active' : ''}" onclick="toggleScheduleEvent('${s.id}')">
           ${t('event')}
+        </button>
+        <button class="btn-small btn-split ${s.isSplitClass ? 'active' : ''}" onclick="toggleScheduleSplitClass('${s.id}')">
+          ${t('splitClass')}
         </button>
       </div>
     </div>`;
@@ -64,6 +68,15 @@ async function toggleScheduleExclusion(id) {
 async function toggleScheduleEvent(id) {
   try {
     await API.post(`/api/schedules/${id}/toggle-event`);
+    loadSchedules();
+  } catch (e) {
+    alert(e.message);
+  }
+}
+
+async function toggleScheduleSplitClass(id) {
+  try {
+    await API.post(`/api/schedules/${id}/toggle-split-class`);
     loadSchedules();
   } catch (e) {
     alert(e.message);

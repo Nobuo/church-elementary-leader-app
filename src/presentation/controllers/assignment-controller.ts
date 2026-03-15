@@ -19,6 +19,7 @@ import {
   checkMonthlyDuplicate,
   checkMinInterval,
 } from '@domain/services/constraint-checker';
+import { Language } from '@domain/value-objects/language';
 import { getFiscalYear } from '@domain/value-objects/fiscal-year';
 import { formatCsv } from '@domain/services/csv-formatter';
 import { formatLineMessage } from '@domain/services/line-message-formatter';
@@ -104,9 +105,10 @@ export function createAssignmentController(
       return;
     }
 
-    // Check if this date is an event day
+    // Check schedule flags
     const schedule = scheduleRepo.findByDate(date);
     const isEventDay = schedule?.isEvent ?? false;
+    const isSplitClass = schedule?.isSplitClass ?? false;
 
     const activeMembers = memberRepo.findAll(true);
     const partner = partnerId ? memberRepo.findById(partnerId as MemberId) : null;
@@ -156,6 +158,14 @@ export function createAssignmentController(
 
         // Min interval
         if (checkMinInterval(m.id, date, allAssignments, scheduleDateMap)) warnings.push('minInterval');
+
+        // Class language coverage on split-class days
+        // Approximate: we don't have full day assignment context here, so warn all
+        // non-BOTH candidates. In practice, replacing with a non-BOTH member may
+        // bring the total BOTH count below the required 2.
+        if (isSplitClass && m.language !== Language.BOTH) {
+          warnings.push('classLanguageCoverage');
+        }
 
         // Excessive count
         const count = countMap.get(m.id) ?? 0;

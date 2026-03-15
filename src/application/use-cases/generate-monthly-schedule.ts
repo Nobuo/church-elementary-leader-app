@@ -8,11 +8,12 @@ export interface ScheduleDto {
   date: string;
   isExcluded: boolean;
   isEvent: boolean;
+  isSplitClass: boolean;
   year: number;
 }
 
 function toScheduleDto(s: Schedule): ScheduleDto {
-  return { id: s.id, date: s.date, isExcluded: s.isExcluded, isEvent: s.isEvent, year: s.year };
+  return { id: s.id, date: s.date, isExcluded: s.isExcluded, isEvent: s.isEvent, isSplitClass: s.isSplitClass, year: s.year };
 }
 
 export function generateMonthlySchedule(
@@ -60,6 +61,18 @@ export function toggleEvent(
   if (!schedule) return { ok: false, error: 'Schedule not found' };
 
   const toggled = schedule.toggleEvent();
+  scheduleRepo.save(toggled);
+  return ok(toScheduleDto(toggled));
+}
+
+export function toggleSplitClass(
+  scheduleId: string,
+  scheduleRepo: ScheduleRepository,
+): Result<ScheduleDto> {
+  const schedule = scheduleRepo.findById(asScheduleId(scheduleId));
+  if (!schedule) return { ok: false, error: 'Schedule not found' };
+
+  const toggled = schedule.toggleSplitClass();
   scheduleRepo.save(toggled);
   return ok(toScheduleDto(toggled));
 }

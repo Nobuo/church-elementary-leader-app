@@ -44,6 +44,8 @@ export const en = {
     exclude: 'Exclude',
     event: 'Event',
     eventDay: 'Event Day',
+    splitClass: 'Split',
+    splitClassDay: 'Split Class',
   },
   assignments: {
     title: 'Assignment Results',
@@ -84,6 +86,7 @@ export const en = {
     monthlyDuplicateNamed: '{name} is already assigned this month',
     spousesPaired: 'Spouses {name1} and {name2} paired together',
     sameGenderViolated: 'Same-gender constraint violated for {name1} or {name2}',
+    classLanguageCoverage: 'Not enough bilingual leaders for split-class day (required: 2, actual: {count})',
     helperOnEventDay: 'HELPER members cannot be assigned on event days',
     tooMany: 'too many',
     tooFew: 'too few',

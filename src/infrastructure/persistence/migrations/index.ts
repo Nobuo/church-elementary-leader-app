@@ -3,8 +3,9 @@ import { migration001 } from './001-initial-schema.js';
 import { migration002 } from './002-schedules.js';
 import { migration003 } from './003-assignments.js';
 import { migration004 } from './004-schedule-events.js';
+import { migration005 } from './005-schedule-split-class.js';
 
-const migrations = [migration001, migration002, migration003, migration004];
+const migrations = [migration001, migration002, migration003, migration004, migration005];
 
 export function runMigrations(db: Database.Database): void {
   db.exec(`

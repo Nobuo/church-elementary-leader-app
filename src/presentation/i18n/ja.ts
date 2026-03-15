@@ -44,6 +44,8 @@ export const ja = {
     exclude: '除外する',
     event: 'イベント',
     eventDay: 'イベント日',
+    splitClass: '分級',
+    splitClassDay: '分級あり',
   },
   assignments: {
     title: '割り当て結果',
@@ -84,6 +86,7 @@ export const ja = {
     monthlyDuplicateNamed: '{name}は当月に既に割り当てられています',
     spousesPaired: '{name1}と{name2}（配偶者）が同じグループです',
     sameGenderViolated: '{name1}または{name2}の同性ペア制約に違反しています',
+    classLanguageCoverage: '分級日にバイリンガル担当者が不足しています（必要: 2名、実際: {count}名）',
     helperOnEventDay: 'イベント日にはヘルパーを割り当てできません',
     tooMany: '多すぎ',
     tooFew: '少なすぎ',

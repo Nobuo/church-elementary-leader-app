@@ -12,6 +12,7 @@ import {
   checkSpouseSameGroup,
   checkMonthlyDuplicate,
   checkMinInterval,
+  checkClassLanguageCoverage,
 } from '@domain/services/constraint-checker';
 import { MemberType } from '@domain/value-objects/member-type';
 import { getFiscalYear } from '@domain/value-objects/fiscal-year';
@@ -166,6 +167,21 @@ export function adjustAssignment(
     if (genderViolation) violations.push(genderViolation);
     const spouseViolation = checkSpouseSameGroup(m1, m2);
     if (spouseViolation) violations.push(spouseViolation);
+
+    // Check class language coverage on split-class days
+    if (schedule?.isSplitClass) {
+      const sameDateAssignments = assignmentRepo.findByScheduleIds([updated.scheduleId]);
+      const otherGroup = sameDateAssignments.find((a) => a.id !== updated.id);
+      if (otherGroup) {
+        const otherM1 = memberRepo.findById(otherGroup.memberIds[0]);
+        const otherM2 = memberRepo.findById(otherGroup.memberIds[1]);
+        if (otherM1 && otherM2) {
+          const allMembers = [m1, m2, otherM1, otherM2];
+          const classViolations = checkClassLanguageCoverage(allMembers);
+          violations.push(...classViolations);
+        }
+      }
+    }
   }
 
   // Check monthly duplicate and min interval for the new member

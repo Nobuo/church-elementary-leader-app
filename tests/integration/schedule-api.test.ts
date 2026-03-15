@@ -94,4 +94,37 @@ describe('Schedule API', () => {
       await t.request.post('/api/schedules/non-existent/toggle-event').expect(400);
     });
   });
+
+  describe('POST /api/schedules/:id/toggle-split-class', () => {
+    it('2.12 toggles split-class on', async () => {
+      const schedules = await t.request.post('/api/schedules/generate').send({ year: 2027, month: 4 }).expect(200);
+      const id = schedules.body[0].id;
+
+      const res = await t.request.post(`/api/schedules/${id}/toggle-split-class`).expect(200);
+      expect(res.body.isSplitClass).toBe(true);
+    });
+
+    it('2.13 toggles split-class off', async () => {
+      const schedules = await t.request.post('/api/schedules/generate').send({ year: 2027, month: 4 }).expect(200);
+      const id = schedules.body[0].id;
+
+      await t.request.post(`/api/schedules/${id}/toggle-split-class`).expect(200);
+      const res = await t.request.post(`/api/schedules/${id}/toggle-split-class`).expect(200);
+      expect(res.body.isSplitClass).toBe(false);
+    });
+
+    it('2.14 isSplitClass appears in GET response', async () => {
+      const schedules = await t.request.post('/api/schedules/generate').send({ year: 2027, month: 4 }).expect(200);
+      const id = schedules.body[0].id;
+      await t.request.post(`/api/schedules/${id}/toggle-split-class`).expect(200);
+
+      const res = await t.request.get('/api/schedules?year=2027&month=4').expect(200);
+      const updated = res.body.find((s: { id: string }) => s.id === id);
+      expect(updated.isSplitClass).toBe(true);
+    });
+
+    it('2.15 returns 400 for non-existent ID', async () => {
+      await t.request.post('/api/schedules/non-existent/toggle-split-class').expect(400);
+    });
+  });
 });

@@ -7,6 +7,7 @@ export interface ScheduleProps {
   readonly date: string; // ISO date string (YYYY-MM-DD)
   readonly isExcluded: boolean;
   readonly isEvent: boolean;
+  readonly isSplitClass: boolean;
   readonly year: number; // fiscal year
 }
 
@@ -15,6 +16,7 @@ export class Schedule {
   readonly date: string;
   readonly isExcluded: boolean;
   readonly isEvent: boolean;
+  readonly isSplitClass: boolean;
   readonly year: number;
 
   private constructor(props: ScheduleProps) {
@@ -22,6 +24,7 @@ export class Schedule {
     this.date = props.date;
     this.isExcluded = props.isExcluded;
     this.isEvent = props.isEvent;
+    this.isSplitClass = props.isSplitClass;
     this.year = props.year;
   }
 
@@ -37,6 +40,7 @@ export class Schedule {
         date,
         isExcluded: false,
         isEvent: false,
+        isSplitClass: false,
         year: getFiscalYear(d),
       }),
     );
@@ -64,6 +68,13 @@ export class Schedule {
     return new Schedule({
       ...this,
       isEvent: !this.isEvent,
+    });
+  }
+
+  toggleSplitClass(): Schedule {
+    return new Schedule({
+      ...this,
+      isSplitClass: !this.isSplitClass,
     });
   }
 }

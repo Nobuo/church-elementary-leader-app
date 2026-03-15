@@ -4,6 +4,7 @@ import {
   generateMonthlySchedule,
   toggleExclusion,
   toggleEvent,
+  toggleSplitClass,
   listSchedules,
 } from '@application/use-cases/generate-monthly-schedule';
 
@@ -45,6 +46,15 @@ export function createScheduleController(scheduleRepo: ScheduleRepository): Rout
 
   router.post('/:id/toggle-event', (req: Request, res: Response) => {
     const result = toggleEvent(String(req.params.id), scheduleRepo);
+    if (!result.ok) {
+      res.status(400).json({ error: result.error });
+      return;
+    }
+    res.json(result.value);
+  });
+
+  router.post('/:id/toggle-split-class', (req: Request, res: Response) => {
+    const result = toggleSplitClass(String(req.params.id), scheduleRepo);
     if (!result.ok) {
       res.status(400).json({ error: result.error });
       return;

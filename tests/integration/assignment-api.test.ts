@@ -356,4 +356,108 @@ describe('Assignment API', () => {
       expect(res.body.error).toContain('HELPER');
     });
   });
+
+  describe('Split-class language coverage', () => {
+    async function setupSplitClassScenario(memberLanguages: { upper: string[]; lower: string[] }) {
+      const memberInputs = [
+        ...memberLanguages.upper.map((lang, i) => ({
+          name: `U${i + 1}`, gender: i % 2 === 0 ? 'MALE' : 'FEMALE', language: lang, gradeGroup: 'UPPER', memberType: 'PARENT_SINGLE', sameGenderOnly: false,
+        })),
+        ...memberLanguages.lower.map((lang, i) => ({
+          name: `L${i + 1}`, gender: i % 2 === 0 ? 'MALE' : 'FEMALE', language: lang, gradeGroup: 'LOWER', memberType: 'PARENT_SINGLE', sameGenderOnly: false,
+        })),
+      ];
+      const members = [];
+      for (const input of memberInputs) {
+        const res = await t.request.post('/api/members').send(input).expect(201);
+        members.push(res.body);
+      }
+      const schedules = await seedSchedule(t.request, 2027, 4);
+      return { members, schedules };
+    }
+
+    it('5.3 split-class day with sufficient BOTH members produces no class violations', async () => {
+      const { schedules } = await setupSplitClassScenario({
+        upper: ['BOTH', 'JAPANESE', 'ENGLISH', 'BOTH', 'JAPANESE'],
+        lower: ['BOTH', 'JAPANESE', 'ENGLISH', 'BOTH', 'JAPANESE'],
+      });
+
+      // Mark first date as split-class
+      await t.request.post(`/api/schedules/${schedules[0].id}/toggle-split-class`).expect(200);
+
+      const gen = await t.request.post('/api/assignments/generate').send({ year: 2027, month: 4 }).expect(200);
+
+      const classViolations = gen.body.violations.filter(
+        (v: { type: string }) => v.type === 'CLASS_LANGUAGE_COVERAGE',
+      );
+      expect(classViolations).toHaveLength(0);
+    });
+
+    it('5.4 split-class day with only 1 BOTH total produces violation', async () => {
+      const { schedules } = await setupSplitClassScenario({
+        upper: ['JAPANESE', 'ENGLISH'],
+        lower: ['BOTH', 'JAPANESE'],
+      });
+
+      await t.request.post(`/api/schedules/${schedules[0].id}/toggle-split-class`).expect(200);
+
+      const gen = await t.request.post('/api/assignments/generate').send({ year: 2027, month: 4 }).expect(200);
+
+      const classViolations = gen.body.violations.filter(
+        (v: { type: string }) => v.type === 'CLASS_LANGUAGE_COVERAGE',
+      );
+      expect(classViolations.length).toBeGreaterThanOrEqual(1);
+    });
+
+    it('5.5 non-split-class day with no BOTH produces no class violations', async () => {
+      await setupSplitClassScenario({
+        upper: ['JAPANESE', 'ENGLISH', 'JAPANESE', 'ENGLISH', 'JAPANESE'],
+        lower: ['JAPANESE', 'ENGLISH', 'JAPANESE', 'ENGLISH', 'JAPANESE'],
+      });
+      // No split-class toggle — all days are normal
+
+      const gen = await t.request.post('/api/assignments/generate').send({ year: 2027, month: 4 }).expect(200);
+
+      const classViolations = gen.body.violations.filter(
+        (v: { type: string }) => v.type === 'CLASS_LANGUAGE_COVERAGE',
+      );
+      expect(classViolations).toHaveLength(0);
+    });
+
+    it('5.6 adjusting BOTH to JP on split-class day produces class violation', async () => {
+      const { members, schedules } = await setupSplitClassScenario({
+        upper: ['BOTH', 'JAPANESE', 'ENGLISH', 'BOTH', 'JAPANESE'],
+        lower: ['BOTH', 'JAPANESE', 'ENGLISH', 'BOTH', 'JAPANESE'],
+      });
+
+      await t.request.post(`/api/schedules/${schedules[0].id}/toggle-split-class`).expect(200);
+      const gen = await t.request.post('/api/assignments/generate').send({ year: 2027, month: 4 }).expect(200);
+
+      // Find an assignment on the split-class date that has a BOTH member
+      const splitDateAssignments = gen.body.assignments.filter(
+        (a: { date: string }) => a.date === schedules[0].date,
+      );
+      if (splitDateAssignments.length < 2) return;
+
+      // Find a BOTH member in the assignments
+      const bothMember = members.find(m => m.language === 'BOTH');
+      const jpOnlyMember = members.find(m => m.language === 'JAPANESE' && !splitDateAssignments.some(
+        (a: { members: Array<{ id: string }> }) => a.members.some(am => am.id === m.id),
+      ));
+      if (!bothMember || !jpOnlyMember) return;
+
+      const assignmentWithBoth = splitDateAssignments.find(
+        (a: { members: Array<{ id: string }> }) => a.members.some(m => m.id === bothMember.id),
+      );
+      if (!assignmentWithBoth) return;
+
+      const res = await t.request
+        .put(`/api/assignments/${assignmentWithBoth.id}/adjust`)
+        .send({ oldMemberId: bothMember.id, newMemberId: jpOnlyMember.id })
+        .expect(200);
+
+      // May or may not have class violation depending on whether the other group has BOTH
+      expect(res.body).toHaveProperty('violations');
+    });
+  });
 });

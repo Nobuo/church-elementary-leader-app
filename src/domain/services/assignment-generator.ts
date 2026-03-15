@@ -4,7 +4,7 @@ import { Schedule } from '@domain/entities/schedule';
 import { Assignment } from '@domain/entities/assignment';
 import { GradeGroup } from '@domain/value-objects/grade-group';
 import { MemberType } from '@domain/value-objects/member-type';
-import { coversJapanese, coversEnglish } from '@domain/value-objects/language';
+import { Language, coversJapanese, coversEnglish } from '@domain/value-objects/language';
 import {
   ConstraintViolation,
   ViolationType,
@@ -28,6 +28,10 @@ function pairKey(a: MemberId, b: MemberId): string {
   return [a, b].sort().join('-');
 }
 
+interface ClassContext {
+  group1Members: [Member, Member];
+}
+
 /**
  * Score a candidate pair for a group assignment.
  * Lower score = better candidate.
@@ -39,6 +43,7 @@ function scorePair(
   monthAssignments: Assignment[],
   dayAssignments: Assignment[],
   pastPairCounts: Map<string, number>,
+  classContext?: ClassContext,
 ): { score: number; violations: ConstraintViolation[] } {
   let score = 0;
   const violations: ConstraintViolation[] = [];
@@ -48,6 +53,23 @@ function scorePair(
   const hasEnglish = coversEnglish(member1.language) || coversEnglish(member2.language);
   if (!hasJapanese || !hasEnglish) {
     score += 100000; // effectively impossible
+  }
+
+  // HARD: Class language coverage (split-class days only)
+  if (classContext) {
+    const allFour = [...classContext.group1Members, member1, member2];
+    const bothCount = allFour.filter((m) => m.language === Language.BOTH).length;
+    if (bothCount < 2) {
+      score += 100000;
+      violations.push({
+        type: ViolationType.CLASS_LANGUAGE_COVERAGE,
+        severity: Severity.WARNING,
+        memberIds: allFour.map((m) => m.id),
+        message: `Not enough bilingual leaders for split-class day (required: 2, actual: ${bothCount})`,
+        messageKey: 'violations.classLanguageCoverage',
+        messageParams: { count: String(bothCount) },
+      });
+    }
   }
 
   // HARD: Same-gender constraint
@@ -225,6 +247,11 @@ export function generateAssignments(
       const remainingUpper = upperMembers.filter((m) => !usedIds.has(m.id));
       const remainingLower = lowerMembers.filter((m) => !usedIds.has(m.id));
 
+      // On split-class days, pass class context so Group 2 considers bilingual coverage
+      const group2ClassContext = schedule.isSplitClass
+        ? { group1Members: [group1Result.upper, group1Result.lower] as [Member, Member] }
+        : undefined;
+
       const group2Result = pickBestPair(
         remainingUpper,
         remainingLower,
@@ -232,6 +259,7 @@ export function generateAssignments(
         monthAssignments,
         dayAssignments,
         pastPairCounts,
+        group2ClassContext,
       );
 
       if (group2Result) {
@@ -287,6 +315,7 @@ function pickBestPair(
   monthAssignments: Assignment[],
   dayAssignments: Assignment[],
   pastPairCounts: Map<string, number>,
+  classContext?: ClassContext,
 ): PairResult | null {
   if (upperCandidates.length === 0 || lowerCandidates.length === 0) return null;
 
@@ -302,6 +331,7 @@ function pickBestPair(
         monthAssignments,
         dayAssignments,
         pastPairCounts,
+        classContext,
       );
 
       if (score < bestScore) {
@@ -321,6 +351,7 @@ function pickBestPair(
       monthAssignments,
       dayAssignments,
       pastPairCounts,
+      classContext,
     );
     bestPair.violations = violations;
   }
