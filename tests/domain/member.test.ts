@@ -67,6 +67,16 @@ describe('Member', () => {
     expect(deactivated.name).toBe('Taro Tanaka');
   });
 
+  it('reactivates a deactivated member', () => {
+    const result = Member.create(validInput);
+    if (!result.ok) throw new Error('should succeed');
+    const deactivated = result.value.deactivate();
+    expect(deactivated.isActive).toBe(false);
+    const reactivated = deactivated.reactivate();
+    expect(reactivated.isActive).toBe(true);
+    expect(reactivated.name).toBe('Taro Tanaka');
+  });
+
   it('checks availability when no constraints', () => {
     const result = Member.create(validInput);
     if (!result.ok) throw new Error('should succeed');

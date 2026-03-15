@@ -6,9 +6,16 @@ import { MemberId, ScheduleId } from '@shared/types';
 type Lang = 'ja' | 'en';
 
 const headers: Record<Lang, string[]> = {
-  ja: ['日付', 'グループ番号', 'メンバー1', 'メンバー1言語', 'メンバー2', 'メンバー2言語'],
-  en: ['Date', 'Group', 'Member 1', 'Member 1 Language', 'Member 2', 'Member 2 Language'],
+  ja: ['日付', 'イベント日', '分級', 'グループ番号', 'メンバー1', 'メンバー1言語', 'メンバー2', 'メンバー2言語'],
+  en: ['Date', 'Event Day', 'Split Class', 'Group', 'Member 1', 'Member 1 Language', 'Member 2', 'Member 2 Language'],
 };
+
+function escapeCsvField(field: string): string {
+  if (field.includes(',') || field.includes('"') || field.includes('\n')) {
+    return `"${field.replace(/"/g, '""')}"`;
+  }
+  return field;
+}
 
 export function formatCsv(
   assignments: Assignment[],
@@ -39,12 +46,14 @@ export function formatCsv(
 
     lines.push(
       [
-        date,
-        assignment.groupNumber,
-        m1?.name ?? '',
-        m1?.language ?? '',
-        m2?.name ?? '',
-        m2?.language ?? '',
+        escapeCsvField(date),
+        schedule?.isEvent ? 'TRUE' : 'FALSE',
+        schedule?.isSplitClass ? 'TRUE' : 'FALSE',
+        String(assignment.groupNumber),
+        escapeCsvField(m1?.name ?? ''),
+        escapeCsvField(m1?.language ?? ''),
+        escapeCsvField(m2?.name ?? ''),
+        escapeCsvField(m2?.language ?? ''),
       ].join(','),
     );
   }

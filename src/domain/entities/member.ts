@@ -85,6 +85,10 @@ export class Member {
     return new Member({ ...this.toProps(), isActive: false });
   }
 
+  reactivate(): Member {
+    return new Member({ ...this.toProps(), isActive: true });
+  }
+
   withSpouseId(spouseId: MemberId | null): Member {
     return new Member({ ...this.toProps(), spouseId });
   }

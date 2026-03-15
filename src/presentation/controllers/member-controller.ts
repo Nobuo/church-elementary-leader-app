@@ -4,7 +4,7 @@ import { Member } from '@domain/entities/member';
 import { MemberRepository } from '@domain/repositories/member-repository';
 import { registerMember } from '@application/use-cases/register-member';
 import { updateMember } from '@application/use-cases/update-member';
-import { deactivateMember } from '@application/use-cases/deactivate-member';
+import { deactivateMember, reactivateMember } from '@application/use-cases/deactivate-member';
 import { listMembers } from '@application/use-cases/list-members';
 import { formatMemberCsv } from '@domain/services/member-csv-formatter';
 import { importMembersCsv } from '@application/use-cases/import-members-csv';
@@ -60,6 +60,15 @@ export function createMemberController(memberRepo: MemberRepository): Router {
 
   router.post('/:id/deactivate', (req: Request, res: Response) => {
     const result = deactivateMember(String(req.params.id), memberRepo);
+    if (!result.ok) {
+      res.status(400).json({ error: result.error });
+      return;
+    }
+    res.json(result.value);
+  });
+
+  router.post('/:id/reactivate', (req: Request, res: Response) => {
+    const result = reactivateMember(String(req.params.id), memberRepo);
     if (!result.ok) {
       res.status(400).json({ error: result.error });
       return;

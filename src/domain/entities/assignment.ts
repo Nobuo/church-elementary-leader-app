@@ -38,6 +38,9 @@ export class Assignment {
   }
 
   replaceMember(oldMemberId: MemberId, newMemberId: MemberId): Assignment {
+    if (!this.memberIds.includes(oldMemberId)) {
+      throw new Error(`Member ${oldMemberId} is not in this assignment`);
+    }
     const newMemberIds = this.memberIds.map((id) =>
       id === oldMemberId ? newMemberId : id,
     ) as [MemberId, MemberId];

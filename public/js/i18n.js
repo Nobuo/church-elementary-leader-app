@@ -77,6 +77,14 @@ const I18N = {
     clearConfirm: 'この日の割り当てをクリアしますか？',
     pastAssignmentWarning: '過去の割り当てを変更しようとしています。続けますか？',
     cannotClearPast: '過去の割り当てはクリアできません',
+    deactivateConfirm: '「{name}」を無効化しますか？',
+    regenerateConfirm: '既存の割り当てが上書きされます。再生成しますか？',
+    reactivate: '有効化',
+    availableDates: '出席可能日',
+    allDays: '全日',
+    days: '日',
+    addDate: '追加',
+    allDatesAvailable: '全日参加可',
     'violations.languageCoverage': '{missing}の言語カバーがありません',
     'violations.sameGender': '{name}は同性ペアが必要です',
     'violations.monthlyDuplicate': '当月に既に割り当てられています',
@@ -171,6 +179,14 @@ const I18N = {
     clearConfirm: 'Clear assignments for this date?',
     pastAssignmentWarning: 'You are about to modify a past assignment. Continue?',
     cannotClearPast: 'Cannot clear past assignments',
+    deactivateConfirm: 'Deactivate "{name}"?',
+    regenerateConfirm: 'Existing assignments will be overwritten. Regenerate?',
+    reactivate: 'Reactivate',
+    availableDates: 'Available Dates',
+    allDays: 'All',
+    days: ' days',
+    addDate: 'Add',
+    allDatesAvailable: 'Available all days',
     'violations.languageCoverage': 'Group lacks {missing} language coverage',
     'violations.sameGender': '{name} requires same-gender pairing',
     'violations.monthlyDuplicate': 'Member is already assigned this month',
@@ -217,6 +233,7 @@ function updateUILanguage() {
   document.getElementById('th-type').textContent = t('memberType');
   document.getElementById('th-same-gender').textContent = t('sameGenderOnly');
   document.getElementById('th-spouse').textContent = t('spouse');
+  document.getElementById('th-available-dates').textContent = t('availableDates');
   document.getElementById('th-status').textContent = t('status');
   document.getElementById('th-actions').textContent = t('actions');
   document.getElementById('schedules-title').textContent = t('schedulesTitle');

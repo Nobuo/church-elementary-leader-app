@@ -1,7 +1,6 @@
 async function loadSchedules() {
-  const year = parseInt(document.getElementById('fiscal-year').value);
-  const month = parseInt(document.getElementById('month-select').value);
-  const calYear = month <= 3 ? year + 1 : year;
+  const month = getSelectedMonth();
+  const calYear = getCalendarYear();
 
   try {
     const schedules = await API.get(`/api/schedules?year=${calYear}&month=${month}`);
@@ -32,10 +31,10 @@ function renderSchedules(schedules) {
         <button class="btn-small" onclick="toggleScheduleExclusion('${s.id}')">
           ${s.isExcluded ? t('include') : t('exclude')}
         </button>
-        <button class="btn-small btn-event ${s.isEvent ? 'active' : ''}" onclick="toggleScheduleEvent('${s.id}')">
+        <button class="btn-small btn-event ${s.isEvent ? 'active' : ''}" onclick="toggleScheduleEvent('${s.id}')" ${s.isExcluded ? 'disabled' : ''}>
           ${t('event')}
         </button>
-        <button class="btn-small btn-split ${s.isSplitClass ? 'active' : ''}" onclick="toggleScheduleSplitClass('${s.id}')">
+        <button class="btn-small btn-split ${s.isSplitClass ? 'active' : ''}" onclick="toggleScheduleSplitClass('${s.id}')" ${s.isExcluded ? 'disabled' : ''}>
           ${t('splitClass')}
         </button>
       </div>
@@ -44,9 +43,8 @@ function renderSchedules(schedules) {
 }
 
 async function generateSchedules() {
-  const year = parseInt(document.getElementById('fiscal-year').value);
-  const month = parseInt(document.getElementById('month-select').value);
-  const calYear = month <= 3 ? year + 1 : year;
+  const month = getSelectedMonth();
+  const calYear = getCalendarYear();
 
   try {
     await API.post('/api/schedules/generate', { year: calYear, month });

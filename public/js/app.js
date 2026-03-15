@@ -59,6 +59,19 @@ function onDateChange() {
   else if (activePage === 'assignments') loadAssignments();
 }
 
+function getSelectedFiscalYear() {
+  return parseInt(document.getElementById('fiscal-year').value);
+}
+
+function getSelectedMonth() {
+  return parseInt(document.getElementById('month-select').value);
+}
+
+function getCalendarYear() {
+  const month = getSelectedMonth();
+  return month <= 3 ? getSelectedFiscalYear() + 1 : getSelectedFiscalYear();
+}
+
 // Initialize
 initDateSelectors();
 loadMembers();

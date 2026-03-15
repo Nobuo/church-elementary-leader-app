@@ -1,9 +1,9 @@
 let memberCountMap = {};
 
 async function loadAssignments() {
-  const year = parseInt(document.getElementById('fiscal-year').value);
-  const month = parseInt(document.getElementById('month-select').value);
-  const calYear = month <= 3 ? year + 1 : year;
+  const year = getSelectedFiscalYear();
+  const month = getSelectedMonth();
+  const calYear = getCalendarYear();
 
   // Load counts first so we can display them alongside assignments
   try {
@@ -94,9 +94,16 @@ function renderAssignments(assignments, scheduleMap = {}) {
 }
 
 async function generateAssignmentsAction() {
-  const year = parseInt(document.getElementById('fiscal-year').value);
-  const month = parseInt(document.getElementById('month-select').value);
-  const calYear = month <= 3 ? year + 1 : year;
+  const month = getSelectedMonth();
+  const calYear = getCalendarYear();
+
+  // Check if assignments already exist for this month
+  try {
+    const existing = await API.get(`/api/assignments?year=${calYear}&month=${month}`);
+    if (existing && existing.length > 0) {
+      if (!confirm(t('regenerateConfirm'))) return;
+    }
+  } catch (_) { /* no existing assignments */ }
 
   try {
     const result = await API.post('/api/assignments/generate', { year: calYear, month });
@@ -150,16 +157,14 @@ function showViolations(violations) {
 }
 
 async function exportCsv() {
-  const year = parseInt(document.getElementById('fiscal-year').value);
-  const month = parseInt(document.getElementById('month-select').value);
-  const calYear = month <= 3 ? year + 1 : year;
+  const month = getSelectedMonth();
+  const calYear = getCalendarYear();
   window.open(`/api/assignments/export/csv?year=${calYear}&month=${month}&lang=${currentLang}`);
 }
 
 async function exportLine() {
-  const year = parseInt(document.getElementById('fiscal-year').value);
-  const month = parseInt(document.getElementById('month-select').value);
-  const calYear = month <= 3 ? year + 1 : year;
+  const month = getSelectedMonth();
+  const calYear = getCalendarYear();
 
   try {
     const result = await API.get(`/api/assignments/export/line?year=${calYear}&month=${month}&lang=${currentLang}`);

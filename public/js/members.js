@@ -19,6 +19,7 @@ function renderMembers() {
 
   tbody.innerHTML = allMembers.map(m => {
     const spouse = m.spouseId ? allMembers.find(s => s.id === m.spouseId) : null;
+    const datesLabel = m.availableDates ? m.availableDates.length + t('days') : t('allDays');
     return `<tr>
       <td>${escapeHtml(m.name)}</td>
       <td>${genderMap[m.gender]()}</td>
@@ -27,10 +28,13 @@ function renderMembers() {
       <td>${typeMap[m.memberType]()}</td>
       <td>${m.sameGenderOnly ? t('yes') : t('no')}</td>
       <td>${spouse ? escapeHtml(spouse.name) : '-'}</td>
+      <td>${datesLabel}</td>
       <td class="${m.isActive ? 'status-active' : 'status-inactive'}">${m.isActive ? t('active') : t('inactive')}</td>
       <td>
         <button class="btn-small" onclick="editMember('${m.id}')">${t('edit')}</button>
-        ${m.isActive ? `<button class="btn-danger" onclick="deactivateMemberAction('${m.id}')">${t('deactivate')}</button>` : ''}
+        ${m.isActive
+          ? `<button class="btn-danger" onclick="deactivateMemberAction('${m.id}')">${t('deactivate')}</button>`
+          : `<button class="btn-small" onclick="reactivateMemberAction('${m.id}')">${t('reactivate')}</button>`}
       </td>
     </tr>`;
   }).join('');
@@ -79,6 +83,22 @@ function openMemberForm(member) {
     }
   }
 
+  // Available dates
+  const allDatesCheck = document.getElementById('form-all-dates');
+  const datesPicker = document.getElementById('dates-picker');
+  const datesList = document.getElementById('dates-list');
+  if (member?.availableDates) {
+    allDatesCheck.checked = false;
+    datesPicker.style.display = 'block';
+    datesList.innerHTML = member.availableDates.map(d =>
+      `<li data-date="${d}">${d} <button type="button" class="btn-small btn-danger" onclick="removeDate(this)">&times;</button></li>`
+    ).join('');
+  } else {
+    allDatesCheck.checked = true;
+    datesPicker.style.display = 'none';
+    datesList.innerHTML = '';
+  }
+
   updateSpouseVisibility();
   dialog.showModal();
 }
@@ -97,6 +117,35 @@ function updateSpouseVisibility() {
 
 document.getElementById('form-type')?.addEventListener('change', updateSpouseVisibility);
 
+document.getElementById('form-all-dates')?.addEventListener('change', (e) => {
+  document.getElementById('dates-picker').style.display = e.target.checked ? 'none' : 'block';
+});
+
+document.getElementById('btn-add-date')?.addEventListener('click', () => {
+  const input = document.getElementById('form-date-input');
+  const date = input.value;
+  if (!date) return;
+  const datesList = document.getElementById('dates-list');
+  // Prevent duplicates
+  if (datesList.querySelector(`[data-date="${date}"]`)) return;
+  const li = document.createElement('li');
+  li.dataset.date = date;
+  li.innerHTML = `${date} <button type="button" class="btn-small btn-danger" onclick="removeDate(this)">&times;</button>`;
+  datesList.appendChild(li);
+  input.value = '';
+});
+
+function removeDate(btn) {
+  btn.parentElement.remove();
+}
+
+function getSelectedDates() {
+  if (document.getElementById('form-all-dates').checked) return null;
+  const items = document.querySelectorAll('#dates-list li');
+  const dates = Array.from(items).map(li => li.dataset.date).filter(Boolean).sort();
+  return dates.length > 0 ? dates : null;
+}
+
 document.getElementById('member-form')?.addEventListener('submit', async (e) => {
   e.preventDefault();
   const id = document.getElementById('form-member-id').value;
@@ -108,6 +157,7 @@ document.getElementById('member-form')?.addEventListener('submit', async (e) => 
     memberType: document.getElementById('form-type').value,
     sameGenderOnly: document.getElementById('form-same-gender').checked,
     spouseId: document.getElementById('form-spouse').value || null,
+    availableDates: getSelectedDates(),
   };
 
   try {
@@ -129,8 +179,20 @@ function editMember(id) {
 }
 
 async function deactivateMemberAction(id) {
+  const member = allMembers.find(m => m.id === id);
+  const name = member ? member.name : '';
+  if (!confirm(t('deactivateConfirm').replace('{name}', name))) return;
   try {
     await API.post(`/api/members/${id}/deactivate`);
+    loadMembers();
+  } catch (e) {
+    alert(e.message);
+  }
+}
+
+async function reactivateMemberAction(id) {
+  try {
+    await API.post(`/api/members/${id}/reactivate`);
     loadMembers();
   } catch (e) {
     alert(e.message);

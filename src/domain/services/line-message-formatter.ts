@@ -53,10 +53,15 @@ export function formatLineMessage(
     const dayOfMonth = d.getDate();
     const dayName = dayNames[lang][d.getDay()];
 
+    const tags: string[] = [];
+    if (schedule.isEvent) tags.push(lang === 'ja' ? '🎉 イベント日' : '🎉 Event Day');
+    if (schedule.isSplitClass) tags.push(lang === 'ja' ? '📚 分級あり' : '📚 Split Class');
+    const tagStr = tags.length > 0 ? ` ${tags.join(' ')}` : '';
+
     const dateLabel =
       lang === 'ja'
-        ? `${month}/${dayOfMonth}（${dayName}）`
-        : `${month}/${dayOfMonth} (${dayName})`;
+        ? `${month}/${dayOfMonth}（${dayName}）${tagStr}`
+        : `${month}/${dayOfMonth} (${dayName})${tagStr}`;
 
     lines.push(dateLabel);
 

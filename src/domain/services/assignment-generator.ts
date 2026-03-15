@@ -44,6 +44,7 @@ function scorePair(
   dayAssignments: Assignment[],
   pastPairCounts: Map<string, number>,
   classContext?: ClassContext,
+  isSplitClassDay?: boolean,
 ): { score: number; violations: ConstraintViolation[] } {
   let score = 0;
   const violations: ConstraintViolation[] = [];
@@ -69,6 +70,15 @@ function scorePair(
         messageKey: 'violations.classLanguageCoverage',
         messageParams: { count: String(bothCount) },
       });
+    }
+  }
+
+  // Split-class day: prefer BOTH members to ensure bilingual coverage
+  if (isSplitClassDay) {
+    for (const m of [member1, member2]) {
+      if (m.language === Language.BOTH) {
+        score -= 5;
+      }
     }
   }
 
@@ -222,6 +232,8 @@ export function generateAssignments(
       monthAssignments,
       dayAssignments,
       pastPairCounts,
+      undefined,
+      schedule.isSplitClass,
     );
 
     if (group1Result) {
@@ -260,6 +272,7 @@ export function generateAssignments(
         dayAssignments,
         pastPairCounts,
         group2ClassContext,
+        schedule.isSplitClass,
       );
 
       if (group2Result) {
@@ -316,6 +329,7 @@ function pickBestPair(
   dayAssignments: Assignment[],
   pastPairCounts: Map<string, number>,
   classContext?: ClassContext,
+  isSplitClassDay?: boolean,
 ): PairResult | null {
   if (upperCandidates.length === 0 || lowerCandidates.length === 0) return null;
 
@@ -332,6 +346,7 @@ function pickBestPair(
         dayAssignments,
         pastPairCounts,
         classContext,
+        isSplitClassDay,
       );
 
       if (score < bestScore) {
@@ -352,6 +367,7 @@ function pickBestPair(
       dayAssignments,
       pastPairCounts,
       classContext,
+      isSplitClassDay,
     );
     bestPair.violations = violations;
   }

@@ -14,3 +14,15 @@ export function deactivateMember(
   memberRepo.save(deactivated);
   return ok(toMemberDto(deactivated));
 }
+
+export function reactivateMember(
+  memberId: string,
+  memberRepo: MemberRepository,
+): Result<MemberDto> {
+  const member = memberRepo.findById(asMemberId(memberId));
+  if (!member) return err('Member not found');
+
+  const reactivated = member.reactivate();
+  memberRepo.save(reactivated);
+  return ok(toMemberDto(reactivated));
+}
