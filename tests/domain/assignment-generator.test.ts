@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { Member } from '@domain/entities/member';
+import { Assignment } from '@domain/entities/assignment';
 import { Schedule } from '@domain/entities/schedule';
 import { Gender } from '@domain/value-objects/gender';
 import { Language } from '@domain/value-objects/language';
@@ -159,6 +160,89 @@ describe('generateAssignments', () => {
 
     const { assignments } = generateAssignments([schedule], members, [], counts);
     expect(assignments).toHaveLength(0);
+  });
+
+  it('prioritizes members with availableDates over unrestricted members', () => {
+    // Create 3 UPPER members: one with date restriction + past pairings, two without
+    // The restricted member has 2 past pairings (pair diversity penalty: +20)
+    // Without priority bonus (-30), unrestricted members (score 0) would beat restricted (+20)
+    // With bonus: restricted gets -30 + 20 = -10, which beats unrestricted at 0
+    const restrictedUpper = Member.reconstruct({
+      ...makeMember('U-Restricted', {
+        gradeGroup: GradeGroup.UPPER,
+        language: Language.BOTH,
+      }),
+      availableDates: ['2026-04-05'],
+    });
+    const unrestrictedUpper1 = makeMember('U-Unrestricted-1', {
+      gradeGroup: GradeGroup.UPPER,
+      language: Language.BOTH,
+    });
+    const unrestrictedUpper2 = makeMember('U-Unrestricted-2', {
+      gradeGroup: GradeGroup.UPPER,
+      language: Language.BOTH,
+    });
+    const lower1 = makeMember('L-1', { gradeGroup: GradeGroup.LOWER, language: Language.BOTH });
+    const lower2 = makeMember('L-2', { gradeGroup: GradeGroup.LOWER, language: Language.BOTH });
+
+    const members = [restrictedUpper, unrestrictedUpper1, unrestrictedUpper2, lower1, lower2];
+    const schedules = [makeSchedule('2026-04-05')];
+    const counts = new Map<MemberId, number>();
+    members.forEach((m) => counts.set(m.id, 0));
+
+    // Create past assignments so restricted member has pair diversity penalty with both lowers
+    const pastSchedule = makeSchedule('2026-03-01');
+    const existingAssignments = [
+      Assignment.create(pastSchedule.id, 1, [restrictedUpper.id, lower1.id]),
+      Assignment.create(pastSchedule.id, 2, [restrictedUpper.id, lower2.id]),
+    ];
+
+    const { assignments } = generateAssignments(schedules, members, existingAssignments, counts);
+
+    // The restricted member should be assigned despite pair diversity penalty (prioritized via -30 bonus)
+    const allAssignedIds = assignments.flatMap((a) => a.memberIds);
+    expect(allAssignedIds).toContain(restrictedUpper.id);
+  });
+
+  it('does not override hard constraints with availableDates priority', () => {
+    // Restricted member only covers Japanese, partner only covers Japanese too
+    // Language balance requires English coverage, so restricted member should NOT be picked
+    // if the only available pair would violate language balance
+    const restrictedUpper = Member.reconstruct({
+      ...makeMember('U-JP-Restricted', {
+        gradeGroup: GradeGroup.UPPER,
+        language: Language.JAPANESE,
+      }),
+      availableDates: ['2026-04-05'],
+    });
+    const unrestrictedUpper = makeMember('U-EN-Unrestricted', {
+      gradeGroup: GradeGroup.UPPER,
+      language: Language.ENGLISH,
+    });
+    // Only one lower member who covers Japanese only
+    const lower1 = makeMember('L-JP', { gradeGroup: GradeGroup.LOWER, language: Language.JAPANESE });
+    const lower2 = makeMember('L-EN', { gradeGroup: GradeGroup.LOWER, language: Language.ENGLISH });
+
+    const members = [restrictedUpper, unrestrictedUpper, lower1, lower2];
+    const schedules = [makeSchedule('2026-04-05')];
+    const counts = new Map<MemberId, number>();
+    members.forEach((m) => counts.set(m.id, 0));
+
+    const { assignments } = generateAssignments(schedules, members, [], counts);
+
+    // Each group must have language balance — verify
+    for (const a of assignments) {
+      const m1 = members.find((m) => m.id === a.memberIds[0])!;
+      const m2 = members.find((m) => m.id === a.memberIds[1])!;
+      const hasJP = [m1, m2].some(
+        (m) => m.language === Language.JAPANESE || m.language === Language.BOTH,
+      );
+      const hasEN = [m1, m2].some(
+        (m) => m.language === Language.ENGLISH || m.language === Language.BOTH,
+      );
+      expect(hasJP).toBe(true);
+      expect(hasEN).toBe(true);
+    }
   });
 
   it('avoids pairing spouses in the same group', () => {

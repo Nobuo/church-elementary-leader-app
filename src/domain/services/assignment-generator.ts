@@ -98,6 +98,13 @@ function scorePair(
     });
   }
 
+  // Available-dates priority: members with date restrictions get a bonus
+  for (const m of [member1, member2]) {
+    if (m.availableDates && m.availableDates.length > 0) {
+      score -= 30;
+    }
+  }
+
   // Monthly duplicate (100 penalty per member already assigned this month)
   for (const m of [member1, member2]) {
     const alreadyAssigned = monthAssignments.some((a) => a.containsMember(m.id));
