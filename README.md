@@ -187,6 +187,21 @@ src/
 └── presentation/    # Expressサーバー、コントローラー、i18n
 ```
 
+## トラブルシューティング
+
+### `npm test` で `NODE_MODULE_VERSION` エラーが出る場合
+
+```
+Error: The module '.../better_sqlite3.node' was compiled against a different Node.js version
+using NODE_MODULE_VERSION XXX. This version of Node.js requires NODE_MODULE_VERSION YYY.
+```
+
+`better-sqlite3` はネイティブアドオン（C++）のため、`npm install` 時のNode.jsバージョン向けにコンパイルされます。Node.jsのバージョンが変わった場合（asdfでの切り替え、Bunインストール後など）、以下のコマンドで再コンパイルしてください:
+
+```bash
+npm rebuild better-sqlite3
+```
+
 ## 開発者向けコマンド
 
 ```bash
