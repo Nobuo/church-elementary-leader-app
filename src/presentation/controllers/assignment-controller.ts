@@ -79,6 +79,11 @@ export function createAssignmentController(
     }
     if (!isValidYear(year)) { res.status(400).json({ error: 'year must be between 2000 and 2100' }); return; }
     if (!isValidMonth(month)) { res.status(400).json({ error: 'month must be between 1 and 12' }); return; }
+    const now = new Date();
+    if (year < now.getFullYear() || (year === now.getFullYear() && month <= now.getMonth() + 1)) {
+      res.status(400).json({ error: 'Cannot clear current or past month assignments' });
+      return;
+    }
     deleteAssignments(year, month, scheduleRepo, assignmentRepo);
     res.json({ success: true });
   });

@@ -77,6 +77,9 @@ const I18N = {
     clearConfirm: 'この日の割り当てをクリアしますか？',
     pastAssignmentWarning: '過去の割り当てを変更しようとしています。続けますか？',
     cannotClearPast: '過去の割り当てはクリアできません',
+    clearMonth: '月一括クリア',
+    clearMonthConfirm: 'この月の割り当てを全てクリアしますか？',
+    cannotClearPastMonth: '当月以前の割り当ては一括クリアできません',
     deactivateConfirm: '「{name}」を無効化しますか？',
     regenerateConfirm: '既存の割り当てが上書きされます。再生成しますか？',
     reactivate: '有効化',
@@ -179,6 +182,9 @@ const I18N = {
     clearConfirm: 'Clear assignments for this date?',
     pastAssignmentWarning: 'You are about to modify a past assignment. Continue?',
     cannotClearPast: 'Cannot clear past assignments',
+    clearMonth: 'Clear All',
+    clearMonthConfirm: 'Clear all assignments for this month?',
+    cannotClearPastMonth: 'Cannot clear current or past month assignments',
     deactivateConfirm: 'Deactivate "{name}"?',
     regenerateConfirm: 'Existing assignments will be overwritten. Regenerate?',
     reactivate: 'Reactivate',
@@ -240,6 +246,7 @@ function updateUILanguage() {
   document.getElementById('btn-generate-schedule').textContent = t('generateSchedule');
   document.getElementById('assignments-title').textContent = t('assignmentsTitle');
   document.getElementById('btn-generate-assignments').textContent = t('autoGenerate');
+  document.getElementById('btn-clear-month').textContent = t('clearMonth');
   document.getElementById('btn-export-csv').textContent = t('exportCsv');
   document.getElementById('btn-export-line').textContent = t('exportLine');
   document.getElementById('btn-export-members-csv').textContent = t('exportMembersCsv');

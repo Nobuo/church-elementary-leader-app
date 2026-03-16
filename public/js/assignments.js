@@ -28,8 +28,10 @@ async function loadAssignments() {
   try {
     const assignments = await API.get(`/api/assignments?year=${calYear}&month=${month}`);
     renderAssignments(assignments, scheduleMap);
+    updateClearMonthButton(assignments);
   } catch (e) {
     document.getElementById('assignments-list').innerHTML = `<p>${t('noAssignments')}</p>`;
+    updateClearMonthButton([]);
   }
 }
 
@@ -296,6 +298,29 @@ async function doReplace(assignmentId, oldMemberId, newMemberId, wrapperEl) {
   }
 }
 
+function updateClearMonthButton(assignments) {
+  const btn = document.getElementById('btn-clear-month');
+  if (!btn) return;
+  const now = new Date();
+  const calYear = getCalendarYear();
+  const month = getSelectedMonth();
+  const isPastOrCurrent = calYear < now.getFullYear() ||
+    (calYear === now.getFullYear() && month <= now.getMonth() + 1);
+  btn.style.display = (isPastOrCurrent || !assignments || assignments.length === 0) ? 'none' : '';
+}
+
+async function clearMonthAssignments() {
+  if (!confirm(t('clearMonthConfirm'))) return;
+  const month = getSelectedMonth();
+  const calYear = getCalendarYear();
+  try {
+    await API.del(`/api/assignments?year=${calYear}&month=${month}`);
+    loadAssignments();
+  } catch (e) {
+    alert(e.message);
+  }
+}
+
 async function clearDayAssignments(date) {
   if (!confirm(t('clearConfirm'))) return;
   try {
@@ -307,6 +332,7 @@ async function clearDayAssignments(date) {
 }
 
 document.getElementById('btn-generate-assignments')?.addEventListener('click', generateAssignmentsAction);
+document.getElementById('btn-clear-month')?.addEventListener('click', clearMonthAssignments);
 document.getElementById('btn-export-csv')?.addEventListener('click', exportCsv);
 document.getElementById('btn-export-line')?.addEventListener('click', exportLine);
 document.getElementById('btn-copy-line')?.addEventListener('click', () => {

@@ -92,6 +92,9 @@ export const en = {
     tooFew: 'too few',
     pastAssignmentWarning: 'You are about to modify a past assignment. Continue?',
     cannotClearPast: 'Cannot clear past assignments',
+    clearMonth: 'Clear All',
+    clearMonthConfirm: 'Clear all assignments for this month?',
+    cannotClearPastMonth: 'Cannot clear current or past month assignments',
   },
   common: {
     year: 'Year',

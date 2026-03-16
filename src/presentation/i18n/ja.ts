@@ -92,6 +92,9 @@ export const ja = {
     tooFew: '少なすぎ',
     pastAssignmentWarning: '過去の割り当てを変更しようとしています。続けますか？',
     cannotClearPast: '過去の割り当てはクリアできません',
+    clearMonth: '月一括クリア',
+    clearMonthConfirm: 'この月の割り当てを全てクリアしますか？',
+    cannotClearPastMonth: '当月以前の割り当ては一括クリアできません',
   },
   common: {
     year: '年度',
