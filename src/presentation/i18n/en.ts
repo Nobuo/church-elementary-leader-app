@@ -88,6 +88,7 @@ export const en = {
     sameGenderViolated: 'Same-gender constraint violated for {name1} or {name2}',
     classLanguageCoverage: 'Not enough bilingual leaders for split-class day (required: 2, actual: {count})',
     helperOnEventDay: 'HELPER members cannot be assigned on event days',
+    gradeGroupMismatch: '{name} is registered as {registered} but assigned to {assigned} slot',
     tooMany: 'too many',
     tooFew: 'too few',
     pastAssignmentWarning: 'You are about to modify a past assignment. Continue?',

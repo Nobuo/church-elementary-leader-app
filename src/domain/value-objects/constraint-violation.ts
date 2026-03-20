@@ -10,6 +10,7 @@ export const ViolationType = {
   REPEAT_PAIR: 'REPEAT_PAIR',
   MIN_INTERVAL: 'MIN_INTERVAL',
   EXCESSIVE_COUNT: 'EXCESSIVE_COUNT',
+  GRADE_GROUP_MISMATCH: 'GRADE_GROUP_MISMATCH',
 } as const;
 
 export type ViolationType = (typeof ViolationType)[keyof typeof ViolationType];

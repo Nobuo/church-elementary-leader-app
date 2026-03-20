@@ -15,15 +15,27 @@ import {
   checkClassLanguageCoverage,
 } from '@domain/services/constraint-checker';
 import { MemberType } from '@domain/value-objects/member-type';
+import { GradeGroup } from '@domain/value-objects/grade-group';
 import { getFiscalYear } from '@domain/value-objects/fiscal-year';
-import { ConstraintViolation } from '@domain/value-objects/constraint-violation';
+import {
+  ConstraintViolation,
+  ViolationType,
+  Severity,
+} from '@domain/value-objects/constraint-violation';
+
+export interface AssignmentMemberDto {
+  id: string;
+  name: string;
+  gradeGroup: string;
+  role: string;
+}
 
 export interface AssignmentDto {
   id: string;
   scheduleId: string;
   date: string;
   groupNumber: number;
-  members: { id: string; name: string }[];
+  members: AssignmentMemberDto[];
 }
 
 export interface GenerateAssignmentsResult {
@@ -112,9 +124,11 @@ export function generateMonthlyAssignments(
     scheduleId: a.scheduleId,
     date: scheduleDateMap.get(a.scheduleId) ?? '',
     groupNumber: a.groupNumber,
-    members: a.memberIds.map((mid) => ({
+    members: a.memberIds.map((mid, idx) => ({
       id: mid,
       name: memberMap.get(mid)?.name ?? 'Unknown',
+      gradeGroup: memberMap.get(mid)?.gradeGroup ?? GradeGroup.LOWER,
+      role: idx === 0 ? GradeGroup.UPPER : GradeGroup.LOWER,
     })),
   }));
 
@@ -182,6 +196,24 @@ export function adjustAssignment(
         }
       }
     }
+
+    // Grade group mismatch check
+    const roleIndex = updated.memberIds.indexOf(asMemberId(newMemberId));
+    const expectedGrade = roleIndex === 0 ? GradeGroup.UPPER : GradeGroup.LOWER;
+    if (newMember.gradeGroup !== expectedGrade) {
+      violations.push({
+        type: ViolationType.GRADE_GROUP_MISMATCH,
+        severity: Severity.WARNING,
+        memberIds: [asMemberId(newMemberId)],
+        message: `${newMember.name} is ${newMember.gradeGroup} but assigned to ${expectedGrade} slot`,
+        messageKey: 'violations.gradeGroupMismatch',
+        messageParams: {
+          name: newMember.name,
+          registered: newMember.gradeGroup,
+          assigned: expectedGrade,
+        },
+      });
+    }
   }
 
   // Check monthly duplicate and min interval for the new member
@@ -215,9 +247,11 @@ export function adjustAssignment(
     scheduleId: updated.scheduleId,
     date,
     groupNumber: updated.groupNumber,
-    members: updated.memberIds.map((mid) => ({
+    members: updated.memberIds.map((mid, idx) => ({
       id: mid,
       name: memberLookup.get(mid)?.name ?? 'Unknown',
+      gradeGroup: memberLookup.get(mid)?.gradeGroup ?? GradeGroup.LOWER,
+      role: idx === 0 ? GradeGroup.UPPER : GradeGroup.LOWER,
     })),
   };
 
@@ -262,9 +296,11 @@ export function getAssignmentsForMonth(
     scheduleId: a.scheduleId,
     date: scheduleDateMap.get(a.scheduleId) ?? '',
     groupNumber: a.groupNumber,
-    members: a.memberIds.map((mid) => ({
+    members: a.memberIds.map((mid, idx) => ({
       id: mid,
       name: memberMap.get(mid)?.name ?? 'Unknown',
+      gradeGroup: memberMap.get(mid)?.gradeGroup ?? GradeGroup.LOWER,
+      role: idx === 0 ? GradeGroup.UPPER : GradeGroup.LOWER,
     })),
   }));
 }

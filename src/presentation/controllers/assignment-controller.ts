@@ -21,6 +21,7 @@ import {
   checkMinInterval,
 } from '@domain/services/constraint-checker';
 import { Language } from '@domain/value-objects/language';
+import { GradeGroup } from '@domain/value-objects/grade-group';
 import { getFiscalYear } from '@domain/value-objects/fiscal-year';
 import { formatCsv } from '@domain/services/csv-formatter';
 import { formatLineMessage } from '@domain/services/line-message-formatter';
@@ -113,6 +114,7 @@ export function createAssignmentController(
     const date = req.query.date as string;
     const excludeIds = ((req.query.excludeIds as string) || '').split(',').filter(Boolean);
     const partnerId = (req.query.partnerId as string) || '';
+    const role = (req.query.role as string) || '';
     if (!date) {
       res.status(400).json({ error: 'date is required' });
       return;
@@ -157,6 +159,12 @@ export function createAssignmentController(
       .filter((m) => !excludeIds.includes(m.id))
       .filter((m) => m.isAvailableOn(date))
       .filter((m) => !isEventDay || m.memberType !== MemberType.HELPER)
+      .filter((m) => {
+        if (!role || (role !== GradeGroup.UPPER && role !== GradeGroup.LOWER)) return true;
+        if (m.gradeGroup === role) return true;
+        if (isSplitClass && m.language === Language.BOTH) return true;
+        return false;
+      })
       .map((m) => {
         const warnings: string[] = [];
 
@@ -185,12 +193,18 @@ export function createAssignmentController(
         const count = countMap.get(m.id) ?? 0;
         if (avgCount > 0 && count > avgCount) warnings.push('excessiveCount');
 
+        // Grade group mismatch
+        const isCrossover = role ? m.gradeGroup !== role : false;
+        if (isCrossover) warnings.push('gradeGroupMismatch');
+
         return {
           id: m.id,
           name: m.name,
           count,
           warnings,
           recommended: warnings.length === 0,
+          gradeGroup: m.gradeGroup,
+          isCrossover,
         };
       });
 

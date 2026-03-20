@@ -259,6 +259,99 @@ describe('Assignment API', () => {
     });
   });
 
+  describe('Grade group: DTO and candidates filtering', () => {
+    it('T10 assignments response includes gradeGroup and role fields', async () => {
+      await setupMembersAndSchedule();
+      await t.request.post('/api/assignments/generate').send({ year: 2027, month: 4 }).expect(200);
+
+      const res = await t.request.get('/api/assignments?year=2027&month=4').expect(200);
+
+      for (const a of res.body) {
+        for (const m of a.members) {
+          expect(m).toHaveProperty('gradeGroup');
+          expect(m).toHaveProperty('role');
+          expect(['UPPER', 'LOWER']).toContain(m.gradeGroup);
+          expect(['UPPER', 'LOWER']).toContain(m.role);
+        }
+        // member[0] should have role UPPER, member[1] LOWER
+        expect(a.members[0].role).toBe('UPPER');
+        expect(a.members[1].role).toBe('LOWER');
+      }
+    });
+
+    it('T11 normal day: candidates with role=UPPER returns only UPPER members', async () => {
+      const { schedules } = await setupMembersAndSchedule();
+      await t.request.post('/api/assignments/generate').send({ year: 2027, month: 4 }).expect(200);
+
+      const res = await t.request
+        .get(`/api/assignments/candidates?date=${schedules[0].date}&excludeIds=&role=UPPER`)
+        .expect(200);
+
+      expect(res.body.length).toBeGreaterThan(0);
+      for (const c of res.body) {
+        expect(c).toHaveProperty('gradeGroup');
+        expect(c.gradeGroup).toBe('UPPER');
+      }
+    });
+
+    it('T13 normal day: candidates with role=LOWER returns only LOWER members', async () => {
+      const { schedules } = await setupMembersAndSchedule();
+      await t.request.post('/api/assignments/generate').send({ year: 2027, month: 4 }).expect(200);
+
+      const res = await t.request
+        .get(`/api/assignments/candidates?date=${schedules[0].date}&excludeIds=&role=LOWER`)
+        .expect(200);
+
+      expect(res.body.length).toBeGreaterThan(0);
+      for (const c of res.body) {
+        expect(c).toHaveProperty('gradeGroup');
+        expect(c.gradeGroup).toBe('LOWER');
+      }
+    });
+
+    it('T12 split-class day: candidates with role=LOWER includes BOTH from UPPER with isCrossover', async () => {
+      // Create members with BOTH only in UPPER
+      const memberInputs = [
+        { name: 'U1', gender: 'MALE', language: 'BOTH', gradeGroup: 'UPPER', memberType: 'PARENT_SINGLE', sameGenderOnly: false },
+        { name: 'U2', gender: 'FEMALE', language: 'BOTH', gradeGroup: 'UPPER', memberType: 'PARENT_SINGLE', sameGenderOnly: false },
+        { name: 'U3', gender: 'MALE', language: 'BOTH', gradeGroup: 'UPPER', memberType: 'PARENT_SINGLE', sameGenderOnly: false },
+        { name: 'U4', gender: 'FEMALE', language: 'JAPANESE', gradeGroup: 'UPPER', memberType: 'PARENT_SINGLE', sameGenderOnly: false },
+        { name: 'U5', gender: 'MALE', language: 'ENGLISH', gradeGroup: 'UPPER', memberType: 'PARENT_SINGLE', sameGenderOnly: false },
+        { name: 'L1', gender: 'MALE', language: 'JAPANESE', gradeGroup: 'LOWER', memberType: 'PARENT_SINGLE', sameGenderOnly: false },
+        { name: 'L2', gender: 'FEMALE', language: 'ENGLISH', gradeGroup: 'LOWER', memberType: 'PARENT_SINGLE', sameGenderOnly: false },
+        { name: 'L3', gender: 'MALE', language: 'JAPANESE', gradeGroup: 'LOWER', memberType: 'PARENT_SINGLE', sameGenderOnly: false },
+        { name: 'L4', gender: 'FEMALE', language: 'ENGLISH', gradeGroup: 'LOWER', memberType: 'PARENT_SINGLE', sameGenderOnly: false },
+        { name: 'L5', gender: 'MALE', language: 'JAPANESE', gradeGroup: 'LOWER', memberType: 'PARENT_SINGLE', sameGenderOnly: false },
+      ];
+      for (const input of memberInputs) {
+        await t.request.post('/api/members').send(input).expect(201);
+      }
+      const schedules = await seedSchedule(t.request, 2027, 4);
+
+      // Make first date a split-class day
+      await t.request.post(`/api/schedules/${schedules[0].id}/toggle-split-class`).expect(200);
+      await t.request.post('/api/assignments/generate').send({ year: 2027, month: 4 }).expect(200);
+
+      const res = await t.request
+        .get(`/api/assignments/candidates?date=${schedules[0].date}&excludeIds=&role=LOWER`)
+        .expect(200);
+
+      // Should include LOWER members and UPPER BOTH members
+      const lowerCandidates = res.body.filter((c: { gradeGroup: string }) => c.gradeGroup === 'LOWER');
+      const upperBothCandidates = res.body.filter(
+        (c: { gradeGroup: string; isCrossover: boolean }) => c.gradeGroup === 'UPPER' && c.isCrossover,
+      );
+
+      expect(lowerCandidates.length).toBeGreaterThan(0);
+      expect(upperBothCandidates.length).toBeGreaterThan(0);
+
+      // Crossover candidates should have gradeGroupMismatch warning
+      for (const c of upperBothCandidates) {
+        expect(c.warnings).toContain('gradeGroupMismatch');
+      }
+    });
+  });
+
   describe('GET /api/assignments/counts', () => {
     it('3.21 returns counts with summary', async () => {
       await setupMembersAndSchedule();

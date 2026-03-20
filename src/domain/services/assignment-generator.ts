@@ -214,8 +214,28 @@ export function generateAssignments(
       .filter((m) => m.isAvailableOn(dateStr))
       .filter((m) => !schedule.isEvent || m.memberType !== MemberType.HELPER);
 
-    const upperMembers = available.filter((m) => m.gradeGroup === GradeGroup.UPPER);
-    const lowerMembers = available.filter((m) => m.gradeGroup === GradeGroup.LOWER);
+    const upperBase = available.filter((m) => m.gradeGroup === GradeGroup.UPPER);
+    const lowerBase = available.filter((m) => m.gradeGroup === GradeGroup.LOWER);
+
+    // On split-class days, allow bilingual (BOTH) members to cross grade boundaries
+    let upperMembers = upperBase;
+    let lowerMembers = lowerBase;
+    if (schedule.isSplitClass) {
+      const upperBothCount = upperBase.filter((m) => m.language === Language.BOTH).length;
+      const lowerBothCount = lowerBase.filter((m) => m.language === Language.BOTH).length;
+      if (lowerBothCount < 1 && upperBothCount > 2) {
+        lowerMembers = [
+          ...lowerBase,
+          ...upperBase.filter((m) => m.language === Language.BOTH),
+        ];
+      }
+      if (upperBothCount < 1 && lowerBothCount > 2) {
+        upperMembers = [
+          ...upperBase,
+          ...lowerBase.filter((m) => m.language === Language.BOTH),
+        ];
+      }
+    }
 
     if (upperMembers.length < 2 || lowerMembers.length < 2) {
       allViolations.push({

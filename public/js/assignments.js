@@ -84,8 +84,17 @@ function renderAssignments(assignments, scheduleMap = {}) {
             const count = memberCountMap[m.id];
             const countStr = count != null ? `(${count})` : '';
             const partnerId = g.members[1 - idx]?.id || '';
-            return `<span class="member-name" data-member-id="${escapeHtml(m.id)}">${escapeHtml(m.name)}</span>${countStr}` +
-              ` <button class="replace-btn" data-action="start-replace" data-assignment-id="${escapeHtml(g.id)}" data-member-id="${escapeHtml(m.id)}" data-assigned='${escapeHtml(JSON.stringify([...assignedOnDate]))}' data-date="${escapeHtml(date)}" data-partner-id="${escapeHtml(partnerId)}">${t('replace')}</button>`;
+            const role = idx === 0 ? 'UPPER' : 'LOWER';
+            const shortLabel = idx === 0 ? t('upperShort') : t('lowerShort');
+            const isCrossover = m.gradeGroup && m.role && m.gradeGroup !== m.role;
+            const crossoverClass = isCrossover ? ' crossover' : '';
+            const gradeForNote = m.gradeGroup === 'UPPER' ? t('upper') : t('lower');
+            const crossoverNote = isCrossover
+              ? ` <span class="crossover-note">${t('crossoverNote').replace('{grade}', gradeForNote)}</span>`
+              : '';
+            return `<span class="grade-label${crossoverClass}">[${shortLabel}]</span>` +
+              `<span class="member-name" data-member-id="${escapeHtml(m.id)}">${escapeHtml(m.name)}</span>${countStr}${crossoverNote}` +
+              ` <button class="replace-btn" data-action="start-replace" data-assignment-id="${escapeHtml(g.id)}" data-member-id="${escapeHtml(m.id)}" data-assigned='${escapeHtml(JSON.stringify([...assignedOnDate]))}' data-date="${escapeHtml(date)}" data-partner-id="${escapeHtml(partnerId)}" data-role="${role}">${t('replace')}</button>`;
           }).join(currentLang === 'ja' ? ' ・ ' : ' & ')}</span>
         </div>
       `).join('')}
@@ -243,11 +252,12 @@ async function startReplace(assignmentId, memberId, btnEl) {
   }
 
   const partnerId = btnEl.dataset.partnerId || '';
+  const role = btnEl.dataset.role || '';
 
   // Fetch candidates from server (filters by availability + active status + recommendations)
   let candidates;
   try {
-    candidates = await API.get(`/api/assignments/candidates?date=${date}&excludeIds=${assignedIds.join(',')}&partnerId=${partnerId}`);
+    candidates = await API.get(`/api/assignments/candidates?date=${date}&excludeIds=${assignedIds.join(',')}&partnerId=${partnerId}&role=${role}`);
   } catch (_) {
     candidates = [];
   }

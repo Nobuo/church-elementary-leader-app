@@ -101,8 +101,12 @@ const I18N = {
     'violations.sameGenderViolated': '{name1}または{name2}の同性ペア制約に違反しています',
     'violations.classLanguageCoverage': '分級日にバイリンガル担当者が不足しています（必要: 2名、実際: {count}名）',
     'violations.helperOnEventDay': 'イベント日にはヘルパーを割り当てできません',
+    'violations.gradeGroupMismatch': '{name}さんは{registered}ですが{assigned}枠に割り当てられています',
     'violations.tooMany': '多すぎ',
     'violations.tooFew': '少なすぎ',
+    upperShort: '高',
+    lowerShort: '低',
+    crossoverNote: '※本来は{grade}',
   },
   en: {
     appTitle: 'Leader Management',
@@ -206,8 +210,12 @@ const I18N = {
     'violations.sameGenderViolated': 'Same-gender constraint violated for {name1} or {name2}',
     'violations.classLanguageCoverage': 'Not enough bilingual leaders for split-class day (required: 2, actual: {count})',
     'violations.helperOnEventDay': 'HELPER members cannot be assigned on event days',
+    'violations.gradeGroupMismatch': '{name} is registered as {registered} but assigned to {assigned} slot',
     'violations.tooMany': 'too many',
     'violations.tooFew': 'too few',
+    upperShort: 'U',
+    lowerShort: 'L',
+    crossoverNote: '*registered as {grade}',
   },
 };
 

@@ -189,9 +189,9 @@ describe('adjustAssignment', () => {
   });
 
   it('returns no violations for a valid replacement', () => {
-    const m1 = makeMember('JP1', { language: Language.JAPANESE });
-    const m2 = makeMember('EN1', { language: Language.ENGLISH });
-    const m3 = makeMember('EN2', { language: Language.ENGLISH }); // valid replacement
+    const m1 = makeMember('JP1', { language: Language.JAPANESE, gradeGroup: GradeGroup.UPPER });
+    const m2 = makeMember('EN1', { language: Language.ENGLISH, gradeGroup: GradeGroup.LOWER });
+    const m3 = makeMember('EN2', { language: Language.ENGLISH, gradeGroup: GradeGroup.LOWER }); // valid replacement
 
     const scheduleResult = Schedule.create('2026-04-05');
     if (!scheduleResult.ok) throw new Error('bad schedule');
@@ -217,6 +217,78 @@ describe('adjustAssignment', () => {
     if (result.ok) {
       expect(result.value.violations).toHaveLength(0);
       expect(result.value.assignment.members.map((m) => m.name)).toContain('EN2');
+    }
+  });
+
+  it('returns GRADE_GROUP_MISMATCH warning when replacing with different grade group', () => {
+    const m1 = makeMember('Upper1', { language: Language.BOTH, gradeGroup: GradeGroup.UPPER });
+    const m2 = makeMember('Lower1', { language: Language.BOTH, gradeGroup: GradeGroup.LOWER });
+    const m3 = makeMember('Upper2', { language: Language.BOTH, gradeGroup: GradeGroup.UPPER }); // wrong grade for LOWER slot
+
+    const scheduleResult = Schedule.create('2026-04-05');
+    if (!scheduleResult.ok) throw new Error('bad schedule');
+    const schedule = scheduleResult.value;
+
+    // m1 is at index 0 (UPPER slot), m2 at index 1 (LOWER slot)
+    const assignment = Assignment.create(schedule.id, 1, [m1.id, m2.id]);
+    const { memberRepo, assignmentRepo, scheduleRepo } = createRepos(
+      [m1, m2, m3],
+      [assignment],
+      [schedule],
+    );
+
+    // Replace m2 (LOWER slot) with m3 (UPPER grade) → mismatch
+    const result = adjustAssignment(
+      assignment.id,
+      m2.id,
+      m3.id,
+      assignmentRepo,
+      memberRepo,
+      scheduleRepo,
+    );
+
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      const gradeViolations = result.value.violations.filter(
+        (v) => v.type === 'GRADE_GROUP_MISMATCH',
+      );
+      expect(gradeViolations).toHaveLength(1);
+      expect(gradeViolations[0].memberIds).toContain(m3.id);
+    }
+  });
+
+  it('includes gradeGroup and role in assignment DTO', () => {
+    const m1 = makeMember('Upper1', { language: Language.BOTH, gradeGroup: GradeGroup.UPPER });
+    const m2 = makeMember('Lower1', { language: Language.BOTH, gradeGroup: GradeGroup.LOWER });
+    const m3 = makeMember('Lower2', { language: Language.BOTH, gradeGroup: GradeGroup.LOWER });
+
+    const scheduleResult = Schedule.create('2026-04-05');
+    if (!scheduleResult.ok) throw new Error('bad schedule');
+    const schedule = scheduleResult.value;
+
+    const assignment = Assignment.create(schedule.id, 1, [m1.id, m2.id]);
+    const { memberRepo, assignmentRepo, scheduleRepo } = createRepos(
+      [m1, m2, m3],
+      [assignment],
+      [schedule],
+    );
+
+    const result = adjustAssignment(
+      assignment.id,
+      m2.id,
+      m3.id,
+      assignmentRepo,
+      memberRepo,
+      scheduleRepo,
+    );
+
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      const dto = result.value.assignment;
+      expect(dto.members[0].gradeGroup).toBe('UPPER');
+      expect(dto.members[0].role).toBe('UPPER');
+      expect(dto.members[1].gradeGroup).toBe('LOWER');
+      expect(dto.members[1].role).toBe('LOWER');
     }
   });
 });

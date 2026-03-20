@@ -168,6 +168,21 @@ dialog::backdrop { background: rgba(0,0,0,0.3); }
   border-color: #2563eb;
 }
 
+.grade-label {
+  font-size: 0.8em;
+  font-weight: bold;
+  margin-right: 2px;
+  color: #666;
+}
+.grade-label.crossover {
+  color: #e67e22;
+}
+.crossover-note {
+  font-size: 0.75em;
+  color: #e67e22;
+  margin-left: 2px;
+}
+
 .event-tag {
   display: inline-block;
   background: #dbeafe;

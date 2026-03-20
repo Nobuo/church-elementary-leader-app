@@ -245,6 +245,152 @@ describe('generateAssignments', () => {
     }
   });
 
+  it('does not cross grade groups on normal days (T1: UPPER stays UPPER)', () => {
+    const members = [
+      makeMember('U-BOTH-1', { gradeGroup: GradeGroup.UPPER, language: Language.BOTH }),
+      makeMember('U-BOTH-2', { gradeGroup: GradeGroup.UPPER, language: Language.BOTH }),
+      makeMember('U-BOTH-3', { gradeGroup: GradeGroup.UPPER, language: Language.BOTH }),
+      makeMember('L-JP-1', { gradeGroup: GradeGroup.LOWER, language: Language.JAPANESE }),
+      makeMember('L-EN-1', { gradeGroup: GradeGroup.LOWER, language: Language.ENGLISH }),
+    ];
+
+    const schedule = makeSchedule('2026-04-05'); // not split-class
+    const counts = new Map<MemberId, number>();
+    members.forEach((m) => counts.set(m.id, 0));
+
+    const { assignments } = generateAssignments([schedule], members, [], counts);
+    for (const a of assignments) {
+      const upper = members.find((m) => m.id === a.memberIds[0])!;
+      const lower = members.find((m) => m.id === a.memberIds[1])!;
+      expect(upper.gradeGroup).toBe(GradeGroup.UPPER);
+      expect(lower.gradeGroup).toBe(GradeGroup.LOWER);
+    }
+  });
+
+  it('does not cross grade groups on normal days (T2: LOWER stays LOWER)', () => {
+    const members = [
+      makeMember('U-JP-1', { gradeGroup: GradeGroup.UPPER, language: Language.JAPANESE }),
+      makeMember('U-EN-1', { gradeGroup: GradeGroup.UPPER, language: Language.ENGLISH }),
+      makeMember('L-BOTH-1', { gradeGroup: GradeGroup.LOWER, language: Language.BOTH }),
+      makeMember('L-BOTH-2', { gradeGroup: GradeGroup.LOWER, language: Language.BOTH }),
+      makeMember('L-BOTH-3', { gradeGroup: GradeGroup.LOWER, language: Language.BOTH }),
+    ];
+
+    const schedule = makeSchedule('2026-04-05');
+    const counts = new Map<MemberId, number>();
+    members.forEach((m) => counts.set(m.id, 0));
+
+    const { assignments } = generateAssignments([schedule], members, [], counts);
+    for (const a of assignments) {
+      const upper = members.find((m) => m.id === a.memberIds[0])!;
+      const lower = members.find((m) => m.id === a.memberIds[1])!;
+      expect(upper.gradeGroup).toBe(GradeGroup.UPPER);
+      expect(lower.gradeGroup).toBe(GradeGroup.LOWER);
+    }
+  });
+
+  it('does not cross on split-class day when LOWER has enough BOTH (T3)', () => {
+    const members = [
+      makeMember('U-BOTH-1', { gradeGroup: GradeGroup.UPPER, language: Language.BOTH }),
+      makeMember('U-JP-1', { gradeGroup: GradeGroup.UPPER, language: Language.JAPANESE }),
+      makeMember('U-EN-1', { gradeGroup: GradeGroup.UPPER, language: Language.ENGLISH }),
+      makeMember('L-BOTH-1', { gradeGroup: GradeGroup.LOWER, language: Language.BOTH }),
+      makeMember('L-JP-1', { gradeGroup: GradeGroup.LOWER, language: Language.JAPANESE }),
+      makeMember('L-EN-1', { gradeGroup: GradeGroup.LOWER, language: Language.ENGLISH }),
+    ];
+
+    const schedule = makeSchedule('2026-04-05').toggleSplitClass();
+    const counts = new Map<MemberId, number>();
+    members.forEach((m) => counts.set(m.id, 0));
+
+    const { assignments } = generateAssignments([schedule], members, [], counts);
+    for (const a of assignments) {
+      const upper = members.find((m) => m.id === a.memberIds[0])!;
+      const lower = members.find((m) => m.id === a.memberIds[1])!;
+      expect(upper.gradeGroup).toBe(GradeGroup.UPPER);
+      expect(lower.gradeGroup).toBe(GradeGroup.LOWER);
+    }
+  });
+
+  it('allows BOTH members to cross from UPPER to LOWER on split-class days when LOWER lacks bilinguals (T4)', () => {
+    // UPPER: 3 BOTH members, LOWER: 0 BOTH members
+    const members = [
+      makeMember('U-BOTH-1', { gradeGroup: GradeGroup.UPPER, language: Language.BOTH }),
+      makeMember('U-BOTH-2', { gradeGroup: GradeGroup.UPPER, language: Language.BOTH }),
+      makeMember('U-BOTH-3', { gradeGroup: GradeGroup.UPPER, language: Language.BOTH }),
+      makeMember('L-JP-1', { gradeGroup: GradeGroup.LOWER, language: Language.JAPANESE }),
+      makeMember('L-EN-1', { gradeGroup: GradeGroup.LOWER, language: Language.ENGLISH }),
+    ];
+
+    const schedule = makeSchedule('2026-04-05').toggleSplitClass();
+    const counts = new Map<MemberId, number>();
+    members.forEach((m) => counts.set(m.id, 0));
+
+    const { assignments } = generateAssignments([schedule], members, [], counts);
+
+    // Should generate assignments (wouldn't be possible without crossover if BOTH is required)
+    expect(assignments.length).toBeGreaterThan(0);
+
+    // Count BOTH members across all assignments
+    const allAssignedIds = assignments.flatMap((a) => a.memberIds);
+    const bothCount = allAssignedIds.filter((id) => {
+      const m = members.find((mem) => mem.id === id);
+      return m?.language === Language.BOTH;
+    }).length;
+    expect(bothCount).toBeGreaterThanOrEqual(2);
+  });
+
+  it('allows BOTH members to cross from LOWER to UPPER on split-class days when UPPER lacks bilinguals (T6)', () => {
+    // UPPER: 0 BOTH, LOWER: 3 BOTH
+    const members = [
+      makeMember('U-JP-1', { gradeGroup: GradeGroup.UPPER, language: Language.JAPANESE }),
+      makeMember('U-EN-1', { gradeGroup: GradeGroup.UPPER, language: Language.ENGLISH }),
+      makeMember('L-BOTH-1', { gradeGroup: GradeGroup.LOWER, language: Language.BOTH }),
+      makeMember('L-BOTH-2', { gradeGroup: GradeGroup.LOWER, language: Language.BOTH }),
+      makeMember('L-BOTH-3', { gradeGroup: GradeGroup.LOWER, language: Language.BOTH }),
+    ];
+
+    const schedule = makeSchedule('2026-04-05').toggleSplitClass();
+    const counts = new Map<MemberId, number>();
+    members.forEach((m) => counts.set(m.id, 0));
+
+    const { assignments } = generateAssignments([schedule], members, [], counts);
+
+    expect(assignments.length).toBeGreaterThan(0);
+
+    // At least one BOTH member from LOWER should appear in UPPER slot (index 0)
+    const lowerBothIds = members
+      .filter((m) => m.gradeGroup === GradeGroup.LOWER && m.language === Language.BOTH)
+      .map((m) => m.id);
+
+    const hasCrossover = assignments.some((a) => lowerBothIds.includes(a.memberIds[0]));
+    expect(hasCrossover).toBe(true);
+  });
+
+  it('does not allow non-BOTH members to cross grade groups even on split-class days (T5)', () => {
+    const members = [
+      makeMember('U-BOTH-1', { gradeGroup: GradeGroup.UPPER, language: Language.BOTH }),
+      makeMember('U-BOTH-2', { gradeGroup: GradeGroup.UPPER, language: Language.BOTH }),
+      makeMember('U-BOTH-3', { gradeGroup: GradeGroup.UPPER, language: Language.BOTH }),
+      makeMember('U-JP-1', { gradeGroup: GradeGroup.UPPER, language: Language.JAPANESE }),
+      makeMember('L-JP-1', { gradeGroup: GradeGroup.LOWER, language: Language.JAPANESE }),
+      makeMember('L-EN-1', { gradeGroup: GradeGroup.LOWER, language: Language.ENGLISH }),
+    ];
+
+    const schedule = makeSchedule('2026-04-05').toggleSplitClass();
+    const counts = new Map<MemberId, number>();
+    members.forEach((m) => counts.set(m.id, 0));
+
+    const { assignments } = generateAssignments([schedule], members, [], counts);
+
+    // Non-BOTH UPPER member (U-JP-1) should never appear in LOWER slot (index 1)
+    const nonBothUpper = members.find((m) => m.name === 'U-JP-1')!;
+    for (const a of assignments) {
+      // index 1 is the LOWER slot
+      expect(a.memberIds[1]).not.toBe(nonBothUpper.id);
+    }
+  });
+
   it('avoids pairing spouses in the same group', () => {
     const spouseId1 = createMemberId();
     const spouseId2 = createMemberId();

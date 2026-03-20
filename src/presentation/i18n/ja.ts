@@ -88,6 +88,7 @@ export const ja = {
     sameGenderViolated: '{name1}または{name2}の同性ペア制約に違反しています',
     classLanguageCoverage: '分級日にバイリンガル担当者が不足しています（必要: 2名、実際: {count}名）',
     helperOnEventDay: 'イベント日にはヘルパーを割り当てできません',
+    gradeGroupMismatch: '{name}さんは{registered}ですが{assigned}枠に割り当てられています',
     tooMany: '多すぎ',
     tooFew: '少なすぎ',
     pastAssignmentWarning: '過去の割り当てを変更しようとしています。続けますか？',
