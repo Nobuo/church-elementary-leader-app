@@ -15,6 +15,56 @@
 - **CSV一括管理** — メンバーのCSVダウンロード・アップロードによる一括登録・更新
 - **多言語対応** — 日本語・英語の切り替え
 
+## ダウンロード（バイナリ版）
+
+開発環境がなくても、ビルド済みバイナリをダウンロードするだけで使えます。
+
+[最新リリースページ](../../releases/latest) から、お使いの環境に合ったファイルをダウンロードしてください。
+
+| ファイル名 | 対象環境 |
+|-----------|---------|
+| `leader-app-vX.X.X-darwin-arm64.tar.gz` | **macOS Apple Silicon**（M1 / M2 / M3 / M4 チップ搭載Mac） |
+| `leader-app-vX.X.X-darwin-x64.tar.gz` | **macOS Intel**（2020年以前のMac） |
+| `leader-app-vX.X.X-windows-x64.zip` | **Windows**（64bit） |
+
+> **どれを選べばいいかわからない場合:**
+> - Mac →  メニュー → 「このMacについて」でチップを確認。「Apple M○」なら `darwin-arm64`、「Intel」なら `darwin-x64`
+> - Windows → `windows-x64` を選んでください
+
+### macOS での実行
+
+```bash
+# 1. ダウンロードしたファイルを展開
+tar xzf leader-app-vX.X.X-darwin-arm64.tar.gz
+
+# 2. 検疫属性を解除（重要！）
+xattr -cr leader-app
+
+# 3. 起動
+cd leader-app
+./leader-app
+```
+
+ブラウザで **http://localhost:3000** を開きます。
+
+> **「壊れているため開けません」と表示される場合:** macOSはインターネットからダウンロードした署名なしバイナリに検疫属性を付けます。上記の `xattr -cr leader-app` コマンドで解除してください。展開後・起動前に実行するのがポイントです。
+
+### Windows での実行
+
+```
+1. ダウンロードしたZIPファイルを展開
+2. leader-app フォルダ内の leader-app.exe をダブルクリック
+3. ブラウザで http://localhost:3000 を開く
+```
+
+> **SmartScreen の警告:** 「WindowsによってPCが保護されました」と表示された場合は、「詳細情報」→「実行」をクリックしてください。
+
+---
+
+## 開発者向けセットアップ
+
+以下は、ソースコードから開発・実行する場合の手順です。
+
 ## 前提条件
 
 - **Node.js** 20 以上（推奨: 22.x）
