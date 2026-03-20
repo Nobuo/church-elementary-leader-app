@@ -28,6 +28,15 @@ function pairKey(a: MemberId, b: MemberId): string {
   return [a, b].sort().join('-');
 }
 
+function shuffle<T>(array: T[]): T[] {
+  const result = [...array];
+  for (let i = result.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [result[i], result[j]] = [result[j], result[i]];
+  }
+  return result;
+}
+
 interface ClassContext {
   group1Members: [Member, Member];
 }
@@ -346,14 +355,15 @@ function pickBestPairSameGrade(
 ): PairResult | null {
   if (candidates.length < 2) return null;
 
+  const shuffled = shuffle(candidates);
   let bestScore = Infinity;
   let bestPair: PairResult | null = null;
 
-  for (let i = 0; i < candidates.length; i++) {
-    for (let j = i + 1; j < candidates.length; j++) {
+  for (let i = 0; i < shuffled.length; i++) {
+    for (let j = i + 1; j < shuffled.length; j++) {
       const { score, violations } = scorePair(
-        candidates[i],
-        candidates[j],
+        shuffled[i],
+        shuffled[j],
         context,
         monthAssignments,
         dayAssignments,
@@ -362,9 +372,9 @@ function pickBestPairSameGrade(
         isSplitClassDay,
       );
 
-      if (score < bestScore) {
+      if (score < bestScore || (score === bestScore && Math.random() < 0.5)) {
         bestScore = score;
-        bestPair = { member1: candidates[i], member2: candidates[j], violations };
+        bestPair = { member1: shuffled[i], member2: shuffled[j], violations };
       }
     }
   }

@@ -646,4 +646,103 @@ describe('generateAssignments', () => {
       }
     });
   });
+
+  describe('shuffle tiebreak', () => {
+    it('produces different pairs across multiple runs when scores are tied (T1)', () => {
+      // 4 LOWER members, all score=0 pairs: JP+EN combinations
+      const members = [
+        makeMember('L-JP-1', { gradeGroup: GradeGroup.LOWER, language: Language.JAPANESE }),
+        makeMember('L-EN-1', { gradeGroup: GradeGroup.LOWER, language: Language.ENGLISH }),
+        makeMember('L-JP-2', { gradeGroup: GradeGroup.LOWER, language: Language.JAPANESE }),
+        makeMember('L-EN-2', { gradeGroup: GradeGroup.LOWER, language: Language.ENGLISH }),
+        // Need UPPER members too for Group 1
+        makeMember('U-BOTH-1', { gradeGroup: GradeGroup.UPPER, language: Language.BOTH }),
+        makeMember('U-JP-1', { gradeGroup: GradeGroup.UPPER, language: Language.JAPANESE }),
+      ];
+
+      const schedule = makeSchedule('2026-04-05');
+      const selectedPairs = new Set<string>();
+
+      for (let run = 0; run < 20; run++) {
+        const counts = new Map<MemberId, number>();
+        members.forEach((m) => counts.set(m.id, 0));
+        const { assignments } = generateAssignments([schedule], members, [], counts);
+        const group2 = assignments.find((a) => a.groupNumber === 2);
+        if (group2) {
+          const pairId = [...group2.memberIds].sort().join(',');
+          selectedPairs.add(pairId);
+        }
+      }
+
+      // With 4 valid JP+EN pairs, shuffle should produce at least 2 different pairs in 20 runs
+      expect(selectedPairs.size).toBeGreaterThanOrEqual(2);
+    });
+
+    it('always respects hard constraints despite randomization (T2)', () => {
+      const members = [
+        makeMember('U-BOTH-1', { gradeGroup: GradeGroup.UPPER, language: Language.BOTH }),
+        makeMember('U-JP-1', { gradeGroup: GradeGroup.UPPER, language: Language.JAPANESE }),
+        makeMember('U-JP-2', { gradeGroup: GradeGroup.UPPER, language: Language.JAPANESE }),
+        makeMember('L-BOTH-1', { gradeGroup: GradeGroup.LOWER, language: Language.BOTH }),
+        makeMember('L-JP-1', { gradeGroup: GradeGroup.LOWER, language: Language.JAPANESE }),
+        makeMember('L-EN-1', { gradeGroup: GradeGroup.LOWER, language: Language.ENGLISH }),
+      ];
+
+      for (let run = 0; run < 50; run++) {
+        const schedule = makeSchedule('2026-04-05');
+        const counts = new Map<MemberId, number>();
+        members.forEach((m) => counts.set(m.id, 0));
+        const { assignments } = generateAssignments([schedule], members, [], counts);
+
+        for (const a of assignments) {
+          const pair = a.memberIds.map((mid) => members.find((m) => m.id === mid)!);
+          // Language balance: each pair must cover both Japanese and English
+          const hasJP = pair.some((m) =>
+            m.language === Language.JAPANESE || m.language === Language.BOTH,
+          );
+          const hasEN = pair.some((m) =>
+            m.language === Language.ENGLISH || m.language === Language.BOTH,
+          );
+          expect(hasJP).toBe(true);
+          expect(hasEN).toBe(true);
+        }
+      }
+    });
+
+    it('equal distribution is maintained despite randomization (T3)', () => {
+      const members = [
+        makeMember('U-BOTH-1', { gradeGroup: GradeGroup.UPPER, language: Language.BOTH }),
+        makeMember('U-BOTH-2', { gradeGroup: GradeGroup.UPPER, language: Language.BOTH }),
+        makeMember('U-JP-1', { gradeGroup: GradeGroup.UPPER, language: Language.JAPANESE }),
+        makeMember('U-JP-2', { gradeGroup: GradeGroup.UPPER, language: Language.JAPANESE }),
+        makeMember('L-BOTH-1', { gradeGroup: GradeGroup.LOWER, language: Language.BOTH }),
+        makeMember('L-JP-1', { gradeGroup: GradeGroup.LOWER, language: Language.JAPANESE }),
+        makeMember('L-EN-1', { gradeGroup: GradeGroup.LOWER, language: Language.ENGLISH }),
+        makeMember('L-EN-2', { gradeGroup: GradeGroup.LOWER, language: Language.ENGLISH }),
+      ];
+
+      // Give some members higher counts — they should be less likely to be selected
+      const counts = new Map<MemberId, number>();
+      members.forEach((m) => counts.set(m.id, 0));
+      const highCountMember = members.find((m) => m.name === 'U-JP-1')!;
+      counts.set(highCountMember.id, 5);
+
+      const schedule = makeSchedule('2026-04-05');
+      let highCountSelected = 0;
+      const runs = 30;
+
+      for (let run = 0; run < runs; run++) {
+        const runCounts = new Map(counts);
+        const { assignments } = generateAssignments([schedule], members, [], runCounts);
+        const group1 = assignments.find((a) => a.groupNumber === 1);
+        if (group1?.memberIds.includes(highCountMember.id)) {
+          highCountSelected++;
+        }
+      }
+
+      // Member with count=5 should rarely be selected (others have count=0)
+      // Equal distribution penalty: (5-0)*50 = 250 makes them very unlikely
+      expect(highCountSelected).toBeLessThan(runs * 0.3);
+    });
+  });
 });
