@@ -158,9 +158,13 @@ function scorePair(
   }
 
   // SOFT: HELPER deferral — prefer PARENT members when scores are close
+  // Only apply if already assigned this month (don't exclude HELPERs entirely)
   for (const m of [member1, member2]) {
     if (m.memberType === MemberType.HELPER) {
-      score += 5;
+      const alreadyAssigned = monthAssignments.some((a) => a.containsMember(m.id));
+      if (alreadyAssigned) {
+        score += 5;
+      }
     }
   }
 

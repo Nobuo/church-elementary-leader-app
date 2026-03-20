@@ -766,34 +766,41 @@ describe('generateAssignments', () => {
   });
 
   describe('HELPER deferral', () => {
-    it('prefers PARENT pair over HELPER pair when all else is equal (T1)', () => {
-      // UPPER: JP-Parent, EN-Parent, EN-Helper — all count=0
-      // Parent pair (JP+EN score=0) vs Helper pair (JP+ENHelper score=+5)
+    it('defers HELPER on subsequent days after already assigned (T1)', () => {
+      // 2 days: on day 2, HELPER already assigned in monthAssignments → +5 penalty
       const members = [
         makeMember('U-JP-Parent', { gradeGroup: GradeGroup.UPPER, language: Language.JAPANESE, memberType: MemberType.PARENT_SINGLE }),
         makeMember('U-EN-Parent', { gradeGroup: GradeGroup.UPPER, language: Language.ENGLISH, memberType: MemberType.PARENT_SINGLE }),
+        makeMember('U-JP-Parent2', { gradeGroup: GradeGroup.UPPER, language: Language.JAPANESE, memberType: MemberType.PARENT_SINGLE }),
         makeMember('U-EN-Helper', { gradeGroup: GradeGroup.UPPER, language: Language.ENGLISH, memberType: MemberType.HELPER }),
         makeMember('L-JP-1', { gradeGroup: GradeGroup.LOWER, language: Language.JAPANESE }),
         makeMember('L-EN-1', { gradeGroup: GradeGroup.LOWER, language: Language.ENGLISH }),
+        makeMember('L-JP-2', { gradeGroup: GradeGroup.LOWER, language: Language.JAPANESE }),
+        makeMember('L-EN-2', { gradeGroup: GradeGroup.LOWER, language: Language.ENGLISH }),
       ];
 
-      const schedule = makeSchedule('2026-04-05');
+      const schedules = [
+        makeSchedule('2026-04-05'),
+        makeSchedule('2026-04-12'),
+      ];
       const helperId = members.find((m) => m.name === 'U-EN-Helper')!.id;
-      let helperSelectedCount = 0;
+      let helperBothDaysCount = 0;
       const runs = 30;
 
       for (let run = 0; run < runs; run++) {
         const counts = new Map<MemberId, number>();
         members.forEach((m) => counts.set(m.id, 0));
-        const { assignments } = generateAssignments([schedule], members, [], counts);
-        const group1 = assignments.find((a) => a.groupNumber === 1);
-        if (group1?.memberIds.includes(helperId)) {
-          helperSelectedCount++;
+        const { assignments } = generateAssignments(schedules, members, [], counts);
+        const helperAssignments = assignments.filter(
+          (a) => a.groupNumber === 1 && a.memberIds.includes(helperId),
+        );
+        if (helperAssignments.length === 2) {
+          helperBothDaysCount++;
         }
       }
 
-      // Helper should be selected much less often than parents
-      expect(helperSelectedCount).toBeLessThan(runs * 0.3);
+      // HELPER should rarely be selected for both days (deferred on second day)
+      expect(helperBothDaysCount).toBeLessThan(runs * 0.3);
     });
 
     it('selects HELPER when their count is sufficiently lower than parents (T2)', () => {
