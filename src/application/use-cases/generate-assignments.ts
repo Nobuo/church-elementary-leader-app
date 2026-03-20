@@ -98,8 +98,16 @@ export function generateMonthlyAssignments(
       updatedCountMap.set(mid, (updatedCountMap.get(mid) ?? 0) + 1);
     }
   }
-  const allFiscalYearSundays = allFiscalYearSchedules.filter((s) => !s.isExcluded);
-  const excessiveViolations = checkExcessiveCount(members, updatedCountMap, allFiscalYearSundays.length);
+  // totalSundays: 割り当てが存在するスケジュールのみをカウント
+  const otherScheduleIdsWithAssignments = new Set(
+    existingAssignments.map((a) => a.scheduleId),
+  );
+  const assignedSundays = allFiscalYearSchedules.filter(
+    (s) =>
+      !s.isExcluded &&
+      (scheduleIds.includes(s.id) || otherScheduleIdsWithAssignments.has(s.id)),
+  );
+  const excessiveViolations = checkExcessiveCount(members, updatedCountMap, assignedSundays.length);
   violations.push(...excessiveViolations);
 
   // Save assignments
