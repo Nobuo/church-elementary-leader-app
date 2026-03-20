@@ -860,6 +860,135 @@ describe('generateAssignments', () => {
     });
   });
 
+  describe('pool-relative distribution', () => {
+    it('pool-uniform counts produce no distribution penalty bias (T1)', () => {
+      // All UPPER count=3, all LOWER count=5 — within each pool, counts are equal
+      // So distribution penalty should not favor any pair within the pool
+      const members = [
+        makeMember('U-JP-1', { gradeGroup: GradeGroup.UPPER, language: Language.JAPANESE }),
+        makeMember('U-EN-1', { gradeGroup: GradeGroup.UPPER, language: Language.ENGLISH }),
+        makeMember('U-JP-2', { gradeGroup: GradeGroup.UPPER, language: Language.JAPANESE }),
+        makeMember('L-JP-1', { gradeGroup: GradeGroup.LOWER, language: Language.JAPANESE }),
+        makeMember('L-EN-1', { gradeGroup: GradeGroup.LOWER, language: Language.ENGLISH }),
+        makeMember('L-JP-2', { gradeGroup: GradeGroup.LOWER, language: Language.JAPANESE }),
+        makeMember('L-EN-2', { gradeGroup: GradeGroup.LOWER, language: Language.ENGLISH }),
+      ];
+
+      const schedule = makeSchedule('2026-04-05');
+      // UPPER all at count=3, LOWER all at count=5
+      const counts = new Map<MemberId, number>();
+      members.filter((m) => m.gradeGroup === GradeGroup.UPPER).forEach((m) => counts.set(m.id, 3));
+      members.filter((m) => m.gradeGroup === GradeGroup.LOWER).forEach((m) => counts.set(m.id, 5));
+
+      // Run multiple times — all valid pairs should appear (no distribution bias)
+      const g2Pairs = new Set<string>();
+      for (let run = 0; run < 30; run++) {
+        const runCounts = new Map(counts);
+        const { assignments } = generateAssignments([schedule], members, [], runCounts);
+        const group2 = assignments.find((a) => a.groupNumber === 2);
+        if (group2) {
+          g2Pairs.add([...group2.memberIds].sort().join(','));
+        }
+      }
+
+      // With 4 LOWER members (2JP+2EN), there are 4 valid JP+EN pairs
+      // With no distribution bias, shuffle should produce multiple pairs
+      expect(g2Pairs.size).toBeGreaterThanOrEqual(2);
+    });
+
+    it('lower count member in pool is preferred over higher count (T2)', () => {
+      // UPPER: JP(count=0), EN(count=3), EN(count=0)
+      // Pool min = 0, so EN(count=3) has +150 penalty, EN(count=0) has 0
+      const members = [
+        makeMember('U-JP', { gradeGroup: GradeGroup.UPPER, language: Language.JAPANESE }),
+        makeMember('U-EN-High', { gradeGroup: GradeGroup.UPPER, language: Language.ENGLISH }),
+        makeMember('U-EN-Low', { gradeGroup: GradeGroup.UPPER, language: Language.ENGLISH }),
+        makeMember('L-JP', { gradeGroup: GradeGroup.LOWER, language: Language.JAPANESE }),
+        makeMember('L-EN', { gradeGroup: GradeGroup.LOWER, language: Language.ENGLISH }),
+      ];
+
+      const schedule = makeSchedule('2026-04-05');
+      const highMember = members.find((m) => m.name === 'U-EN-High')!;
+      const lowMember = members.find((m) => m.name === 'U-EN-Low')!;
+
+      let lowSelected = 0;
+      const runs = 20;
+      for (let run = 0; run < runs; run++) {
+        const counts = new Map<MemberId, number>();
+        members.forEach((m) => counts.set(m.id, 0));
+        counts.set(highMember.id, 3);
+
+        const { assignments } = generateAssignments([schedule], members, [], counts);
+        const group1 = assignments.find((a) => a.groupNumber === 1);
+        if (group1?.memberIds.includes(lowMember.id)) lowSelected++;
+      }
+
+      // Low count member should be strongly preferred
+      expect(lowSelected).toBeGreaterThan(runs * 0.8);
+    });
+
+    it('cross-pool count difference does not affect penalty (T3)', () => {
+      // UPPER all count=2, LOWER all count=5
+      // Under pool-relative: LOWER penalty = 0 (pool min = 5)
+      // All LOWER members are equally likely regardless of UPPER having lower counts
+      const members = [
+        makeMember('U-JP', { gradeGroup: GradeGroup.UPPER, language: Language.JAPANESE }),
+        makeMember('U-EN', { gradeGroup: GradeGroup.UPPER, language: Language.ENGLISH }),
+        makeMember('L-JP-1', { gradeGroup: GradeGroup.LOWER, language: Language.JAPANESE }),
+        makeMember('L-EN-1', { gradeGroup: GradeGroup.LOWER, language: Language.ENGLISH }),
+        makeMember('L-JP-2', { gradeGroup: GradeGroup.LOWER, language: Language.JAPANESE }),
+        makeMember('L-EN-2', { gradeGroup: GradeGroup.LOWER, language: Language.ENGLISH }),
+      ];
+
+      const schedule = makeSchedule('2026-04-05');
+
+      const g2Pairs = new Set<string>();
+      for (let run = 0; run < 30; run++) {
+        const counts = new Map<MemberId, number>();
+        members.filter((m) => m.gradeGroup === GradeGroup.UPPER).forEach((m) => counts.set(m.id, 2));
+        members.filter((m) => m.gradeGroup === GradeGroup.LOWER).forEach((m) => counts.set(m.id, 5));
+
+        const { assignments } = generateAssignments([schedule], members, [], counts);
+        const group2 = assignments.find((a) => a.groupNumber === 2);
+        if (group2) {
+          g2Pairs.add([...group2.memberIds].sort().join(','));
+        }
+      }
+
+      // All 4 valid JP+EN pairs should appear — no bias from cross-pool count diff
+      expect(g2Pairs.size).toBeGreaterThanOrEqual(2);
+    });
+
+    it('hard constraints are always respected (T4)', () => {
+      const members = [
+        makeMember('U-BOTH', { gradeGroup: GradeGroup.UPPER, language: Language.BOTH }),
+        makeMember('U-JP', { gradeGroup: GradeGroup.UPPER, language: Language.JAPANESE }),
+        makeMember('L-BOTH', { gradeGroup: GradeGroup.LOWER, language: Language.BOTH }),
+        makeMember('L-JP', { gradeGroup: GradeGroup.LOWER, language: Language.JAPANESE }),
+        makeMember('L-EN', { gradeGroup: GradeGroup.LOWER, language: Language.ENGLISH }),
+      ];
+
+      for (let run = 0; run < 50; run++) {
+        const schedule = makeSchedule('2026-04-05');
+        const counts = new Map<MemberId, number>();
+        members.forEach((m) => counts.set(m.id, run % 5)); // varying counts
+        const { assignments } = generateAssignments([schedule], members, [], counts);
+
+        for (const a of assignments) {
+          const pair = a.memberIds.map((mid) => members.find((m) => m.id === mid)!);
+          const hasJP = pair.some((m) =>
+            m.language === Language.JAPANESE || m.language === Language.BOTH,
+          );
+          const hasEN = pair.some((m) =>
+            m.language === Language.ENGLISH || m.language === Language.BOTH,
+          );
+          expect(hasJP).toBe(true);
+          expect(hasEN).toBe(true);
+        }
+      }
+    });
+  });
+
   describe('shuffle tiebreak', () => {
     it('produces different pairs across multiple runs when scores are tied (T1)', () => {
       // 4 LOWER members, all score=0 pairs: JP+EN combinations

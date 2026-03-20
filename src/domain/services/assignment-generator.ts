@@ -54,6 +54,7 @@ function scorePair(
   pastPairCounts: Map<string, number>,
   classContext?: ClassContext,
   isSplitClassDay?: boolean,
+  poolMinCount?: number,
 ): { score: number; violations: ConstraintViolation[] } {
   let score = 0;
   const violations: ConstraintViolation[] = [];
@@ -129,9 +130,9 @@ function scorePair(
     }
   }
 
-  // Equal distribution (50 per assignment count difference from minimum)
+  // Equal distribution (50 per assignment count difference from pool minimum)
   const counts = context.assignmentCounts;
-  const minCount = Math.min(...context.members.filter((m) => m.isActive).map((m) => counts.get(m.id) ?? 0));
+  const minCount = poolMinCount ?? Math.min(...context.members.filter((m) => m.isActive).map((m) => counts.get(m.id) ?? 0));
   for (const m of [member1, member2]) {
     const memberCount = counts.get(m.id) ?? 0;
     score += (memberCount - minCount) * 50;
@@ -362,6 +363,9 @@ function pickBestPairSameGrade(
 ): PairResult | null {
   if (candidates.length < 2) return null;
 
+  const counts = context.assignmentCounts;
+  const poolMinCount = Math.min(...candidates.map((m) => counts.get(m.id) ?? 0));
+
   const shuffled = shuffle(candidates);
   let bestScore = Infinity;
   let bestPair: PairResult | null = null;
@@ -377,6 +381,7 @@ function pickBestPairSameGrade(
         pastPairCounts,
         classContext,
         isSplitClassDay,
+        poolMinCount,
       );
 
       if (score < bestScore || (score === bestScore && Math.random() < 0.5)) {
