@@ -765,6 +765,101 @@ describe('generateAssignments', () => {
     });
   });
 
+  describe('HELPER deferral', () => {
+    it('prefers PARENT pair over HELPER pair when all else is equal (T1)', () => {
+      // UPPER: JP-Parent, EN-Parent, EN-Helper — all count=0
+      // Parent pair (JP+EN score=0) vs Helper pair (JP+ENHelper score=+5)
+      const members = [
+        makeMember('U-JP-Parent', { gradeGroup: GradeGroup.UPPER, language: Language.JAPANESE, memberType: MemberType.PARENT_SINGLE }),
+        makeMember('U-EN-Parent', { gradeGroup: GradeGroup.UPPER, language: Language.ENGLISH, memberType: MemberType.PARENT_SINGLE }),
+        makeMember('U-EN-Helper', { gradeGroup: GradeGroup.UPPER, language: Language.ENGLISH, memberType: MemberType.HELPER }),
+        makeMember('L-JP-1', { gradeGroup: GradeGroup.LOWER, language: Language.JAPANESE }),
+        makeMember('L-EN-1', { gradeGroup: GradeGroup.LOWER, language: Language.ENGLISH }),
+      ];
+
+      const schedule = makeSchedule('2026-04-05');
+      const helperId = members.find((m) => m.name === 'U-EN-Helper')!.id;
+      let helperSelectedCount = 0;
+      const runs = 30;
+
+      for (let run = 0; run < runs; run++) {
+        const counts = new Map<MemberId, number>();
+        members.forEach((m) => counts.set(m.id, 0));
+        const { assignments } = generateAssignments([schedule], members, [], counts);
+        const group1 = assignments.find((a) => a.groupNumber === 1);
+        if (group1?.memberIds.includes(helperId)) {
+          helperSelectedCount++;
+        }
+      }
+
+      // Helper should be selected much less often than parents
+      expect(helperSelectedCount).toBeLessThan(runs * 0.3);
+    });
+
+    it('selects HELPER when their count is sufficiently lower than parents (T2)', () => {
+      // Helper count=0, Parents count=2 → equal distribution penalty overcomes helper deferral
+      const members = [
+        makeMember('U-JP-Parent', { gradeGroup: GradeGroup.UPPER, language: Language.JAPANESE, memberType: MemberType.PARENT_SINGLE }),
+        makeMember('U-EN-Parent', { gradeGroup: GradeGroup.UPPER, language: Language.ENGLISH, memberType: MemberType.PARENT_SINGLE }),
+        makeMember('U-EN-Helper', { gradeGroup: GradeGroup.UPPER, language: Language.ENGLISH, memberType: MemberType.HELPER }),
+        makeMember('L-JP-1', { gradeGroup: GradeGroup.LOWER, language: Language.JAPANESE }),
+        makeMember('L-EN-1', { gradeGroup: GradeGroup.LOWER, language: Language.ENGLISH }),
+      ];
+
+      const schedule = makeSchedule('2026-04-05');
+      const helperId = members.find((m) => m.name === 'U-EN-Helper')!.id;
+      let helperSelectedCount = 0;
+      const runs = 30;
+
+      for (let run = 0; run < runs; run++) {
+        const counts = new Map<MemberId, number>();
+        members.forEach((m) => counts.set(m.id, 0));
+        // Parents have higher counts
+        counts.set(members[0].id, 2);
+        counts.set(members[1].id, 2);
+
+        const { assignments } = generateAssignments([schedule], members, [], counts);
+        const group1 = assignments.find((a) => a.groupNumber === 1);
+        if (group1?.memberIds.includes(helperId)) {
+          helperSelectedCount++;
+        }
+      }
+
+      // Helper should be selected most of the time (equal distribution wins)
+      expect(helperSelectedCount).toBeGreaterThan(runs * 0.7);
+    });
+
+    it('hard constraints are always respected despite helper deferral (T3)', () => {
+      const members = [
+        makeMember('U-BOTH-Parent', { gradeGroup: GradeGroup.UPPER, language: Language.BOTH, memberType: MemberType.PARENT_SINGLE }),
+        makeMember('U-JP-Parent', { gradeGroup: GradeGroup.UPPER, language: Language.JAPANESE, memberType: MemberType.PARENT_SINGLE }),
+        makeMember('U-EN-Helper', { gradeGroup: GradeGroup.UPPER, language: Language.ENGLISH, memberType: MemberType.HELPER }),
+        makeMember('L-BOTH-1', { gradeGroup: GradeGroup.LOWER, language: Language.BOTH }),
+        makeMember('L-JP-1', { gradeGroup: GradeGroup.LOWER, language: Language.JAPANESE }),
+        makeMember('L-EN-1', { gradeGroup: GradeGroup.LOWER, language: Language.ENGLISH }),
+      ];
+
+      for (let run = 0; run < 50; run++) {
+        const schedule = makeSchedule('2026-04-05');
+        const counts = new Map<MemberId, number>();
+        members.forEach((m) => counts.set(m.id, 0));
+        const { assignments } = generateAssignments([schedule], members, [], counts);
+
+        for (const a of assignments) {
+          const pair = a.memberIds.map((mid) => members.find((m) => m.id === mid)!);
+          const hasJP = pair.some((m) =>
+            m.language === Language.JAPANESE || m.language === Language.BOTH,
+          );
+          const hasEN = pair.some((m) =>
+            m.language === Language.ENGLISH || m.language === Language.BOTH,
+          );
+          expect(hasJP).toBe(true);
+          expect(hasEN).toBe(true);
+        }
+      }
+    });
+  });
+
   describe('shuffle tiebreak', () => {
     it('produces different pairs across multiple runs when scores are tied (T1)', () => {
       // 4 LOWER members, all score=0 pairs: JP+EN combinations

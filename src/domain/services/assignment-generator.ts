@@ -156,6 +156,13 @@ function scorePair(
     }
   }
 
+  // SOFT: HELPER deferral — prefer PARENT members when scores are close
+  for (const m of [member1, member2]) {
+    if (m.memberType === MemberType.HELPER) {
+      score += 5;
+    }
+  }
+
   // Pair diversity (10 penalty per previous pairing)
   const pk = pairKey(member1.id, member2.id);
   const pairCount = pastPairCounts.get(pk) ?? 0;
