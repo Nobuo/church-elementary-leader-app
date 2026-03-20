@@ -258,6 +258,56 @@ describe('adjustAssignment', () => {
     }
   });
 
+  it('allows ANY member in G1 (UPPER slot) without grade mismatch warning (T5)', () => {
+    const m1 = makeMember('Upper1', { language: Language.JAPANESE, gradeGroup: GradeGroup.UPPER });
+    const m2 = makeMember('Upper2', { language: Language.ENGLISH, gradeGroup: GradeGroup.UPPER });
+    const m3 = makeMember('Any1', { language: Language.ENGLISH, gradeGroup: GradeGroup.ANY });
+
+    const scheduleResult = Schedule.create('2026-04-05');
+    if (!scheduleResult.ok) throw new Error('bad schedule');
+    const schedule = scheduleResult.value;
+
+    const assignment = Assignment.create(schedule.id, 1, [m1.id, m2.id]);
+    const { memberRepo, assignmentRepo, scheduleRepo } = createRepos(
+      [m1, m2, m3],
+      [assignment],
+      [schedule],
+    );
+
+    const result = adjustAssignment(assignment.id, m2.id, m3.id, assignmentRepo, memberRepo, scheduleRepo);
+
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      const gradeViolations = result.value.violations.filter((v) => v.type === 'GRADE_GROUP_MISMATCH');
+      expect(gradeViolations).toHaveLength(0);
+    }
+  });
+
+  it('allows ANY member in G2 (LOWER slot) without grade mismatch warning (T6)', () => {
+    const m1 = makeMember('Lower1', { language: Language.JAPANESE, gradeGroup: GradeGroup.LOWER });
+    const m2 = makeMember('Lower2', { language: Language.ENGLISH, gradeGroup: GradeGroup.LOWER });
+    const m3 = makeMember('Any1', { language: Language.ENGLISH, gradeGroup: GradeGroup.ANY });
+
+    const scheduleResult = Schedule.create('2026-04-05');
+    if (!scheduleResult.ok) throw new Error('bad schedule');
+    const schedule = scheduleResult.value;
+
+    const assignment = Assignment.create(schedule.id, 2, [m1.id, m2.id]);
+    const { memberRepo, assignmentRepo, scheduleRepo } = createRepos(
+      [m1, m2, m3],
+      [assignment],
+      [schedule],
+    );
+
+    const result = adjustAssignment(assignment.id, m2.id, m3.id, assignmentRepo, memberRepo, scheduleRepo);
+
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      const gradeViolations = result.value.violations.filter((v) => v.type === 'GRADE_GROUP_MISMATCH');
+      expect(gradeViolations).toHaveLength(0);
+    }
+  });
+
   it('includes gradeGroup in assignment DTO', () => {
     const m1 = makeMember('Upper1', { language: Language.BOTH, gradeGroup: GradeGroup.UPPER });
     const m2 = makeMember('Upper2', { language: Language.BOTH, gradeGroup: GradeGroup.UPPER });

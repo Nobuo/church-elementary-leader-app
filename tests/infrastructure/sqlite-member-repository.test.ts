@@ -56,6 +56,25 @@ describe('SqliteMemberRepository', () => {
     expect(all.length).toBe(2);
   });
 
+  it('saves and retrieves a member with grade_group=ANY (T8)', () => {
+    const result = Member.create({
+      name: 'Any Helper',
+      gender: Gender.FEMALE,
+      language: Language.BOTH,
+      gradeGroup: GradeGroup.ANY,
+      memberType: MemberType.HELPER,
+      sameGenderOnly: false,
+      spouseId: null,
+      availableDates: null,
+    });
+    if (!result.ok) throw new Error('Failed');
+    repo.save(result.value);
+    const found = repo.findById(result.value.id);
+    expect(found).not.toBeNull();
+    expect(found!.gradeGroup).toBe(GradeGroup.ANY);
+    expect(found!.name).toBe('Any Helper');
+  });
+
   it('saves member with available dates', () => {
     const result = Member.create({
       name: 'Dates User',

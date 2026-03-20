@@ -199,7 +199,7 @@ export function adjustAssignment(
 
     // Grade group mismatch check
     const expectedGrade = updated.groupNumber === 1 ? GradeGroup.UPPER : GradeGroup.LOWER;
-    if (newMember.gradeGroup !== expectedGrade) {
+    if (newMember.gradeGroup !== GradeGroup.ANY && newMember.gradeGroup !== expectedGrade) {
       violations.push({
         type: ViolationType.GRADE_GROUP_MISMATCH,
         severity: Severity.WARNING,

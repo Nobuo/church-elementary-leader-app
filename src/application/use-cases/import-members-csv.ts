@@ -4,6 +4,7 @@ import { Gender } from '@domain/value-objects/gender';
 import { Language } from '@domain/value-objects/language';
 import { GradeGroup } from '@domain/value-objects/grade-group';
 import { MemberType } from '@domain/value-objects/member-type';
+import { isValidGender, isValidLanguage, isValidGradeGroup, isValidMemberType } from '@shared/validators';
 
 export interface ImportResult {
   created: number;
@@ -65,22 +66,22 @@ function parseRow(fields: string[], rowNum: number): ParsedRow | { error: string
   if (!name) return { error: `Row ${rowNum}: Name is required` };
 
   const gender = fields[1].trim().toUpperCase();
-  if (gender !== 'MALE' && gender !== 'FEMALE') {
+  if (!isValidGender(gender)) {
     return { error: `Row ${rowNum}: Invalid gender "${fields[1]}"` };
   }
 
   const language = fields[2].trim().toUpperCase();
-  if (language !== 'JAPANESE' && language !== 'ENGLISH' && language !== 'BOTH') {
+  if (!isValidLanguage(language)) {
     return { error: `Row ${rowNum}: Invalid language "${fields[2]}"` };
   }
 
   const gradeGroup = fields[3].trim().toUpperCase();
-  if (gradeGroup !== 'LOWER' && gradeGroup !== 'UPPER') {
+  if (!isValidGradeGroup(gradeGroup)) {
     return { error: `Row ${rowNum}: Invalid grade group "${fields[3]}"` };
   }
 
   const memberType = fields[4].trim().toUpperCase();
-  if (memberType !== 'PARENT_COUPLE' && memberType !== 'PARENT_SINGLE' && memberType !== 'HELPER') {
+  if (!isValidMemberType(memberType)) {
     return { error: `Row ${rowNum}: Invalid member type "${fields[4]}"` };
   }
 

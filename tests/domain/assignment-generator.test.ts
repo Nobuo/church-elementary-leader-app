@@ -7,6 +7,7 @@ import { Language } from '@domain/value-objects/language';
 import { GradeGroup } from '@domain/value-objects/grade-group';
 import { MemberType } from '@domain/value-objects/member-type';
 import { MemberId, createMemberId } from '@shared/types';
+import { ViolationType } from '@domain/value-objects/constraint-violation';
 import { generateAssignments } from '@domain/services/assignment-generator';
 
 function makeMember(
@@ -643,6 +644,123 @@ describe('generateAssignments', () => {
 
       for (const [, count] of upperBothCounts) {
         expect(count).toBe(1);
+      }
+    });
+  });
+
+  describe('ANY grade group', () => {
+    it('ANY member appears in both UPPER and LOWER pools (T1)', () => {
+      // UPPER has its own EN, LOWER has its own EN, so ANY-EN can go either way
+      const members = [
+        makeMember('U-JP-1', { gradeGroup: GradeGroup.UPPER, language: Language.JAPANESE }),
+        makeMember('U-EN-1', { gradeGroup: GradeGroup.UPPER, language: Language.ENGLISH }),
+        makeMember('ANY-EN-1', { gradeGroup: GradeGroup.ANY, language: Language.ENGLISH }),
+        makeMember('L-JP-1', { gradeGroup: GradeGroup.LOWER, language: Language.JAPANESE }),
+        makeMember('L-EN-1', { gradeGroup: GradeGroup.LOWER, language: Language.ENGLISH }),
+      ];
+
+      const schedule = makeSchedule('2026-04-05');
+      const anyMember = members.find((m) => m.name === 'ANY-EN-1')!;
+
+      // ANY is in both pools. G1 picks from upperPool (U-JP-1, U-EN-1, ANY-EN-1).
+      // If ANY is picked for G1 → inGroup1. If not → ANY remains in lowerPool for G2.
+      let inGroup1 = false;
+      let inGroup2 = false;
+
+      for (let run = 0; run < 30; run++) {
+        const runCounts = new Map<MemberId, number>();
+        members.forEach((m) => runCounts.set(m.id, 0));
+        const { assignments } = generateAssignments([schedule], members, [], runCounts);
+        for (const a of assignments) {
+          if (a.memberIds.includes(anyMember.id)) {
+            if (a.groupNumber === 1) inGroup1 = true;
+            if (a.groupNumber === 2) inGroup2 = true;
+          }
+        }
+        if (inGroup1 && inGroup2) break;
+      }
+
+      expect(inGroup1).toBe(true);
+      expect(inGroup2).toBe(true);
+    });
+
+    it('ANY member used in G1 is excluded from G2 on same day via usedIds (T2)', () => {
+      // Only 2 UPPER + ANY + 2 LOWER — ANY will be needed for G1
+      const members = [
+        makeMember('U-JP-1', { gradeGroup: GradeGroup.UPPER, language: Language.JAPANESE }),
+        makeMember('ANY-EN-1', { gradeGroup: GradeGroup.ANY, language: Language.ENGLISH }),
+        makeMember('L-JP-1', { gradeGroup: GradeGroup.LOWER, language: Language.JAPANESE }),
+        makeMember('L-EN-1', { gradeGroup: GradeGroup.LOWER, language: Language.ENGLISH }),
+      ];
+
+      const schedule = makeSchedule('2026-04-05');
+
+      for (let run = 0; run < 30; run++) {
+        const counts = new Map<MemberId, number>();
+        members.forEach((m) => counts.set(m.id, 0));
+        const { assignments } = generateAssignments([schedule], members, [], counts);
+
+        // ANY member must not appear in both groups on the same day
+        const anyMember = members.find((m) => m.name === 'ANY-EN-1')!;
+        const dayAssignments = assignments.filter((a) => a.scheduleId === schedule.id);
+        const appearances = dayAssignments.filter((a) => a.memberIds.includes(anyMember.id));
+        expect(appearances.length).toBeLessThanOrEqual(1);
+      }
+    });
+
+    it('split-class day: ANY+BOTH member contributes to CLASS_LANGUAGE_COVERAGE (T3)', () => {
+      // ANY-BOTH goes into both pools. With L-BOTH-1 in LOWER, G2 always has BOTH coverage
+      // regardless of whether ANY-BOTH is used in G1 or G2.
+      const members = [
+        makeMember('U-BOTH-1', { gradeGroup: GradeGroup.UPPER, language: Language.BOTH }),
+        makeMember('U-JP-1', { gradeGroup: GradeGroup.UPPER, language: Language.JAPANESE }),
+        makeMember('ANY-BOTH-1', { gradeGroup: GradeGroup.ANY, language: Language.BOTH }),
+        makeMember('L-BOTH-1', { gradeGroup: GradeGroup.LOWER, language: Language.BOTH }),
+        makeMember('L-JP-1', { gradeGroup: GradeGroup.LOWER, language: Language.JAPANESE }),
+      ];
+
+      const schedule = makeSchedule('2026-04-05').toggleSplitClass();
+
+      for (let run = 0; run < 20; run++) {
+        const counts = new Map<MemberId, number>();
+        members.forEach((m) => counts.set(m.id, 0));
+
+        const { violations } = generateAssignments([schedule], members, [], counts);
+        const classViolations = violations.filter(
+          (v) => v.type === ViolationType.CLASS_LANGUAGE_COVERAGE,
+        );
+        expect(classViolations).toHaveLength(0);
+      }
+    });
+
+    it('existing behavior unchanged when no ANY members present (T4)', () => {
+      // Same as basic test — no ANY members
+      const members = [
+        makeMember('U-JP-1', { gradeGroup: GradeGroup.UPPER, language: Language.JAPANESE }),
+        makeMember('U-EN-1', { gradeGroup: GradeGroup.UPPER, language: Language.ENGLISH }),
+        makeMember('L-JP-1', { gradeGroup: GradeGroup.LOWER, language: Language.JAPANESE }),
+        makeMember('L-EN-1', { gradeGroup: GradeGroup.LOWER, language: Language.ENGLISH }),
+      ];
+
+      const schedule = makeSchedule('2026-04-05');
+      const counts = new Map<MemberId, number>();
+      members.forEach((m) => counts.set(m.id, 0));
+
+      const { assignments } = generateAssignments([schedule], members, [], counts);
+      expect(assignments.length).toBe(2);
+
+      for (const a of assignments) {
+        if (a.groupNumber === 1) {
+          for (const mid of a.memberIds) {
+            const m = members.find((mem) => mem.id === mid)!;
+            expect(m.gradeGroup).toBe(GradeGroup.UPPER);
+          }
+        } else {
+          for (const mid of a.memberIds) {
+            const m = members.find((mem) => mem.id === mid)!;
+            expect(m.gradeGroup).toBe(GradeGroup.LOWER);
+          }
+        }
       }
     });
   });

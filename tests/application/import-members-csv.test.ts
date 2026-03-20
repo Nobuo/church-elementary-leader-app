@@ -127,6 +127,18 @@ Test,MALE,JAPANESE,UPPER,HELPER,FALSE,,2026-04-05;2026-04-12,TRUE`;
     expect(repo.members[0].availableDates).toEqual(['2026-04-05', '2026-04-12']);
   });
 
+  it('accepts gradeGroup=ANY in CSV import (T7)', () => {
+    const repo = createInMemoryMemberRepo();
+    const csv = `Name,Gender,Language,Grade Group,Member Type,Same-gender Only,Spouse,Available Dates,Active
+AnyHelper,FEMALE,BOTH,ANY,HELPER,FALSE,,,TRUE`;
+
+    const result = importMembersCsv(csv, repo);
+
+    expect(result.created).toBe(1);
+    expect(result.errors).toHaveLength(0);
+    expect(repo.members[0].gradeGroup).toBe(GradeGroup.ANY);
+  });
+
   it('returns error for empty CSV', () => {
     const repo = createInMemoryMemberRepo();
     const result = importMembersCsv('', repo);

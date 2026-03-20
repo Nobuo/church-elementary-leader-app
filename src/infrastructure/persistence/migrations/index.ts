@@ -5,6 +5,7 @@ import { migration002 } from './002-schedules.js';
 import { migration003 } from './003-assignments.js';
 import { migration004 } from './004-schedule-events.js';
 import { migration005 } from './005-schedule-split-class.js';
+import { migration006 } from './006-grade-group-any.js';
 
 export type { Migration } from './migration.js';
 
@@ -14,6 +15,7 @@ export const migrations: Migration[] = [
   migration003,
   migration004,
   migration005,
+  migration006,
 ];
 
 export function runMigrations(db: AppDatabase): void {
@@ -31,12 +33,18 @@ export function runMigrations(db: AppDatabase): void {
       .map((row) => (row as { version: number }).version),
   );
 
-  for (const migration of migrations) {
-    if (!applied.has(migration.version)) {
-      db.transaction(() => {
-        migration.up(db);
-        db.prepare('INSERT INTO schema_migrations (version) VALUES (?)').run(migration.version);
-      })();
+  const pending = migrations.filter((m) => !applied.has(m.version));
+  if (pending.length > 0) {
+    db.exec('PRAGMA foreign_keys = OFF');
+    try {
+      for (const migration of pending) {
+        db.transaction(() => {
+          migration.up(db);
+          db.prepare('INSERT INTO schema_migrations (version) VALUES (?)').run(migration.version);
+        })();
+      }
+    } finally {
+      db.exec('PRAGMA foreign_keys = ON');
     }
   }
 }

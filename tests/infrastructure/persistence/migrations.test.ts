@@ -99,6 +99,34 @@ describe('Migration up/down roundtrip', () => {
     runMigrations(db);
     expect(getColumnNames(db, 'schedules')).toContain('is_split_class');
   });
+  it('006: grade_group CHECK制約にANYを追加・除去・再追加できる', () => {
+    db = createTestDb();
+    runMigrations(db);
+
+    // ANY should be accepted after migration 006
+    db.prepare(
+      "INSERT INTO members (id, name, gender, language, grade_group, member_type) VALUES (?, ?, ?, ?, ?, ?)",
+    ).run('m-any', 'AnyHelper', 'FEMALE', 'BOTH', 'ANY', 'HELPER');
+    const found = db.prepare("SELECT * FROM members WHERE id = 'm-any'").get() as Record<string, unknown>;
+    expect(found.grade_group).toBe('ANY');
+
+    // Rollback 006 — ANY members are removed
+    rollbackMigrations(db, 5);
+    expect(() =>
+      db.prepare(
+        "INSERT INTO members (id, name, gender, language, grade_group, member_type) VALUES (?, ?, ?, ?, ?, ?)",
+      ).run('m-any2', 'AnyHelper2', 'FEMALE', 'BOTH', 'ANY', 'HELPER'),
+    ).toThrow();
+
+    // Re-apply
+    runMigrations(db);
+    db.prepare(
+      "INSERT INTO members (id, name, gender, language, grade_group, member_type) VALUES (?, ?, ?, ?, ?, ?)",
+    ).run('m-any3', 'AnyHelper3', 'FEMALE', 'BOTH', 'ANY', 'HELPER');
+    const found2 = db.prepare("SELECT * FROM members WHERE id = 'm-any3'").get() as Record<string, unknown>;
+    expect(found2.grade_group).toBe('ANY');
+  });
+
   it('004/005: データが入っている状態でもロールバック・復元できる', () => {
     db = createTestDb();
     runMigrations(db);
@@ -143,7 +171,7 @@ describe('rollbackMigrations', () => {
   it('指定バージョンまでロールバックする', () => {
     db = createTestDb();
     runMigrations(db);
-    expect(getAppliedVersions(db)).toEqual([1, 2, 3, 4, 5]);
+    expect(getAppliedVersions(db)).toEqual([1, 2, 3, 4, 5, 6]);
 
     rollbackMigrations(db, 3);
     expect(getAppliedVersions(db)).toEqual([1, 2, 3]);
@@ -169,7 +197,7 @@ describe('rollbackMigrations', () => {
     expect(getAppliedVersions(db)).toEqual([]);
 
     runMigrations(db);
-    expect(getAppliedVersions(db)).toEqual([1, 2, 3, 4, 5]);
+    expect(getAppliedVersions(db)).toEqual([1, 2, 3, 4, 5, 6]);
     expect(getTableNames(db)).toContain('members');
     expect(getTableNames(db)).toContain('schedules');
     expect(getTableNames(db)).toContain('assignments');
@@ -179,11 +207,11 @@ describe('rollbackMigrations', () => {
     db = createTestDb();
     runMigrations(db);
 
-    rollbackMigrations(db, 5);
-    expect(getAppliedVersions(db)).toEqual([1, 2, 3, 4, 5]);
+    rollbackMigrations(db, 6);
+    expect(getAppliedVersions(db)).toEqual([1, 2, 3, 4, 5, 6]);
 
     rollbackMigrations(db, 10);
-    expect(getAppliedVersions(db)).toEqual([1, 2, 3, 4, 5]);
+    expect(getAppliedVersions(db)).toEqual([1, 2, 3, 4, 5, 6]);
   });
 });
 
@@ -211,7 +239,7 @@ describe('handleMigrateTarget', () => {
     delete process.env.DB_MIGRATE_TARGET;
 
     handleMigrateTarget(db);
-    expect(getAppliedVersions(db)).toEqual([1, 2, 3, 4, 5]);
+    expect(getAppliedVersions(db)).toEqual([1, 2, 3, 4, 5, 6]);
   });
 
   it('無効な値でエラーをthrow', () => {

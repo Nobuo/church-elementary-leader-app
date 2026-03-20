@@ -214,8 +214,8 @@ export function generateAssignments(
       .filter((m) => m.isAvailableOn(dateStr))
       .filter((m) => !schedule.isEvent || m.memberType !== MemberType.HELPER);
 
-    const upperBase = available.filter((m) => m.gradeGroup === GradeGroup.UPPER);
-    const lowerBase = available.filter((m) => m.gradeGroup === GradeGroup.LOWER);
+    const upperBase = available.filter((m) => m.gradeGroup === GradeGroup.UPPER || m.gradeGroup === GradeGroup.ANY);
+    const lowerBase = available.filter((m) => m.gradeGroup === GradeGroup.LOWER || m.gradeGroup === GradeGroup.ANY);
 
     // On split-class days, allow bilingual (BOTH) members to cross grade boundaries
     let upperMembers = upperBase;
