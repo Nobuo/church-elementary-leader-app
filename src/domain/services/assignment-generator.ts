@@ -73,8 +73,23 @@ function scorePair(
     }
   }
 
-  // Split-class day: prefer BOTH members to ensure bilingual coverage
-  if (isSplitClassDay) {
+  // BOTH conservation: prevent unnecessary consumption of bilingual members
+  if (!isSplitClassDay) {
+    // Non-split-class: general BOTH conservation
+    for (const m of [member1, member2]) {
+      if (m.language === Language.BOTH) {
+        score += 3;
+      }
+    }
+  } else if (!classContext) {
+    // Split-class Group 1: mild single-BOTH preference, penalize double-BOTH
+    const bothInPair = [member1, member2].filter((m) => m.language === Language.BOTH).length;
+    if (bothInPair === 1) score -= 1;
+    if (bothInPair === 2) score += 5;
+  }
+
+  // Split-class day Group 2: prefer BOTH for bilingual coverage
+  if (classContext) {
     for (const m of [member1, member2]) {
       if (m.language === Language.BOTH) {
         score -= 5;
