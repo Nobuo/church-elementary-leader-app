@@ -28,6 +28,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          fetch-depth: 0
       - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
         with:
           bun-version: latest
@@ -75,10 +77,44 @@ jobs:
           cd staging && zip -r ../dist/leader-app-${VERSION}-windows-x64.zip leader-app && cd ..
           rm -rf staging/leader-app
 
+      - name: Generate changelog
+        id: changelog
+        run: |
+          PREV_TAG=$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || echo "")
+          if [ -z "$PREV_TAG" ]; then
+            COMMITS=$(git log --pretty=format:"%s" HEAD)
+          else
+            COMMITS=$(git log --pretty=format:"%s" "${PREV_TAG}..HEAD")
+          fi
+
+          FEAT=""
+          FIX=""
+          SEC=""
+          OTHER=""
+
+          while IFS= read -r line; do
+            [ -z "$line" ] && continue
+            case "$line" in
+              feat:*)     FEAT="$FEAT"$'\n'"- $line" ;;
+              fix:*)      FIX="$FIX"$'\n'"- $line" ;;
+              security:*) SEC="$SEC"$'\n'"- $line" ;;
+              *)          OTHER="$OTHER"$'\n'"- $line" ;;
+            esac
+          done <<< "$COMMITS"
+
+          {
+            echo "BODY<<CHANGELOG_EOF"
+            [ -n "$FEAT" ] && printf '## 🆕 新機能\n%s\n\n' "$FEAT"
+            [ -n "$FIX" ] && printf '## 🐛 バグ修正\n%s\n\n' "$FIX"
+            [ -n "$SEC" ] && printf '## 🔒 セキュリティ\n%s\n\n' "$SEC"
+            [ -n "$OTHER" ] && printf '## 🔧 その他\n%s\n\n' "$OTHER"
+            echo "CHANGELOG_EOF"
+          } >> "$GITHUB_OUTPUT"
+
       - name: Create Release
         uses: softprops/action-gh-release@b25b93d384199fc0fc8c2e126b2d937a0cbeb2ae # v2
         with:
-          generate_release_notes: true
+          body: ${{ steps.changelog.outputs.BODY }}
           files: |
             dist/leader-app-${{ steps.version.outputs.VERSION }}-darwin-arm64.tar.gz
             dist/leader-app-${{ steps.version.outputs.VERSION }}-darwin-x64.tar.gz
