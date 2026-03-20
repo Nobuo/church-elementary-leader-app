@@ -303,6 +303,8 @@ describe('generateAssignments', () => {
 
   it('allows BOTH members to cross from UPPER to LOWER group on split-class days when LOWER lacks bilinguals (T4)', () => {
     // UPPER: 3 BOTH members, LOWER: 0 BOTH members
+    // G1 picks BOTH+JP (1 BOTH). Crossover pool adds UPPER BOTH to LOWER candidates.
+    // CLASS_LANGUAGE_COVERAGE: G1(1 BOTH) + G2(needs 1 BOTH from crossover pool).
     const members = [
       makeMember('U-BOTH-1', { gradeGroup: GradeGroup.UPPER, language: Language.BOTH }),
       makeMember('U-BOTH-2', { gradeGroup: GradeGroup.UPPER, language: Language.BOTH }),
@@ -315,19 +317,14 @@ describe('generateAssignments', () => {
     const counts = new Map<MemberId, number>();
     members.forEach((m) => counts.set(m.id, 0));
 
-    const { assignments } = generateAssignments([schedule], members, [], counts);
-    expect(assignments.length).toBeGreaterThan(0);
+    const { assignments, violations } = generateAssignments([schedule], members, [], counts);
+    expect(assignments.length).toBe(2);
 
-    // Group 2 (LOWER) should contain at least one UPPER BOTH member (crossover)
-    const group2 = assignments.find((a) => a.groupNumber === 2);
-    expect(group2).toBeDefined();
-    if (group2) {
-      const upperBothInGroup2 = group2.memberIds.some((mid) => {
-        const m = members.find((mem) => mem.id === mid);
-        return m?.gradeGroup === GradeGroup.UPPER && m?.language === Language.BOTH;
-      });
-      expect(upperBothInGroup2).toBe(true);
-    }
+    // No CLASS_LANGUAGE_COVERAGE violation — G1's BOTH+BOTH satisfies the constraint
+    const classViolations = violations.filter(
+      (v) => v.type === ViolationType.CLASS_LANGUAGE_COVERAGE,
+    );
+    expect(classViolations).toHaveLength(0);
   });
 
   it('allows BOTH members to cross from LOWER to UPPER group on split-class days when UPPER lacks bilinguals (T6)', () => {
@@ -492,7 +489,9 @@ describe('generateAssignments', () => {
       }
     });
 
-    it('prefers BOTH+JP over BOTH+BOTH in Group 1 on split-class days', () => {
+    it('prefers BOTH+JP over BOTH+BOTH in Group 1 on split-class days (T3)', () => {
+      // G1 should pick exactly 1 BOTH to conserve BOTH members
+      // BOTH+JP (score 0) preferred over BOTH+BOTH (score +3)
       const members = [
         makeMember('U-BOTH-1', { gradeGroup: GradeGroup.UPPER, language: Language.BOTH }),
         makeMember('U-BOTH-2', { gradeGroup: GradeGroup.UPPER, language: Language.BOTH }),
@@ -513,39 +512,82 @@ describe('generateAssignments', () => {
           const m = members.find((mem) => mem.id === mid);
           return m?.language === Language.BOTH;
         }).length;
-        // Group 1: BOTH+JP (score -1) preferred over BOTH+BOTH (score +5)
+        // Group 1: BOTH+JP (score 0) preferred over BOTH+BOTH (score +3)
         expect(bothCount).toBe(1);
       }
     });
 
-    it('Group 2 prefers BOTH+BOTH on split-class days for bilingual coverage', () => {
+    it('Group 2 has no BOTH preference, hard constraint ensures coverage (T4)', () => {
+      // G1 picks BOTH+JP (1 BOTH, score 0) over BOTH+BOTH (score +3)
+      // G2 hard constraint forces 1 BOTH to meet CLASS_LANGUAGE_COVERAGE
       const members = [
         makeMember('U-BOTH-1', { gradeGroup: GradeGroup.UPPER, language: Language.BOTH }),
+        makeMember('U-BOTH-2', { gradeGroup: GradeGroup.UPPER, language: Language.BOTH }),
         makeMember('U-JP-1', { gradeGroup: GradeGroup.UPPER, language: Language.JAPANESE }),
         makeMember('L-BOTH-1', { gradeGroup: GradeGroup.LOWER, language: Language.BOTH }),
-        makeMember('L-BOTH-2', { gradeGroup: GradeGroup.LOWER, language: Language.BOTH }),
         makeMember('L-JP-1', { gradeGroup: GradeGroup.LOWER, language: Language.JAPANESE }),
+        makeMember('L-EN-1', { gradeGroup: GradeGroup.LOWER, language: Language.ENGLISH }),
       ];
 
       const schedule = makeSchedule('2026-04-05').toggleSplitClass();
       const counts = new Map<MemberId, number>();
       members.forEach((m) => counts.set(m.id, 0));
 
-      const { assignments } = generateAssignments([schedule], members, [], counts);
+      const { assignments, violations } = generateAssignments([schedule], members, [], counts);
+      // No CLASS_LANGUAGE_COVERAGE violation
+      const classViolations = violations.filter(
+        (v) => v.type === ViolationType.CLASS_LANGUAGE_COVERAGE,
+      );
+      expect(classViolations).toHaveLength(0);
+
+      // G2 doesn't need BOTH — L-JP + L-EN is acceptable
+      const group2 = assignments.find((a) => a.groupNumber === 2);
+      expect(group2).toBeDefined();
+    });
+
+    it('Group 2 hard constraint forces BOTH when G1 has only 1 BOTH (T5)', () => {
+      // G1 has only 1 BOTH → G2 must provide 1 BOTH via hard constraint
+      const members = [
+        makeMember('U-BOTH-1', { gradeGroup: GradeGroup.UPPER, language: Language.BOTH }),
+        makeMember('U-JP-1', { gradeGroup: GradeGroup.UPPER, language: Language.JAPANESE }),
+        makeMember('U-EN-1', { gradeGroup: GradeGroup.UPPER, language: Language.ENGLISH }),
+        makeMember('L-BOTH-1', { gradeGroup: GradeGroup.LOWER, language: Language.BOTH }),
+        makeMember('L-JP-1', { gradeGroup: GradeGroup.LOWER, language: Language.JAPANESE }),
+        makeMember('L-EN-1', { gradeGroup: GradeGroup.LOWER, language: Language.ENGLISH }),
+      ];
+
+      const schedule = makeSchedule('2026-04-05').toggleSplitClass();
+      const counts = new Map<MemberId, number>();
+      members.forEach((m) => counts.set(m.id, 0));
+
+      const { assignments, violations } = generateAssignments([schedule], members, [], counts);
+
+      // G1 picks BOTH+JP or BOTH+EN (1 BOTH, score -3)
+      const group1 = assignments.find((a) => a.groupNumber === 1);
+      expect(group1).toBeDefined();
+
+      // G2 must have BOTH to meet CLASS_LANGUAGE_COVERAGE (hard constraint)
       const group2 = assignments.find((a) => a.groupNumber === 2);
       expect(group2).toBeDefined();
       if (group2) {
-        const bothCount = group2.memberIds.filter((mid) => {
+        const hasBoth = group2.memberIds.some((mid) => {
           const m = members.find((mem) => mem.id === mid);
           return m?.language === Language.BOTH;
-        }).length;
-        // Group 2: BOTH+BOTH (score -10) preferred for bilingual coverage
-        expect(bothCount).toBe(2);
+        });
+        expect(hasBoth).toBe(true);
       }
+
+      // No CLASS_LANGUAGE_COVERAGE violation
+      const classViolations = violations.filter(
+        (v) => v.type === ViolationType.CLASS_LANGUAGE_COVERAGE,
+      );
+      expect(classViolations).toHaveLength(0);
     });
 
-    it('no monthly duplicate when BOTH members are conserved across 4 dates', () => {
-      // 5 BOTH + 8 JP in UPPER, 4 dates → should use each BOTH once
+    it('no UPPER BOTH member repeats across 4 dates (T6)', () => {
+      // 5 BOTH + 8 JP in UPPER, 2 BOTH + 4 JP + 4 EN in LOWER
+      // 4 dates: 2 normal, 2 split-class
+      // G1 uses exactly 1 BOTH per day → 4 slots / 5 BOTH → no repeats
       const members = [
         makeMember('U-BOTH-1', { gradeGroup: GradeGroup.UPPER, language: Language.BOTH }),
         makeMember('U-BOTH-2', { gradeGroup: GradeGroup.UPPER, language: Language.BOTH }),
@@ -584,20 +626,22 @@ describe('generateAssignments', () => {
 
       const { assignments } = generateAssignments(schedules, members, [], counts);
 
-      // Each UPPER member should be assigned at most once
-      const upperMemberCounts = new Map<string, number>();
-      const upperIds = new Set(members.filter((m) => m.gradeGroup === GradeGroup.UPPER).map((m) => m.id));
+      // Each UPPER BOTH member should be assigned at most once
+      const upperBothIds = new Set(
+        members.filter((m) => m.gradeGroup === GradeGroup.UPPER && m.language === Language.BOTH).map((m) => m.id),
+      );
+      const upperBothCounts = new Map<string, number>();
       for (const a of assignments) {
         if (a.groupNumber === 1) {
           for (const mid of a.memberIds) {
-            if (upperIds.has(mid)) {
-              upperMemberCounts.set(mid, (upperMemberCounts.get(mid) ?? 0) + 1);
+            if (upperBothIds.has(mid)) {
+              upperBothCounts.set(mid, (upperBothCounts.get(mid) ?? 0) + 1);
             }
           }
         }
       }
 
-      for (const [, count] of upperMemberCounts) {
+      for (const [, count] of upperBothCounts) {
         expect(count).toBe(1);
       }
     });

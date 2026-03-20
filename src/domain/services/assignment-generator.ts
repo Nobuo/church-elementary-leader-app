@@ -73,29 +73,21 @@ function scorePair(
     }
   }
 
-  // BOTH conservation: prevent unnecessary consumption of bilingual members
+  // BOTH conservation / split-day optimization
   if (!isSplitClassDay) {
-    // Non-split-class: general BOTH conservation
+    // 合同日: BOTH温存（非BOTHを優先）
     for (const m of [member1, member2]) {
       if (m.language === Language.BOTH) {
         score += 3;
       }
     }
   } else if (!classContext) {
-    // Split-class Group 1: mild single-BOTH preference, penalize double-BOTH
+    // 分級日 Group 1: ちょうど1 BOTHを狙う
     const bothInPair = [member1, member2].filter((m) => m.language === Language.BOTH).length;
-    if (bothInPair === 1) score -= 1;
-    if (bothInPair === 2) score += 5;
+    if (bothInPair === 0) score += 5; // G1はBOTHを1人出すべき
+    if (bothInPair === 2) score += 3; // BOTH+BOTHは過剰消費
   }
-
-  // Split-class day Group 2: prefer BOTH for bilingual coverage
-  if (classContext) {
-    for (const m of [member1, member2]) {
-      if (m.language === Language.BOTH) {
-        score -= 5;
-      }
-    }
-  }
+  // 分級日 Group 2: BOTH優遇なし（ハード制約のみ）
 
   // HARD: Same-gender constraint
   if (
