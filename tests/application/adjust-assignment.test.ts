@@ -117,13 +117,13 @@ describe('adjustAssignment', () => {
       availableDates: null,
       isActive: true,
     });
-    const m2 = makeMember('Other', { language: Language.BOTH });
+    const m2 = makeMember('Other', { language: Language.BOTH, gradeGroup: GradeGroup.UPPER });
     const m3 = Member.reconstruct({
       id: spouseId,
       name: 'Wife',
       gender: Gender.FEMALE,
       language: Language.BOTH,
-      gradeGroup: GradeGroup.LOWER,
+      gradeGroup: GradeGroup.UPPER,
       memberType: MemberType.PARENT_COUPLE,
       sameGenderOnly: false,
       spouseId: m1.id,
@@ -190,13 +190,14 @@ describe('adjustAssignment', () => {
 
   it('returns no violations for a valid replacement', () => {
     const m1 = makeMember('JP1', { language: Language.JAPANESE, gradeGroup: GradeGroup.UPPER });
-    const m2 = makeMember('EN1', { language: Language.ENGLISH, gradeGroup: GradeGroup.LOWER });
-    const m3 = makeMember('EN2', { language: Language.ENGLISH, gradeGroup: GradeGroup.LOWER }); // valid replacement
+    const m2 = makeMember('EN1', { language: Language.ENGLISH, gradeGroup: GradeGroup.UPPER });
+    const m3 = makeMember('EN2', { language: Language.ENGLISH, gradeGroup: GradeGroup.UPPER }); // valid replacement
 
     const scheduleResult = Schedule.create('2026-04-05');
     if (!scheduleResult.ok) throw new Error('bad schedule');
     const schedule = scheduleResult.value;
 
+    // groupNumber=1 → UPPER group, all members are UPPER
     const assignment = Assignment.create(schedule.id, 1, [m1.id, m2.id]);
     const { memberRepo, assignmentRepo, scheduleRepo } = createRepos(
       [m1, m2, m3],
@@ -221,23 +222,23 @@ describe('adjustAssignment', () => {
   });
 
   it('returns GRADE_GROUP_MISMATCH warning when replacing with different grade group', () => {
-    const m1 = makeMember('Upper1', { language: Language.BOTH, gradeGroup: GradeGroup.UPPER });
-    const m2 = makeMember('Lower1', { language: Language.BOTH, gradeGroup: GradeGroup.LOWER });
-    const m3 = makeMember('Upper2', { language: Language.BOTH, gradeGroup: GradeGroup.UPPER }); // wrong grade for LOWER slot
+    const m1 = makeMember('Lower1', { language: Language.BOTH, gradeGroup: GradeGroup.LOWER });
+    const m2 = makeMember('Lower2', { language: Language.BOTH, gradeGroup: GradeGroup.LOWER });
+    const m3 = makeMember('Upper1', { language: Language.BOTH, gradeGroup: GradeGroup.UPPER }); // wrong grade for LOWER group
 
     const scheduleResult = Schedule.create('2026-04-05');
     if (!scheduleResult.ok) throw new Error('bad schedule');
     const schedule = scheduleResult.value;
 
-    // m1 is at index 0 (UPPER slot), m2 at index 1 (LOWER slot)
-    const assignment = Assignment.create(schedule.id, 1, [m1.id, m2.id]);
+    // groupNumber=2 → LOWER group
+    const assignment = Assignment.create(schedule.id, 2, [m1.id, m2.id]);
     const { memberRepo, assignmentRepo, scheduleRepo } = createRepos(
       [m1, m2, m3],
       [assignment],
       [schedule],
     );
 
-    // Replace m2 (LOWER slot) with m3 (UPPER grade) → mismatch
+    // Replace m2 (LOWER) with m3 (UPPER) in LOWER group → mismatch
     const result = adjustAssignment(
       assignment.id,
       m2.id,
@@ -257,15 +258,16 @@ describe('adjustAssignment', () => {
     }
   });
 
-  it('includes gradeGroup and role in assignment DTO', () => {
+  it('includes gradeGroup in assignment DTO', () => {
     const m1 = makeMember('Upper1', { language: Language.BOTH, gradeGroup: GradeGroup.UPPER });
-    const m2 = makeMember('Lower1', { language: Language.BOTH, gradeGroup: GradeGroup.LOWER });
-    const m3 = makeMember('Lower2', { language: Language.BOTH, gradeGroup: GradeGroup.LOWER });
+    const m2 = makeMember('Upper2', { language: Language.BOTH, gradeGroup: GradeGroup.UPPER });
+    const m3 = makeMember('Upper3', { language: Language.BOTH, gradeGroup: GradeGroup.UPPER });
 
     const scheduleResult = Schedule.create('2026-04-05');
     if (!scheduleResult.ok) throw new Error('bad schedule');
     const schedule = scheduleResult.value;
 
+    // groupNumber=1 → UPPER group
     const assignment = Assignment.create(schedule.id, 1, [m1.id, m2.id]);
     const { memberRepo, assignmentRepo, scheduleRepo } = createRepos(
       [m1, m2, m3],
@@ -285,10 +287,9 @@ describe('adjustAssignment', () => {
     expect(result.ok).toBe(true);
     if (result.ok) {
       const dto = result.value.assignment;
+      expect(dto.gradeGroup).toBe('UPPER');
       expect(dto.members[0].gradeGroup).toBe('UPPER');
-      expect(dto.members[0].role).toBe('UPPER');
-      expect(dto.members[1].gradeGroup).toBe('LOWER');
-      expect(dto.members[1].role).toBe('LOWER');
+      expect(dto.members[1].gradeGroup).toBe('UPPER');
     }
   });
 });

@@ -84,17 +84,12 @@ function renderAssignments(assignments, scheduleMap = {}) {
             const count = memberCountMap[m.id];
             const countStr = count != null ? `(${count})` : '';
             const partnerId = g.members[1 - idx]?.id || '';
-            const role = idx === 0 ? 'UPPER' : 'LOWER';
-            const shortLabel = idx === 0 ? t('upperShort') : t('lowerShort');
-            const isCrossover = m.gradeGroup && m.role && m.gradeGroup !== m.role;
+            const shortLabel = m.gradeGroup === 'UPPER' ? t('upperShort') : t('lowerShort');
+            const isCrossover = m.gradeGroup && g.gradeGroup && m.gradeGroup !== g.gradeGroup;
             const crossoverClass = isCrossover ? ' crossover' : '';
-            const gradeForNote = m.gradeGroup === 'UPPER' ? t('upper') : t('lower');
-            const crossoverNote = isCrossover
-              ? ` <span class="crossover-note">${t('crossoverNote').replace('{grade}', gradeForNote)}</span>`
-              : '';
             return `<span class="grade-label${crossoverClass}">[${shortLabel}]</span>` +
-              `<span class="member-name" data-member-id="${escapeHtml(m.id)}">${escapeHtml(m.name)}</span>${countStr}${crossoverNote}` +
-              ` <button class="replace-btn" data-action="start-replace" data-assignment-id="${escapeHtml(g.id)}" data-member-id="${escapeHtml(m.id)}" data-assigned='${escapeHtml(JSON.stringify([...assignedOnDate]))}' data-date="${escapeHtml(date)}" data-partner-id="${escapeHtml(partnerId)}" data-role="${role}">${t('replace')}</button>`;
+              `<span class="member-name" data-member-id="${escapeHtml(m.id)}">${escapeHtml(m.name)}</span>${countStr}` +
+              ` <button class="replace-btn" data-action="start-replace" data-assignment-id="${escapeHtml(g.id)}" data-member-id="${escapeHtml(m.id)}" data-assigned='${escapeHtml(JSON.stringify([...assignedOnDate]))}' data-date="${escapeHtml(date)}" data-partner-id="${escapeHtml(partnerId)}" data-role="${g.gradeGroup || ''}">${t('replace')}</button>`;
           }).join(currentLang === 'ja' ? ' ・ ' : ' & ')}</span>
         </div>
       `).join('')}

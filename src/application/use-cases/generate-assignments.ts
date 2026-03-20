@@ -27,7 +27,6 @@ export interface AssignmentMemberDto {
   id: string;
   name: string;
   gradeGroup: string;
-  role: string;
 }
 
 export interface AssignmentDto {
@@ -35,6 +34,7 @@ export interface AssignmentDto {
   scheduleId: string;
   date: string;
   groupNumber: number;
+  gradeGroup: string;
   members: AssignmentMemberDto[];
 }
 
@@ -124,11 +124,11 @@ export function generateMonthlyAssignments(
     scheduleId: a.scheduleId,
     date: scheduleDateMap.get(a.scheduleId) ?? '',
     groupNumber: a.groupNumber,
-    members: a.memberIds.map((mid, idx) => ({
+    gradeGroup: a.groupNumber === 1 ? GradeGroup.UPPER : GradeGroup.LOWER,
+    members: a.memberIds.map((mid) => ({
       id: mid,
       name: memberMap.get(mid)?.name ?? 'Unknown',
       gradeGroup: memberMap.get(mid)?.gradeGroup ?? GradeGroup.LOWER,
-      role: idx === 0 ? GradeGroup.UPPER : GradeGroup.LOWER,
     })),
   }));
 
@@ -198,8 +198,7 @@ export function adjustAssignment(
     }
 
     // Grade group mismatch check
-    const roleIndex = updated.memberIds.indexOf(asMemberId(newMemberId));
-    const expectedGrade = roleIndex === 0 ? GradeGroup.UPPER : GradeGroup.LOWER;
+    const expectedGrade = updated.groupNumber === 1 ? GradeGroup.UPPER : GradeGroup.LOWER;
     if (newMember.gradeGroup !== expectedGrade) {
       violations.push({
         type: ViolationType.GRADE_GROUP_MISMATCH,
@@ -247,11 +246,11 @@ export function adjustAssignment(
     scheduleId: updated.scheduleId,
     date,
     groupNumber: updated.groupNumber,
-    members: updated.memberIds.map((mid, idx) => ({
+    gradeGroup: updated.groupNumber === 1 ? GradeGroup.UPPER : GradeGroup.LOWER,
+    members: updated.memberIds.map((mid) => ({
       id: mid,
       name: memberLookup.get(mid)?.name ?? 'Unknown',
       gradeGroup: memberLookup.get(mid)?.gradeGroup ?? GradeGroup.LOWER,
-      role: idx === 0 ? GradeGroup.UPPER : GradeGroup.LOWER,
     })),
   };
 
@@ -296,11 +295,11 @@ export function getAssignmentsForMonth(
     scheduleId: a.scheduleId,
     date: scheduleDateMap.get(a.scheduleId) ?? '',
     groupNumber: a.groupNumber,
-    members: a.memberIds.map((mid, idx) => ({
+    gradeGroup: a.groupNumber === 1 ? GradeGroup.UPPER : GradeGroup.LOWER,
+    members: a.memberIds.map((mid) => ({
       id: mid,
       name: memberMap.get(mid)?.name ?? 'Unknown',
       gradeGroup: memberMap.get(mid)?.gradeGroup ?? GradeGroup.LOWER,
-      role: idx === 0 ? GradeGroup.UPPER : GradeGroup.LOWER,
     })),
   }));
 }

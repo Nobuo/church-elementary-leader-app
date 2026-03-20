@@ -106,7 +106,6 @@ const I18N = {
     'violations.tooFew': '少なすぎ',
     upperShort: '高',
     lowerShort: '低',
-    crossoverNote: '※本来は{grade}',
   },
   en: {
     appTitle: 'Leader Management',
@@ -215,7 +214,6 @@ const I18N = {
     'violations.tooFew': 'too few',
     upperShort: 'U',
     lowerShort: 'L',
-    crossoverNote: '*registered as {grade}',
   },
 };
 

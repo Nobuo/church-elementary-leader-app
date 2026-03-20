@@ -260,22 +260,20 @@ describe('Assignment API', () => {
   });
 
   describe('Grade group: DTO and candidates filtering', () => {
-    it('T10 assignments response includes gradeGroup and role fields', async () => {
+    it('T10 group 1 = UPPER members, group 2 = LOWER members', async () => {
       await setupMembersAndSchedule();
       await t.request.post('/api/assignments/generate').send({ year: 2027, month: 4 }).expect(200);
 
       const res = await t.request.get('/api/assignments?year=2027&month=4').expect(200);
 
       for (const a of res.body) {
+        expect(a).toHaveProperty('gradeGroup');
+        const expectedGrade = a.groupNumber === 1 ? 'UPPER' : 'LOWER';
+        expect(a.gradeGroup).toBe(expectedGrade);
         for (const m of a.members) {
           expect(m).toHaveProperty('gradeGroup');
-          expect(m).toHaveProperty('role');
-          expect(['UPPER', 'LOWER']).toContain(m.gradeGroup);
-          expect(['UPPER', 'LOWER']).toContain(m.role);
+          expect(m.gradeGroup).toBe(expectedGrade);
         }
-        // member[0] should have role UPPER, member[1] LOWER
-        expect(a.members[0].role).toBe('UPPER');
-        expect(a.members[1].role).toBe('LOWER');
       }
     });
 

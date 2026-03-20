@@ -105,19 +105,11 @@ function scorePair(
     }
   }
 
-  // Monthly duplicate (100 penalty per member already assigned this month)
+  // SOFT: Monthly duplicate (100 penalty per member already assigned this month)
   for (const m of [member1, member2]) {
     const alreadyAssigned = monthAssignments.some((a) => a.containsMember(m.id));
     if (alreadyAssigned) {
       score += 100;
-      violations.push({
-        type: ViolationType.MONTHLY_DUPLICATE,
-        severity: Severity.WARNING,
-        memberIds: [m.id],
-        message: `${m.name} is already assigned this month`,
-        messageKey: 'violations.monthlyDuplicateNamed',
-        messageParams: { name: m.name },
-      });
     }
   }
 
@@ -129,21 +121,13 @@ function scorePair(
     score += (memberCount - minCount) * 50;
   }
 
-  // Spouse avoidance (30 penalty) — only for PARENT_COUPLE
+  // SOFT: Spouse avoidance (30 penalty) — only for PARENT_COUPLE
   if (
     member1.memberType === MemberType.PARENT_COUPLE &&
     member2.memberType === MemberType.PARENT_COUPLE &&
     member1.spouseId === member2.id
   ) {
     score += 30;
-    violations.push({
-      type: ViolationType.SPOUSE_SAME_GROUP,
-      severity: Severity.WARNING,
-      memberIds: [member1.id, member2.id],
-      message: `Spouses ${member1.name} and ${member2.name} paired together`,
-      messageKey: 'violations.spousesPaired',
-      messageParams: { name1: member1.name, name2: member2.name },
-    });
   }
 
   // Spouse on same day different group (30 penalty) — only for PARENT_COUPLE
@@ -250,11 +234,9 @@ export function generateAssignments(
       if (upperMembers.length < 1 || lowerMembers.length < 1) continue;
     }
 
-    // For each group, pick 1 UPPER + 1 LOWER
-    // Group 1
-    const group1Result = pickBestPair(
+    // Group 1 (UPPER): pick 2 from upperPool
+    const group1Result = pickBestPairSameGrade(
       upperMembers,
-      lowerMembers,
       context,
       monthAssignments,
       dayAssignments,
@@ -265,8 +247,8 @@ export function generateAssignments(
 
     if (group1Result) {
       const assignment1 = Assignment.create(schedule.id, 1, [
-        group1Result.upper.id,
-        group1Result.lower.id,
+        group1Result.member1.id,
+        group1Result.member2.id,
       ]);
       dayAssignments.push(assignment1);
       monthAssignments.push(assignment1);
@@ -274,25 +256,23 @@ export function generateAssignments(
       allViolations.push(...group1Result.violations);
 
       // Update counts
-      counts.set(group1Result.upper.id, (counts.get(group1Result.upper.id) ?? 0) + 1);
-      counts.set(group1Result.lower.id, (counts.get(group1Result.lower.id) ?? 0) + 1);
+      counts.set(group1Result.member1.id, (counts.get(group1Result.member1.id) ?? 0) + 1);
+      counts.set(group1Result.member2.id, (counts.get(group1Result.member2.id) ?? 0) + 1);
 
       // Update pair counts
-      const pk = pairKey(group1Result.upper.id, group1Result.lower.id);
+      const pk = pairKey(group1Result.member1.id, group1Result.member2.id);
       pastPairCounts.set(pk, (pastPairCounts.get(pk) ?? 0) + 1);
 
-      // Group 2: exclude members already assigned to group 1
-      const usedIds = new Set([group1Result.upper.id, group1Result.lower.id]);
-      const remainingUpper = upperMembers.filter((m) => !usedIds.has(m.id));
+      // Group 2 (LOWER): pick 2 from lowerPool, excluding members used in Group 1
+      const usedIds = new Set([group1Result.member1.id, group1Result.member2.id]);
       const remainingLower = lowerMembers.filter((m) => !usedIds.has(m.id));
 
       // On split-class days, pass class context so Group 2 considers bilingual coverage
       const group2ClassContext = schedule.isSplitClass
-        ? { group1Members: [group1Result.upper, group1Result.lower] as [Member, Member] }
+        ? { group1Members: [group1Result.member1, group1Result.member2] as [Member, Member] }
         : undefined;
 
-      const group2Result = pickBestPair(
-        remainingUpper,
+      const group2Result = pickBestPairSameGrade(
         remainingLower,
         context,
         monthAssignments,
@@ -304,18 +284,18 @@ export function generateAssignments(
 
       if (group2Result) {
         const assignment2 = Assignment.create(schedule.id, 2, [
-          group2Result.upper.id,
-          group2Result.lower.id,
+          group2Result.member1.id,
+          group2Result.member2.id,
         ]);
         dayAssignments.push(assignment2);
         monthAssignments.push(assignment2);
         allAssignments.push(assignment2);
         allViolations.push(...group2Result.violations);
 
-        counts.set(group2Result.upper.id, (counts.get(group2Result.upper.id) ?? 0) + 1);
-        counts.set(group2Result.lower.id, (counts.get(group2Result.lower.id) ?? 0) + 1);
+        counts.set(group2Result.member1.id, (counts.get(group2Result.member1.id) ?? 0) + 1);
+        counts.set(group2Result.member2.id, (counts.get(group2Result.member2.id) ?? 0) + 1);
 
-        const pk2 = pairKey(group2Result.upper.id, group2Result.lower.id);
+        const pk2 = pairKey(group2Result.member1.id, group2Result.member2.id);
         pastPairCounts.set(pk2, (pastPairCounts.get(pk2) ?? 0) + 1);
       } else {
         allViolations.push({
@@ -343,14 +323,13 @@ export function generateAssignments(
 }
 
 interface PairResult {
-  upper: Member;
-  lower: Member;
+  member1: Member;
+  member2: Member;
   violations: ConstraintViolation[];
 }
 
-function pickBestPair(
-  upperCandidates: Member[],
-  lowerCandidates: Member[],
+function pickBestPairSameGrade(
+  candidates: Member[],
   context: GenerationContext,
   monthAssignments: Assignment[],
   dayAssignments: Assignment[],
@@ -358,16 +337,16 @@ function pickBestPair(
   classContext?: ClassContext,
   isSplitClassDay?: boolean,
 ): PairResult | null {
-  if (upperCandidates.length === 0 || lowerCandidates.length === 0) return null;
+  if (candidates.length < 2) return null;
 
   let bestScore = Infinity;
   let bestPair: PairResult | null = null;
 
-  for (const upper of upperCandidates) {
-    for (const lower of lowerCandidates) {
+  for (let i = 0; i < candidates.length; i++) {
+    for (let j = i + 1; j < candidates.length; j++) {
       const { score, violations } = scorePair(
-        upper,
-        lower,
+        candidates[i],
+        candidates[j],
         context,
         monthAssignments,
         dayAssignments,
@@ -378,25 +357,9 @@ function pickBestPair(
 
       if (score < bestScore) {
         bestScore = score;
-        bestPair = { upper, lower, violations: score >= 100000 ? violations : [] };
+        bestPair = { member1: candidates[i], member2: candidates[j], violations };
       }
     }
-  }
-
-  // If best score is very high (hard constraint violations), still return but with violations
-  if (bestPair && bestScore >= 100000) {
-    const { upper, lower } = bestPair;
-    const { violations } = scorePair(
-      upper,
-      lower,
-      context,
-      monthAssignments,
-      dayAssignments,
-      pastPairCounts,
-      classContext,
-      isSplitClassDay,
-    );
-    bestPair.violations = violations;
   }
 
   return bestPair;
