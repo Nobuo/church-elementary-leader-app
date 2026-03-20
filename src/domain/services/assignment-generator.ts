@@ -200,7 +200,7 @@ export function generateAssignments(
     if (!counts.has(m.id)) counts.set(m.id, 0);
   }
 
-  const activeDates = schedules.filter((s) => !s.isExcluded).sort((a, b) => a.date.localeCompare(b.date));
+  const activeDates = shuffle(schedules.filter((s) => !s.isExcluded));
 
   const monthAssignments: Assignment[] = [];
 

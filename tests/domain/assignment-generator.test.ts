@@ -989,6 +989,108 @@ describe('generateAssignments', () => {
     });
   });
 
+  describe('schedule order shuffle', () => {
+    it('produces different assignment results across multiple runs (T1)', () => {
+      const members = [
+        makeMember('U-JP-1', { gradeGroup: GradeGroup.UPPER, language: Language.JAPANESE }),
+        makeMember('U-EN-1', { gradeGroup: GradeGroup.UPPER, language: Language.ENGLISH }),
+        makeMember('U-JP-2', { gradeGroup: GradeGroup.UPPER, language: Language.JAPANESE }),
+        makeMember('U-EN-2', { gradeGroup: GradeGroup.UPPER, language: Language.ENGLISH }),
+        makeMember('L-JP-1', { gradeGroup: GradeGroup.LOWER, language: Language.JAPANESE }),
+        makeMember('L-EN-1', { gradeGroup: GradeGroup.LOWER, language: Language.ENGLISH }),
+        makeMember('L-JP-2', { gradeGroup: GradeGroup.LOWER, language: Language.JAPANESE }),
+        makeMember('L-EN-2', { gradeGroup: GradeGroup.LOWER, language: Language.ENGLISH }),
+      ];
+
+      const schedules = [
+        makeSchedule('2026-04-05'),
+        makeSchedule('2026-04-12'),
+        makeSchedule('2026-04-19'),
+        makeSchedule('2026-04-26'),
+      ];
+
+      const results = new Set<string>();
+      for (let run = 0; run < 10; run++) {
+        const counts = new Map<MemberId, number>();
+        members.forEach((m) => counts.set(m.id, 0));
+        const { assignments } = generateAssignments(schedules, members, [], counts);
+        // Serialize all assignments as a fingerprint
+        const fingerprint = assignments
+          .map((a) => `${a.scheduleId}:${a.groupNumber}:${[...a.memberIds].sort().join(',')}`)
+          .sort()
+          .join('|');
+        results.add(fingerprint);
+      }
+
+      // Schedule order shuffle should produce different results
+      expect(results.size).toBeGreaterThanOrEqual(2);
+    });
+
+    it('hard constraints are always respected despite schedule shuffle (T2)', () => {
+      const members = [
+        makeMember('U-BOTH', { gradeGroup: GradeGroup.UPPER, language: Language.BOTH }),
+        makeMember('U-JP', { gradeGroup: GradeGroup.UPPER, language: Language.JAPANESE }),
+        makeMember('L-BOTH', { gradeGroup: GradeGroup.LOWER, language: Language.BOTH }),
+        makeMember('L-EN', { gradeGroup: GradeGroup.LOWER, language: Language.ENGLISH }),
+      ];
+
+      const schedules = [
+        makeSchedule('2026-04-05'),
+        makeSchedule('2026-04-12'),
+        makeSchedule('2026-04-19'),
+      ];
+
+      for (let run = 0; run < 50; run++) {
+        const counts = new Map<MemberId, number>();
+        members.forEach((m) => counts.set(m.id, 0));
+        const { assignments } = generateAssignments(schedules, members, [], counts);
+
+        for (const a of assignments) {
+          const pair = a.memberIds.map((mid) => members.find((m) => m.id === mid)!);
+          const hasJP = pair.some((m) =>
+            m.language === Language.JAPANESE || m.language === Language.BOTH,
+          );
+          const hasEN = pair.some((m) =>
+            m.language === Language.ENGLISH || m.language === Language.BOTH,
+          );
+          expect(hasJP).toBe(true);
+          expect(hasEN).toBe(true);
+        }
+      }
+    });
+
+    it('generates assignments for all dates (T3)', () => {
+      const members = [
+        makeMember('U-JP', { gradeGroup: GradeGroup.UPPER, language: Language.JAPANESE }),
+        makeMember('U-EN', { gradeGroup: GradeGroup.UPPER, language: Language.ENGLISH }),
+        makeMember('L-JP', { gradeGroup: GradeGroup.LOWER, language: Language.JAPANESE }),
+        makeMember('L-EN', { gradeGroup: GradeGroup.LOWER, language: Language.ENGLISH }),
+      ];
+
+      const schedules = [
+        makeSchedule('2026-04-05'),
+        makeSchedule('2026-04-12'),
+        makeSchedule('2026-04-19'),
+      ];
+
+      for (let run = 0; run < 10; run++) {
+        const counts = new Map<MemberId, number>();
+        members.forEach((m) => counts.set(m.id, 0));
+        const { assignments } = generateAssignments(schedules, members, [], counts);
+
+        // 3 dates × 2 groups = 6 assignments
+        expect(assignments.length).toBe(6);
+
+        // Each schedule should have exactly 2 assignments (group 1 and 2)
+        for (const s of schedules) {
+          const forSchedule = assignments.filter((a) => a.scheduleId === s.id);
+          expect(forSchedule.length).toBe(2);
+          expect(forSchedule.map((a) => a.groupNumber).sort()).toEqual([1, 2]);
+        }
+      }
+    });
+  });
+
   describe('shuffle tiebreak', () => {
     it('produces different pairs across multiple runs when scores are tied (T1)', () => {
       // 4 LOWER members, all score=0 pairs: JP+EN combinations
