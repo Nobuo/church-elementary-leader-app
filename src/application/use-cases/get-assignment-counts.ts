@@ -1,5 +1,6 @@
 import { MemberRepository } from '@domain/repositories/member-repository';
 import { AssignmentRepository } from '@domain/repositories/assignment-repository';
+import { ScheduleRepository } from '@domain/repositories/schedule-repository';
 
 export interface AssignmentCountDto {
   id: string;
@@ -17,12 +18,14 @@ export interface AssignmentCountsResult {
   fiscalYear: number;
   summary: AssignmentCountSummary;
   members: AssignmentCountDto[];
+  unassignedWeeks: number;
 }
 
 export function getAssignmentCounts(
   fiscalYear: number,
   memberRepo: MemberRepository,
   assignmentRepo: AssignmentRepository,
+  scheduleRepo?: ScheduleRepository,
 ): AssignmentCountsResult {
   const members = memberRepo.findAll(false);
   const countMap = assignmentRepo.countAllByFiscalYear(fiscalYear);
@@ -36,6 +39,19 @@ export function getAssignmentCounts(
     }))
     .sort((a, b) => b.count - a.count);
 
+  // Calculate unassigned weeks
+  let unassignedWeeks = 0;
+  if (scheduleRepo) {
+    const allSchedules = scheduleRepo.findByFiscalYear(fiscalYear);
+    const activeSchedules = allSchedules.filter((s) => !s.isExcluded);
+    const activeScheduleIds = activeSchedules.map((s) => s.id);
+    const allAssignments = assignmentRepo.findByScheduleIds(activeScheduleIds);
+    const assignedScheduleIds = new Set(allAssignments.map((a) => a.scheduleId));
+    unassignedWeeks = activeSchedules.filter(
+      (s) => !assignedScheduleIds.has(s.id),
+    ).length;
+  }
+
   if (memberCounts.length === 0) {
     return {
       fiscalYear,
@@ -45,6 +61,7 @@ export function getAssignmentCounts(
         average: 0,
       },
       members: [],
+      unassignedWeeks,
     };
   }
 
@@ -60,5 +77,6 @@ export function getAssignmentCounts(
       average: Math.round((totalCount / memberCounts.length) * 10) / 10,
     },
     members: memberCounts,
+    unassignedWeeks,
   };
 }

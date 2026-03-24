@@ -69,6 +69,8 @@ export const en = {
     tooMany: 'Too many',
     tooFew: 'Too few',
     times: 'times',
+    allWeeksAssigned: 'All weeks already have assignments. Clear some first to regenerate.',
+    unassignedWeeksInfo: '{count} week(s) have no assignments yet',
     exportMembersCsv: 'Export CSV',
     importMembersCsv: 'Import CSV',
     importCreated: 'Created',

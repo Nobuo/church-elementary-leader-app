@@ -213,4 +213,124 @@ describe('generateMonthlyAssignments', () => {
       expect(tooFewViolations).toHaveLength(0);
     });
   });
+
+  describe('incremental generation', () => {
+    it('generates only for unassigned schedules, preserving confirmed weeks', () => {
+      const aprilSchedules = [
+        makeSchedule('2026-04-05'),
+        makeSchedule('2026-04-12'),
+        makeSchedule('2026-04-19'),
+        makeSchedule('2026-04-26'),
+      ];
+      const members = makeMembers();
+
+      // Week 1 and 2 already have assignments (confirmed)
+      const confirmedAssignments = [
+        Assignment.create(aprilSchedules[0].id, 1, [members[0].id, members[4].id]),
+        Assignment.create(aprilSchedules[0].id, 2, [members[1].id, members[5].id]),
+        Assignment.create(aprilSchedules[1].id, 1, [members[2].id, members[6].id]),
+        Assignment.create(aprilSchedules[1].id, 2, [members[3].id, members[7].id]),
+      ];
+
+      const { memberRepo, assignmentRepo, scheduleRepo } = createRepos(
+        members, aprilSchedules, confirmedAssignments,
+      );
+
+      const result = generateMonthlyAssignments(2026, 4, memberRepo, scheduleRepo, assignmentRepo);
+      expect(result.ok).toBe(true);
+      if (!result.ok) return;
+
+      // Only 2 unassigned weeks should get new assignments (2 groups × 2 weeks = 4)
+      expect(result.value.assignments).toHaveLength(4);
+
+      // Confirmed assignments should still exist
+      const week1Assignments = assignmentRepo.findByScheduleIds([aprilSchedules[0].id]);
+      expect(week1Assignments).toHaveLength(2);
+      expect(week1Assignments[0].memberIds).toContain(members[0].id);
+
+      const week2Assignments = assignmentRepo.findByScheduleIds([aprilSchedules[1].id]);
+      expect(week2Assignments).toHaveLength(2);
+      expect(week2Assignments[0].memberIds).toContain(members[2].id);
+    });
+
+    it('returns allWeeksAssigned message when all weeks have assignments', () => {
+      const aprilSchedules = [
+        makeSchedule('2026-04-05'),
+        makeSchedule('2026-04-12'),
+      ];
+      const members = makeMembers();
+
+      // All weeks already assigned
+      const allAssigned = [
+        Assignment.create(aprilSchedules[0].id, 1, [members[0].id, members[4].id]),
+        Assignment.create(aprilSchedules[0].id, 2, [members[1].id, members[5].id]),
+        Assignment.create(aprilSchedules[1].id, 1, [members[2].id, members[6].id]),
+        Assignment.create(aprilSchedules[1].id, 2, [members[3].id, members[7].id]),
+      ];
+
+      const { memberRepo, assignmentRepo, scheduleRepo } = createRepos(
+        members, aprilSchedules, allAssigned,
+      );
+
+      const result = generateMonthlyAssignments(2026, 4, memberRepo, scheduleRepo, assignmentRepo);
+      expect(result.ok).toBe(true);
+      if (!result.ok) return;
+
+      expect(result.value.assignments).toHaveLength(0);
+      expect(result.value.message).toBe('allWeeksAssigned');
+    });
+
+    it('considers confirmed weeks in assignment counts for fairness', () => {
+      const aprilSchedules = [
+        makeSchedule('2026-04-05'),
+        makeSchedule('2026-04-12'),
+        makeSchedule('2026-04-19'),
+        makeSchedule('2026-04-26'),
+      ];
+      const members = makeMembers();
+
+      // Members A and E assigned in week 1 (confirmed)
+      const confirmedAssignments = [
+        Assignment.create(aprilSchedules[0].id, 1, [members[0].id, members[4].id]),
+        Assignment.create(aprilSchedules[0].id, 2, [members[1].id, members[5].id]),
+      ];
+
+      const { memberRepo, assignmentRepo, scheduleRepo } = createRepos(
+        members, aprilSchedules, confirmedAssignments,
+      );
+
+      const result = generateMonthlyAssignments(2026, 4, memberRepo, scheduleRepo, assignmentRepo);
+      expect(result.ok).toBe(true);
+      if (!result.ok) return;
+
+      // 3 unassigned weeks × 2 groups = 6 new assignments
+      expect(result.value.assignments).toHaveLength(6);
+
+      // Confirmed assignments should not have been deleted
+      const week1Assignments = assignmentRepo.findByScheduleIds([aprilSchedules[0].id]);
+      expect(week1Assignments).toHaveLength(2);
+    });
+
+    it('generates all weeks when no existing assignments (same as before)', () => {
+      const aprilSchedules = [
+        makeSchedule('2026-04-05'),
+        makeSchedule('2026-04-12'),
+        makeSchedule('2026-04-19'),
+        makeSchedule('2026-04-26'),
+      ];
+      const members = makeMembers();
+
+      const { memberRepo, assignmentRepo, scheduleRepo } = createRepos(
+        members, aprilSchedules, [],
+      );
+
+      const result = generateMonthlyAssignments(2026, 4, memberRepo, scheduleRepo, assignmentRepo);
+      expect(result.ok).toBe(true);
+      if (!result.ok) return;
+
+      // All 4 weeks × 2 groups = 8 assignments
+      expect(result.value.assignments).toHaveLength(8);
+      expect(result.value.message).toBeUndefined();
+    });
+  });
 });

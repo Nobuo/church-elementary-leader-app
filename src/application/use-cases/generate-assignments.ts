@@ -41,6 +41,7 @@ export interface AssignmentDto {
 export interface GenerateAssignmentsResult {
   assignments: AssignmentDto[];
   violations: ConstraintViolation[];
+  message?: string;
 }
 
 export function generateMonthlyAssignments(
@@ -60,34 +61,48 @@ export function generateMonthlyAssignments(
     return err('Not enough active members (need at least 4)');
   }
 
-  const fiscalYear = getFiscalYear(new Date(year, month - 1, 1));
+  const allScheduleIds = schedules.map((s) => s.id);
 
-  // Delete existing assignments for this month
-  const scheduleIds = schedules.map((s) => s.id);
-  assignmentRepo.deleteByScheduleIds(scheduleIds);
+  // Incremental mode: find unassigned schedules only
+  const existingMonthAssignments = assignmentRepo.findByScheduleIds(allScheduleIds);
+  const assignedScheduleIds = new Set(existingMonthAssignments.map((a) => a.scheduleId));
+  const unassignedSchedules = schedules.filter(
+    (s) => !s.isExcluded && !assignedScheduleIds.has(s.id),
+  );
+
+  // If all schedules already have assignments, do nothing
+  if (unassignedSchedules.length === 0) {
+    return ok({ assignments: [], violations: [], message: 'allWeeksAssigned' });
+  }
+
+  const fiscalYear = getFiscalYear(new Date(year, month - 1, 1));
 
   // Get all existing assignments for count calculation
   const allFiscalYearSchedules = scheduleRepo.findByFiscalYear(fiscalYear);
   const otherScheduleIds = allFiscalYearSchedules
-    .filter((s) => !scheduleIds.includes(s.id))
+    .filter((s) => !allScheduleIds.includes(s.id))
     .map((s) => s.id);
-  const existingAssignments = assignmentRepo.findByScheduleIds(otherScheduleIds);
+  const otherMonthAssignments = assignmentRepo.findByScheduleIds(otherScheduleIds);
 
-  // Build count map
+  // Include both other-month assignments and this-month confirmed assignments
+  const existingAssignmentsAll = [...otherMonthAssignments, ...existingMonthAssignments];
+
+  // Build count map from all existing assignments
   const countMap = new Map<MemberId, number>();
   for (const m of members) {
     countMap.set(m.id, 0);
   }
-  for (const a of existingAssignments) {
+  for (const a of existingAssignmentsAll) {
     for (const mid of a.memberIds) {
       countMap.set(mid, (countMap.get(mid) ?? 0) + 1);
     }
   }
 
+  // Generate only for unassigned schedules
   const { assignments, violations } = generateAlgorithm(
-    schedules,
+    unassignedSchedules,
     members,
-    existingAssignments,
+    existingAssignmentsAll,
     countMap,
   );
 
@@ -98,14 +113,15 @@ export function generateMonthlyAssignments(
       updatedCountMap.set(mid, (updatedCountMap.get(mid) ?? 0) + 1);
     }
   }
-  // totalSundays: 割り当てが存在するスケジュールのみをカウント
+  // totalSundays: count schedules that have assignments (confirmed + newly generated)
   const otherScheduleIdsWithAssignments = new Set(
-    existingAssignments.map((a) => a.scheduleId),
+    existingAssignmentsAll.map((a) => a.scheduleId),
   );
+  const newlyAssignedScheduleIds = new Set(assignments.map((a) => a.scheduleId));
   const assignedSundays = allFiscalYearSchedules.filter(
     (s) =>
       !s.isExcluded &&
-      (scheduleIds.includes(s.id) || otherScheduleIdsWithAssignments.has(s.id)),
+      (otherScheduleIdsWithAssignments.has(s.id) || newlyAssignedScheduleIds.has(s.id)),
   );
   const excessiveViolations = checkExcessiveCount(members, updatedCountMap, assignedSundays.length);
   violations.push(...excessiveViolations);

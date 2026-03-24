@@ -112,16 +112,12 @@ async function generateAssignmentsAction() {
   const month = getSelectedMonth();
   const calYear = getCalendarYear();
 
-  // Check if assignments already exist for this month
-  try {
-    const existing = await API.get(`/api/assignments?year=${calYear}&month=${month}`);
-    if (existing && existing.length > 0) {
-      if (!confirm(t('regenerateConfirm'))) return;
-    }
-  } catch (_) { /* no existing assignments */ }
-
   try {
     const result = await API.post('/api/assignments/generate', { year: calYear, month });
+    if (result.message === 'allWeeksAssigned') {
+      alert(t('allWeeksAssigned'));
+      return;
+    }
     showViolations(result.violations);
     // Reload everything (counts + assignments with scheduleMap for event tags)
     await loadAssignments();
@@ -209,19 +205,34 @@ function renderAssignmentCounts(data) {
     `<span>${t('average')}: <span class="stat">${summary.average}${t('times')}</span></span>` +
     `<span>${t('difference')}: <span class="stat">${diff}</span></span>`;
 
+  // Show/hide unassigned weeks info message
+  const infoEl = document.getElementById('counts-info');
+  if (infoEl) {
+    if (data.unassignedWeeks > 0) {
+      infoEl.textContent = t('unassignedWeeksInfo').replace('{count}', data.unassignedWeeks);
+      infoEl.style.display = 'block';
+    } else {
+      infoEl.style.display = 'none';
+    }
+  }
+
   const maxCount = Math.max(...data.members.map(m => m.count), 1);
   const avg = summary.average;
+  const hasUnassigned = data.unassignedWeeks > 0;
 
   document.getElementById('counts-list').innerHTML = data.members.map(m => {
     const pct = (m.count / maxCount * 100).toFixed(0);
     let barClass = 'count-bar';
     let labelHtml = '';
-    if (avg > 0 && m.count > avg * 1.5) {
-      barClass += ' too-many';
-      labelHtml = `<span class="count-label">${t('tooMany')}</span>`;
-    } else if (avg > 0 && m.count < avg * 0.5 && m.count > 0) {
-      barClass += ' too-few';
-      labelHtml = `<span class="count-label too-few">${t('tooFew')}</span>`;
+    // Only show too-many/too-few labels when all weeks are assigned
+    if (!hasUnassigned) {
+      if (avg > 0 && m.count > avg * 1.5) {
+        barClass += ' too-many';
+        labelHtml = `<span class="count-label">${t('tooMany')}</span>`;
+      } else if (avg > 0 && m.count < avg * 0.5 && m.count > 0) {
+        barClass += ' too-few';
+        labelHtml = `<span class="count-label too-few">${t('tooFew')}</span>`;
+      }
     }
     return `<div class="count-row">
       <span class="count-name">${escapeHtml(m.name)}</span>

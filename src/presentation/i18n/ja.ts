@@ -69,6 +69,8 @@ export const ja = {
     tooMany: '多すぎ',
     tooFew: '少なすぎ',
     times: '回',
+    allWeeksAssigned: 'すべての週にすでに割り当てがあります。クリアしてから再生成してください。',
+    unassignedWeeksInfo: '未割り当ての週が{count}件あります',
     exportMembersCsv: 'CSVダウンロード',
     importMembersCsv: 'CSVアップロード',
     importCreated: '新規登録',

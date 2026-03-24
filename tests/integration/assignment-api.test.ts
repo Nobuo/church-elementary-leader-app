@@ -65,13 +65,16 @@ describe('Assignment API', () => {
       expect(assignmentDates).not.toContain(schedules[0].date);
     });
 
-    it('3.5 regeneration replaces existing assignments', async () => {
+    it('3.5 incremental generation skips already-assigned weeks', async () => {
       await setupMembersAndSchedule();
 
       const res1 = await t.request.post('/api/assignments/generate').send({ year: 2027, month: 4 }).expect(200);
-      const res2 = await t.request.post('/api/assignments/generate').send({ year: 2027, month: 4 }).expect(200);
+      expect(res1.body.assignments.length).toBeGreaterThan(0);
 
-      expect(res2.body.assignments.length).toBe(res1.body.assignments.length);
+      // Second call: all weeks already assigned, returns empty with message
+      const res2 = await t.request.post('/api/assignments/generate').send({ year: 2027, month: 4 }).expect(200);
+      expect(res2.body.assignments.length).toBe(0);
+      expect(res2.body.message).toBe('allWeeksAssigned');
     });
   });
 

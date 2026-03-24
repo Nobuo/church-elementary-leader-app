@@ -225,7 +225,7 @@ export function createAssignmentController(
       return;
     }
     if (!isValidYear(fiscalYear)) { res.status(400).json({ error: 'fiscalYear must be between 2000 and 2100' }); return; }
-    res.json(getAssignmentCounts(fiscalYear, memberRepo, assignmentRepo));
+    res.json(getAssignmentCounts(fiscalYear, memberRepo, assignmentRepo, scheduleRepo));
   });
 
   router.get('/export/csv', (req: Request, res: Response) => {

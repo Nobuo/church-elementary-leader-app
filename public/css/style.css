@@ -255,6 +255,13 @@ dialog::backdrop { background: rgba(0,0,0,0.3); }
 }
 .counts-summary .stat { font-weight: 600; }
 
+.counts-info {
+  color: #6b7280;
+  font-size: 0.875rem;
+  margin: 0.5rem 0;
+  padding: 0.25rem 0;
+}
+
 .counts-list {
   display: flex;
   flex-direction: column;
