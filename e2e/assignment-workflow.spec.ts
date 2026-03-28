@@ -26,10 +26,10 @@ test('E3.1-E3.3 generate assignments and view counts', async ({ page, request })
   // Should have assignment days with groups
   const groups = page.locator('.assignment-group');
   const count = await groups.count();
-  expect(count).toBeGreaterThanOrEqual(8); // 4 sundays * 2 groups
+  expect(count).toBeGreaterThanOrEqual(4); // 4 sundays * 1 group (combined day)
 
-  // Each group should show "グループ"
-  await expect(page.locator('.assignment-day').first()).toContainText('グループ');
+  // Each group should show "リーダー" (combined day label)
+  await expect(page.locator('.assignment-day').first()).toContainText('リーダー');
 
   // Assignment counts should be visible
   await expect(page.locator('#assignment-counts-section')).toBeVisible();
