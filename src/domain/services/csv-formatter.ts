@@ -6,8 +6,8 @@ import { MemberId, ScheduleId } from '@shared/types';
 type Lang = 'ja' | 'en';
 
 const headers: Record<Lang, string[]> = {
-  ja: ['日付', 'イベント日', '分級', 'グループ番号', 'メンバー1', 'メンバー1言語', 'メンバー2', 'メンバー2言語'],
-  en: ['Date', 'Event Day', 'Split Class', 'Group', 'Member 1', 'Member 1 Language', 'Member 2', 'Member 2 Language'],
+  ja: ['日付', 'イベント日', '分級', 'グループ番号', 'メンバー1', 'メンバー1言語', 'メンバー2', 'メンバー2言語', 'メンバー3', 'メンバー3言語'],
+  en: ['Date', 'Event Day', 'Split Class', 'Group', 'Member 1', 'Member 1 Language', 'Member 2', 'Member 2 Language', 'Member 3', 'Member 3 Language'],
 };
 
 function escapeCsvField(field: string): string {
@@ -41,21 +41,21 @@ export function formatCsv(
   for (const assignment of sorted) {
     const schedule = scheduleMap.get(assignment.scheduleId);
     const date = schedule?.date ?? '';
-    const m1 = members.get(assignment.memberIds[0]);
-    const m2 = members.get(assignment.memberIds[1]);
 
-    lines.push(
-      [
-        escapeCsvField(date),
-        schedule?.isEvent ? 'TRUE' : 'FALSE',
-        schedule?.isSplitClass ? 'TRUE' : 'FALSE',
-        String(assignment.groupNumber),
-        escapeCsvField(m1?.name ?? ''),
-        escapeCsvField(m1?.language ?? ''),
-        escapeCsvField(m2?.name ?? ''),
-        escapeCsvField(m2?.language ?? ''),
-      ].join(','),
-    );
+    const fields: string[] = [
+      escapeCsvField(date),
+      schedule?.isEvent ? 'TRUE' : 'FALSE',
+      schedule?.isSplitClass ? 'TRUE' : 'FALSE',
+      String(assignment.groupNumber),
+    ];
+
+    for (let i = 0; i < 3; i++) {
+      const m = i < assignment.memberIds.length ? members.get(assignment.memberIds[i]) : undefined;
+      fields.push(escapeCsvField(m?.name ?? ''));
+      fields.push(escapeCsvField(m?.language ?? ''));
+    }
+
+    lines.push(fields.join(','));
   }
 
   return BOM + lines.join('\n');

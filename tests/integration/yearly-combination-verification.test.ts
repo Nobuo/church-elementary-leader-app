@@ -356,4 +356,184 @@ describe('Yearly Combination Verification (2026/4 ~ 2027/3)', () => {
     console.log('✅ 全検証パス');
     console.log('='.repeat(80));
   }, 60000); // 60s timeout for this comprehensive test
+
+  it('should handle mixed combined/split-class days across a full year', async () => {
+    // === Setup: Register members (need BOTH members for split-class coverage) ===
+    const memberInputs = [
+      { name: 'U1', gender: 'MALE', language: 'BOTH', gradeGroup: 'UPPER', memberType: 'PARENT_SINGLE', sameGenderOnly: false },
+      { name: 'U2', gender: 'FEMALE', language: 'JAPANESE', gradeGroup: 'UPPER', memberType: 'PARENT_SINGLE', sameGenderOnly: false },
+      { name: 'U3', gender: 'MALE', language: 'BOTH', gradeGroup: 'UPPER', memberType: 'PARENT_SINGLE', sameGenderOnly: false },
+      { name: 'U4', gender: 'FEMALE', language: 'ENGLISH', gradeGroup: 'UPPER', memberType: 'PARENT_SINGLE', sameGenderOnly: false },
+      { name: 'U5', gender: 'MALE', language: 'JAPANESE', gradeGroup: 'UPPER', memberType: 'PARENT_SINGLE', sameGenderOnly: false },
+      { name: 'L1', gender: 'FEMALE', language: 'BOTH', gradeGroup: 'LOWER', memberType: 'PARENT_SINGLE', sameGenderOnly: false },
+      { name: 'L2', gender: 'MALE', language: 'JAPANESE', gradeGroup: 'LOWER', memberType: 'PARENT_SINGLE', sameGenderOnly: false },
+      { name: 'L3', gender: 'FEMALE', language: 'BOTH', gradeGroup: 'LOWER', memberType: 'PARENT_SINGLE', sameGenderOnly: false },
+      { name: 'L4', gender: 'MALE', language: 'ENGLISH', gradeGroup: 'LOWER', memberType: 'PARENT_SINGLE', sameGenderOnly: false },
+      { name: 'L5', gender: 'FEMALE', language: 'JAPANESE', gradeGroup: 'LOWER', memberType: 'PARENT_SINGLE', sameGenderOnly: false },
+    ];
+    for (const input of memberInputs) {
+      await t.request.post('/api/members').send(input).expect(201);
+    }
+
+    const fiscalYear = 2026;
+    const months = [
+      { year: 2026, month: 4 },
+      { year: 2026, month: 5 },
+      { year: 2026, month: 6 },
+      { year: 2026, month: 7 },
+      { year: 2026, month: 8 },
+      { year: 2026, month: 9 },
+      { year: 2026, month: 10 },
+      { year: 2026, month: 11 },
+      { year: 2026, month: 12 },
+      { year: 2027, month: 1 },
+      { year: 2027, month: 2 },
+      { year: 2027, month: 3 },
+    ];
+
+    // Generate schedules for all months
+    const allSchedules: Record<string, Array<{ id: string; date: string }>> = {};
+    for (const { year, month } of months) {
+      const res = await t.request.post('/api/schedules/generate').send({ year, month }).expect(200);
+      allSchedules[`${year}-${month}`] = res.body;
+    }
+
+    // Toggle every other Sunday in each month to split-class
+    // This creates a realistic mix: ~half combined (3 members), ~half split (2×2 members)
+    let splitCount = 0;
+    let combinedCount = 0;
+    for (const { year, month } of months) {
+      const schedules = allSchedules[`${year}-${month}`];
+      for (let i = 0; i < schedules.length; i++) {
+        if (i % 2 === 1) {
+          // Every other Sunday becomes split-class
+          await t.request.post(`/api/schedules/${schedules[i].id}/toggle-split-class`).expect(200);
+          splitCount++;
+        } else {
+          combinedCount++;
+        }
+      }
+    }
+
+    // Generate assignments for all months
+    let totalAssignments = 0;
+    let totalHardViolations = 0;
+    const monthlyResults: Array<{
+      month: string;
+      assignments: number;
+      violations: Array<{ type: string; message: string }>;
+      combinedDayGroups: Array<{ date: string; memberCount: number }>;
+      splitDayGroups: Array<{ date: string; groupNumber: number; memberCount: number }>;
+    }> = [];
+
+    for (const { year, month } of months) {
+      const genRes = await t.request
+        .post('/api/assignments/generate')
+        .send({ year, month })
+        .expect(200);
+
+      const assignments = genRes.body.assignments as Array<{
+        date: string;
+        groupNumber: number;
+        gradeGroup: string;
+        members: Array<{ name: string; gradeGroup: string }>;
+      }>;
+
+      const combinedDayGroups: Array<{ date: string; memberCount: number }> = [];
+      const splitDayGroups: Array<{ date: string; groupNumber: number; memberCount: number }> = [];
+
+      for (const a of assignments) {
+        if (a.gradeGroup === 'MIXED') {
+          combinedDayGroups.push({ date: a.date, memberCount: a.members.length });
+        } else {
+          splitDayGroups.push({ date: a.date, groupNumber: a.groupNumber, memberCount: a.members.length });
+        }
+      }
+
+      const hardViolations = genRes.body.violations.filter(
+        (v: { type: string }) =>
+          v.type === 'LANGUAGE_COVERAGE' || v.type === 'SAME_GENDER' || v.type === 'CLASS_LANGUAGE_COVERAGE',
+      );
+      totalHardViolations += hardViolations.length;
+      totalAssignments += assignments.length;
+
+      monthlyResults.push({
+        month: `${year}/${String(month).padStart(2, '0')}`,
+        assignments: assignments.length,
+        violations: genRes.body.violations,
+        combinedDayGroups,
+        splitDayGroups,
+      });
+    }
+
+    // === Assertions ===
+
+    // 1. No hard constraint violations
+    expect(totalHardViolations).toBe(0);
+
+    // 2. All months produced assignments
+    for (const m of monthlyResults) {
+      expect(m.assignments).toBeGreaterThan(0);
+    }
+
+    // 3. Combined days should have exactly 3 members per group
+    for (const m of monthlyResults) {
+      for (const g of m.combinedDayGroups) {
+        expect(g.memberCount).toBe(3);
+      }
+    }
+
+    // 4. Split days should have exactly 2 members per group, 2 groups per day
+    for (const m of monthlyResults) {
+      for (const g of m.splitDayGroups) {
+        expect(g.memberCount).toBe(2);
+      }
+      // Each split day should have 2 groups
+      const splitDates = [...new Set(m.splitDayGroups.map((g) => g.date))];
+      for (const date of splitDates) {
+        const groups = m.splitDayGroups.filter((g) => g.date === date);
+        expect(groups.length).toBe(2);
+      }
+    }
+
+    // 5. Total assignments should match expected:
+    //    combined days × 1 + split days × 2
+    const expectedAssignments = combinedCount * 1 + splitCount * 2;
+    expect(totalAssignments).toBe(expectedAssignments);
+
+    // 6. Distribution fairness
+    const counts = await t.request
+      .get(`/api/assignments/counts?fiscalYear=${fiscalYear}`)
+      .expect(200);
+
+    const diff = counts.body.summary.max.count - counts.body.summary.min.count;
+    const avg = counts.body.summary.average;
+    // With mixed days the expected count per member varies, allow reasonable spread
+    expect(diff).toBeLessThanOrEqual(Math.ceil(avg * 0.6));
+
+    // === Report ===
+    console.log('\n' + '='.repeat(80));
+    console.log('年間混合日検証レポート（合同日 + 分級日混在）');
+    console.log('='.repeat(80));
+    console.log(`  合同日: ${combinedCount}日（3人×1グループ）`);
+    console.log(`  分級日: ${splitCount}日（2人×2グループ）`);
+    console.log(`  総Assignment数: ${totalAssignments}（期待: ${expectedAssignments}）`);
+    console.log(`  総スロット数: ${combinedCount * 3 + splitCount * 4}`);
+
+    console.log('\n  [月別結果]');
+    for (const m of monthlyResults) {
+      const combined = m.combinedDayGroups.length;
+      const split = m.splitDayGroups.length / 2;
+      const vCount = m.violations.length;
+      console.log(`    ${m.month}: ${m.assignments}件 (合同${combined}日, 分級${split}日, 違反${vCount}件)`);
+    }
+
+    console.log('\n  [割り当て回数]');
+    for (const m of counts.body.members) {
+      const bar = '█'.repeat(m.count);
+      console.log(`    ${m.name.padEnd(6)} ${String(m.count).padStart(3)}回 ${bar}`);
+    }
+    console.log(`    平均: ${avg}回, 差分: ${diff}回`);
+    console.log('='.repeat(80));
+  }, 60000);
 });

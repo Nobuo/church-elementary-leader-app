@@ -77,22 +77,26 @@ function renderAssignments(assignments, scheduleMap = {}) {
 
     return `<div class="assignment-day">
       <h3>${dateLabel}${clearBtn}</h3>
-      ${groups.map(g => `
+      ${groups.map(g => {
+        const isMixed = g.gradeGroup === 'MIXED';
+        const groupLabelText = isMixed ? `${t('leaders')}:` : `${t('group')} ${g.groupNumber}:`;
+        return `
         <div class="assignment-group">
-          <span class="group-label">${t('group')} ${g.groupNumber}:</span>
+          <span class="group-label">${groupLabelText}</span>
           <span>${g.members.map((m, idx) => {
             const count = memberCountMap[m.id];
             const countStr = count != null ? `(${count})` : '';
-            const partnerId = g.members[1 - idx]?.id || '';
+            const otherMembers = g.members.filter((_, i) => i !== idx);
+            const partnerId = otherMembers.length === 1 ? otherMembers[0].id : '';
             const shortLabel = m.gradeGroup === 'UPPER' ? t('upperShort') : t('lowerShort');
-            const isCrossover = m.gradeGroup && g.gradeGroup && m.gradeGroup !== g.gradeGroup;
+            const isCrossover = !isMixed && m.gradeGroup && g.gradeGroup && m.gradeGroup !== g.gradeGroup;
             const crossoverClass = isCrossover ? ' crossover' : '';
             return `<span class="grade-label${crossoverClass}">[${shortLabel}]</span>` +
               `<span class="member-name" data-member-id="${escapeHtml(m.id)}">${escapeHtml(m.name)}</span>${countStr}` +
               ` <button class="replace-btn" data-action="start-replace" data-assignment-id="${escapeHtml(g.id)}" data-member-id="${escapeHtml(m.id)}" data-assigned='${escapeHtml(JSON.stringify([...assignedOnDate]))}' data-date="${escapeHtml(date)}" data-partner-id="${escapeHtml(partnerId)}" data-role="${g.gradeGroup || ''}">${t('replace')}</button>`;
           }).join(currentLang === 'ja' ? ' ・ ' : ' & ')}</span>
         </div>
-      `).join('')}
+      `}).join('')}
     </div>`;
   }).join('');
 

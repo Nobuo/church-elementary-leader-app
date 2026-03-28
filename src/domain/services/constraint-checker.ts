@@ -25,15 +25,21 @@ export function checkLanguageBalance(
   member1: Member,
   member2: Member,
 ): ConstraintViolation | null {
-  const hasJapanese = coversJapanese(member1.language) || coversJapanese(member2.language);
-  const hasEnglish = coversEnglish(member1.language) || coversEnglish(member2.language);
+  return checkLanguageBalanceGroup([member1, member2]);
+}
+
+export function checkLanguageBalanceGroup(
+  members: Member[],
+): ConstraintViolation | null {
+  const hasJapanese = members.some((m) => coversJapanese(m.language));
+  const hasEnglish = members.some((m) => coversEnglish(m.language));
 
   if (!hasJapanese || !hasEnglish) {
     const missing = !hasJapanese ? 'Japanese' : 'English';
     return {
       type: ViolationType.LANGUAGE_COVERAGE,
       severity: Severity.WARNING,
-      memberIds: [member1.id, member2.id],
+      memberIds: members.map((m) => m.id),
       message: `Group lacks ${missing} language coverage`,
       messageKey: 'violations.languageCoverage',
       messageParams: { missing },
@@ -82,19 +88,31 @@ export function checkSpouseSameGroup(
   member1: Member,
   member2: Member,
 ): ConstraintViolation | null {
-  // Only applies to PARENT_COUPLE
-  if (member1.memberType !== MemberType.PARENT_COUPLE) return null;
-  if (member2.memberType !== MemberType.PARENT_COUPLE) return null;
+  return checkSpouseSameGroupMulti([member1, member2]);
+}
 
-  if (member1.spouseId === member2.id) {
-    return {
-      type: ViolationType.SPOUSE_SAME_GROUP,
-      severity: Severity.WARNING,
-      memberIds: [member1.id, member2.id],
-      message: `Spouses ${member1.name} and ${member2.name} are in the same group`,
-      messageKey: 'violations.spouseSameGroup',
-      messageParams: { name1: member1.name, name2: member2.name },
-    };
+export function checkSpouseSameGroupMulti(
+  members: Member[],
+): ConstraintViolation | null {
+  for (let i = 0; i < members.length; i++) {
+    for (let j = i + 1; j < members.length; j++) {
+      const mi = members[i];
+      const mj = members[j];
+      if (
+        mi.memberType === MemberType.PARENT_COUPLE &&
+        mj.memberType === MemberType.PARENT_COUPLE &&
+        mi.spouseId === mj.id
+      ) {
+        return {
+          type: ViolationType.SPOUSE_SAME_GROUP,
+          severity: Severity.WARNING,
+          memberIds: [mi.id, mj.id],
+          message: `Spouses ${mi.name} and ${mj.name} are in the same group`,
+          messageKey: 'violations.spouseSameGroup',
+          messageParams: { name1: mi.name, name2: mj.name },
+        };
+      }
+    }
   }
   return null;
 }
@@ -131,13 +149,13 @@ export function checkMinInterval(
 export function checkExcessiveCount(
   members: Member[],
   assignmentCounts: Map<MemberId, number>,
-  totalSundays: number,
+  totalSlots: number,
 ): ConstraintViolation[] {
   const violations: ConstraintViolation[] = [];
   const activeMembers = members.filter((m) => m.isActive);
-  if (activeMembers.length === 0 || totalSundays === 0) return violations;
+  if (activeMembers.length === 0 || totalSlots === 0) return violations;
 
-  const expectedCount = (totalSundays * 4) / activeMembers.length;
+  const expectedCount = totalSlots / activeMembers.length;
 
   for (const member of activeMembers) {
     const count = assignmentCounts.get(member.id) ?? 0;

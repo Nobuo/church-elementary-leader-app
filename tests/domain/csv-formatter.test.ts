@@ -51,7 +51,7 @@ describe('formatCsv', () => {
 
   it('outputs correct headers (en)', () => {
     const csv = formatCsv([], [], new Map(), 'en');
-    expect(csv).toContain('Date,Event Day,Split Class,Group');
+    expect(csv).toContain('Date,Event Day,Split Class,Group,Member 1,Member 1 Language,Member 2,Member 2 Language,Member 3,Member 3 Language');
   });
 
   it('outputs TRUE for event day', () => {
@@ -110,5 +110,35 @@ describe('formatCsv', () => {
 
     const csv = formatCsv([assignment], [schedule], members, 'en');
     expect(csv).toContain('"Nick ""The"" Name"');
+  });
+
+  it('outputs 3 members for combined day assignment', () => {
+    const m1 = makeMember('Alice');
+    const m2 = makeMember('Bob');
+    const m3 = makeMember('Charlie');
+    const schedule = makeSchedule('2026-03-01');
+    const assignment = Assignment.create(schedule.id, 1, [m1.id, m2.id, m3.id]);
+    const members = new Map<MemberId, Member>([[m1.id, m1], [m2.id, m2], [m3.id, m3]]);
+
+    const csv = formatCsv([assignment], [schedule], members, 'en');
+    const dataLine = csv.split('\n')[1];
+    expect(dataLine).toContain('Alice');
+    expect(dataLine).toContain('Bob');
+    expect(dataLine).toContain('Charlie');
+  });
+
+  it('leaves member 3 columns empty for 2-member assignment', () => {
+    const m1 = makeMember('Alice');
+    const m2 = makeMember('Bob');
+    const schedule = makeSchedule('2026-03-01', { isSplitClass: true });
+    const assignment = Assignment.create(schedule.id, 1, [m1.id, m2.id]);
+    const members = new Map<MemberId, Member>([[m1.id, m1], [m2.id, m2]]);
+
+    const csv = formatCsv([assignment], [schedule], members, 'en');
+    const dataLine = csv.split('\n')[1];
+    const fields = dataLine.split(',');
+    // Last 2 fields (Member 3 name and language) should be empty
+    expect(fields[fields.length - 1]).toBe('');
+    expect(fields[fields.length - 2]).toBe('');
   });
 });

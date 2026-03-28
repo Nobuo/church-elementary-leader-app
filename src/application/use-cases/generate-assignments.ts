@@ -7,15 +7,16 @@ import { AssignmentRepository } from '@domain/repositories/assignment-repository
 import { generateAssignments as generateAlgorithm } from '@domain/services/assignment-generator';
 import {
   checkExcessiveCount,
-  checkLanguageBalance,
+  checkLanguageBalanceGroup,
   checkSameGender,
-  checkSpouseSameGroup,
+  checkSpouseSameGroupMulti,
   checkMonthlyDuplicate,
   checkMinInterval,
   checkClassLanguageCoverage,
 } from '@domain/services/constraint-checker';
 import { MemberType } from '@domain/value-objects/member-type';
 import { GradeGroup } from '@domain/value-objects/grade-group';
+import { Schedule } from '@domain/entities/schedule';
 import { getFiscalYear } from '@domain/value-objects/fiscal-year';
 import {
   ConstraintViolation,
@@ -44,6 +45,16 @@ export interface GenerateAssignmentsResult {
   message?: string;
 }
 
+/** Combined day = 3 slots, split day = 4 slots */
+function slotsForSchedule(schedule: Schedule): number {
+  return schedule.isSplitClass ? 4 : 3;
+}
+
+function assignmentGradeGroup(memberCount: number, groupNumber: number): string {
+  if (memberCount === 3) return 'MIXED';
+  return groupNumber === 1 ? GradeGroup.UPPER : GradeGroup.LOWER;
+}
+
 export function generateMonthlyAssignments(
   year: number,
   month: number,
@@ -57,8 +68,8 @@ export function generateMonthlyAssignments(
   }
 
   const members = memberRepo.findAll(true);
-  if (members.length < 4) {
-    return err('Not enough active members (need at least 4)');
+  if (members.length < 3) {
+    return err('Not enough active members (need at least 3)');
   }
 
   const allScheduleIds = schedules.map((s) => s.id);
@@ -113,7 +124,13 @@ export function generateMonthlyAssignments(
       updatedCountMap.set(mid, (updatedCountMap.get(mid) ?? 0) + 1);
     }
   }
-  // totalSundays: count schedules that have assignments (confirmed + newly generated)
+
+  // Build schedule lookup for slot calculation
+  const scheduleMap = new Map<ScheduleId, Schedule>();
+  for (const s of allFiscalYearSchedules) {
+    scheduleMap.set(s.id, s);
+  }
+
   const otherScheduleIdsWithAssignments = new Set(
     existingAssignmentsAll.map((a) => a.scheduleId),
   );
@@ -123,7 +140,8 @@ export function generateMonthlyAssignments(
       !s.isExcluded &&
       (otherScheduleIdsWithAssignments.has(s.id) || newlyAssignedScheduleIds.has(s.id)),
   );
-  const excessiveViolations = checkExcessiveCount(members, updatedCountMap, assignedSundays.length);
+  const totalSlots = assignedSundays.reduce((sum, s) => sum + slotsForSchedule(s), 0);
+  const excessiveViolations = checkExcessiveCount(members, updatedCountMap, totalSlots);
   violations.push(...excessiveViolations);
 
   // Save assignments
@@ -148,7 +166,7 @@ export function generateMonthlyAssignments(
     scheduleId: a.scheduleId,
     date: scheduleDateMap.get(a.scheduleId) ?? '',
     groupNumber: a.groupNumber,
-    gradeGroup: a.groupNumber === 1 ? GradeGroup.UPPER : GradeGroup.LOWER,
+    gradeGroup: assignmentGradeGroup(a.memberIds.length, a.groupNumber),
     members: a.memberIds.map((mid) => ({
       id: mid,
       name: memberMap.get(mid)?.name ?? 'Unknown',
@@ -191,19 +209,29 @@ export function adjustAssignment(
   const memberLookup = new Map(
     updated.memberIds.map((mid) => [mid, memberRepo.findById(mid)] as const),
   );
-  const m1 = memberLookup.get(updated.memberIds[0]) ?? null;
-  const m2 = memberLookup.get(updated.memberIds[1]) ?? null;
 
   const date = schedule?.date ?? '';
+  const isCombinedDay = schedule ? !schedule.isSplitClass : false;
 
-  // Check constraints on the new pair
+  // Check constraints on the updated group
   const violations: ConstraintViolation[] = [];
-  if (m1 && m2) {
-    const langViolation = checkLanguageBalance(m1, m2);
+  const groupMembers = updated.memberIds
+    .map((mid) => memberLookup.get(mid) ?? null)
+    .filter((m): m is Member => m !== null);
+
+  if (groupMembers.length >= 2) {
+    // Language balance (works for 2 or 3 members)
+    const langViolation = checkLanguageBalanceGroup(groupMembers);
     if (langViolation) violations.push(langViolation);
-    const genderViolation = checkSameGender(m1, m2);
-    if (genderViolation) violations.push(genderViolation);
-    const spouseViolation = checkSpouseSameGroup(m1, m2);
+
+    // Same-gender constraint: only for 2-member pairs (split-class day)
+    if (!isCombinedDay && groupMembers.length === 2) {
+      const genderViolation = checkSameGender(groupMembers[0], groupMembers[1]);
+      if (genderViolation) violations.push(genderViolation);
+    }
+
+    // Spouse avoidance (works for 2 or 3 members)
+    const spouseViolation = checkSpouseSameGroupMulti(groupMembers);
     if (spouseViolation) violations.push(spouseViolation);
 
     // Check class language coverage on split-class days
@@ -211,31 +239,32 @@ export function adjustAssignment(
       const sameDateAssignments = assignmentRepo.findByScheduleIds([updated.scheduleId]);
       const otherGroup = sameDateAssignments.find((a) => a.id !== updated.id);
       if (otherGroup) {
-        const otherM1 = memberRepo.findById(otherGroup.memberIds[0]);
-        const otherM2 = memberRepo.findById(otherGroup.memberIds[1]);
-        if (otherM1 && otherM2) {
-          const allMembers = [m1, m2, otherM1, otherM2];
-          const classViolations = checkClassLanguageCoverage(allMembers);
-          violations.push(...classViolations);
-        }
+        const otherMembers = otherGroup.memberIds
+          .map((mid) => memberRepo.findById(mid))
+          .filter((m): m is Member => m !== null);
+        const allMembers = [...groupMembers, ...otherMembers];
+        const classViolations = checkClassLanguageCoverage(allMembers);
+        violations.push(...classViolations);
       }
     }
 
-    // Grade group mismatch check
-    const expectedGrade = updated.groupNumber === 1 ? GradeGroup.UPPER : GradeGroup.LOWER;
-    if (newMember.gradeGroup !== GradeGroup.ANY && newMember.gradeGroup !== expectedGrade) {
-      violations.push({
-        type: ViolationType.GRADE_GROUP_MISMATCH,
-        severity: Severity.WARNING,
-        memberIds: [asMemberId(newMemberId)],
-        message: `${newMember.name} is ${newMember.gradeGroup} but assigned to ${expectedGrade} slot`,
-        messageKey: 'violations.gradeGroupMismatch',
-        messageParams: {
-          name: newMember.name,
-          registered: newMember.gradeGroup,
-          assigned: expectedGrade,
-        },
-      });
+    // Grade group mismatch check (only for split-class days)
+    if (!isCombinedDay) {
+      const expectedGrade = updated.groupNumber === 1 ? GradeGroup.UPPER : GradeGroup.LOWER;
+      if (newMember.gradeGroup !== GradeGroup.ANY && newMember.gradeGroup !== expectedGrade) {
+        violations.push({
+          type: ViolationType.GRADE_GROUP_MISMATCH,
+          severity: Severity.WARNING,
+          memberIds: [asMemberId(newMemberId)],
+          message: `${newMember.name} is ${newMember.gradeGroup} but assigned to ${expectedGrade} slot`,
+          messageKey: 'violations.gradeGroupMismatch',
+          messageParams: {
+            name: newMember.name,
+            registered: newMember.gradeGroup,
+            assigned: expectedGrade,
+          },
+        });
+      }
     }
   }
 
@@ -270,7 +299,7 @@ export function adjustAssignment(
     scheduleId: updated.scheduleId,
     date,
     groupNumber: updated.groupNumber,
-    gradeGroup: updated.groupNumber === 1 ? GradeGroup.UPPER : GradeGroup.LOWER,
+    gradeGroup: assignmentGradeGroup(updated.memberIds.length, updated.groupNumber),
     members: updated.memberIds.map((mid) => ({
       id: mid,
       name: memberLookup.get(mid)?.name ?? 'Unknown',
@@ -319,7 +348,7 @@ export function getAssignmentsForMonth(
     scheduleId: a.scheduleId,
     date: scheduleDateMap.get(a.scheduleId) ?? '',
     groupNumber: a.groupNumber,
-    gradeGroup: a.groupNumber === 1 ? GradeGroup.UPPER : GradeGroup.LOWER,
+    gradeGroup: assignmentGradeGroup(a.memberIds.length, a.groupNumber),
     members: a.memberIds.map((mid) => ({
       id: mid,
       name: memberMap.get(mid)?.name ?? 'Unknown',

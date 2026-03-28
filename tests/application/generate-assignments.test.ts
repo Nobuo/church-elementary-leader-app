@@ -217,10 +217,10 @@ describe('generateMonthlyAssignments', () => {
   describe('incremental generation', () => {
     it('generates only for unassigned schedules, preserving confirmed weeks', () => {
       const aprilSchedules = [
-        makeSchedule('2026-04-05'),
-        makeSchedule('2026-04-12'),
-        makeSchedule('2026-04-19'),
-        makeSchedule('2026-04-26'),
+        makeSchedule('2026-04-05', { isSplitClass: true }),
+        makeSchedule('2026-04-12', { isSplitClass: true }),
+        makeSchedule('2026-04-19', { isSplitClass: true }),
+        makeSchedule('2026-04-26', { isSplitClass: true }),
       ];
       const members = makeMembers();
 
@@ -255,8 +255,8 @@ describe('generateMonthlyAssignments', () => {
 
     it('returns allWeeksAssigned message when all weeks have assignments', () => {
       const aprilSchedules = [
-        makeSchedule('2026-04-05'),
-        makeSchedule('2026-04-12'),
+        makeSchedule('2026-04-05', { isSplitClass: true }),
+        makeSchedule('2026-04-12', { isSplitClass: true }),
       ];
       const members = makeMembers();
 
@@ -282,10 +282,10 @@ describe('generateMonthlyAssignments', () => {
 
     it('considers confirmed weeks in assignment counts for fairness', () => {
       const aprilSchedules = [
-        makeSchedule('2026-04-05'),
-        makeSchedule('2026-04-12'),
-        makeSchedule('2026-04-19'),
-        makeSchedule('2026-04-26'),
+        makeSchedule('2026-04-05', { isSplitClass: true }),
+        makeSchedule('2026-04-12', { isSplitClass: true }),
+        makeSchedule('2026-04-19', { isSplitClass: true }),
+        makeSchedule('2026-04-26', { isSplitClass: true }),
       ];
       const members = makeMembers();
 
@@ -313,10 +313,10 @@ describe('generateMonthlyAssignments', () => {
 
     it('generates all weeks when no existing assignments (same as before)', () => {
       const aprilSchedules = [
-        makeSchedule('2026-04-05'),
-        makeSchedule('2026-04-12'),
-        makeSchedule('2026-04-19'),
-        makeSchedule('2026-04-26'),
+        makeSchedule('2026-04-05', { isSplitClass: true }),
+        makeSchedule('2026-04-12', { isSplitClass: true }),
+        makeSchedule('2026-04-19', { isSplitClass: true }),
+        makeSchedule('2026-04-26', { isSplitClass: true }),
       ];
       const members = makeMembers();
 

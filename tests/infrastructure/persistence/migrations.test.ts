@@ -171,7 +171,7 @@ describe('rollbackMigrations', () => {
   it('指定バージョンまでロールバックする', () => {
     db = createTestDb();
     runMigrations(db);
-    expect(getAppliedVersions(db)).toEqual([1, 2, 3, 4, 5, 6]);
+    expect(getAppliedVersions(db)).toEqual([1, 2, 3, 4, 5, 6, 7]);
 
     rollbackMigrations(db, 3);
     expect(getAppliedVersions(db)).toEqual([1, 2, 3]);
@@ -197,7 +197,7 @@ describe('rollbackMigrations', () => {
     expect(getAppliedVersions(db)).toEqual([]);
 
     runMigrations(db);
-    expect(getAppliedVersions(db)).toEqual([1, 2, 3, 4, 5, 6]);
+    expect(getAppliedVersions(db)).toEqual([1, 2, 3, 4, 5, 6, 7]);
     expect(getTableNames(db)).toContain('members');
     expect(getTableNames(db)).toContain('schedules');
     expect(getTableNames(db)).toContain('assignments');
@@ -207,11 +207,11 @@ describe('rollbackMigrations', () => {
     db = createTestDb();
     runMigrations(db);
 
-    rollbackMigrations(db, 6);
-    expect(getAppliedVersions(db)).toEqual([1, 2, 3, 4, 5, 6]);
+    rollbackMigrations(db, 7);
+    expect(getAppliedVersions(db)).toEqual([1, 2, 3, 4, 5, 6, 7]);
 
     rollbackMigrations(db, 10);
-    expect(getAppliedVersions(db)).toEqual([1, 2, 3, 4, 5, 6]);
+    expect(getAppliedVersions(db)).toEqual([1, 2, 3, 4, 5, 6, 7]);
   });
 });
 
@@ -239,7 +239,7 @@ describe('handleMigrateTarget', () => {
     delete process.env.DB_MIGRATE_TARGET;
 
     handleMigrateTarget(db);
-    expect(getAppliedVersions(db)).toEqual([1, 2, 3, 4, 5, 6]);
+    expect(getAppliedVersions(db)).toEqual([1, 2, 3, 4, 5, 6, 7]);
   });
 
   it('無効な値でエラーをthrow', () => {

@@ -7,9 +7,14 @@ describe('Assignment API', () => {
   beforeEach(() => { t = createTestApp(); });
   afterEach(() => { t.db.close(); });
 
-  async function setupMembersAndSchedule() {
+  async function setupMembersAndSchedule(options: { splitClass?: boolean } = { splitClass: true }) {
     const members = await seedStandardMembers(t.request);
     const schedules = await seedSchedule(t.request, 2027, 4);
+    if (options.splitClass) {
+      for (const s of schedules) {
+        await t.request.post(`/api/schedules/${s.id}/toggle-split-class`).expect(200);
+      }
+    }
     return { members, schedules };
   }
 
@@ -36,11 +41,11 @@ describe('Assignment API', () => {
     });
 
     it('3.3 returns 400 when not enough members', async () => {
-      // Register only 3 members
-      for (let i = 0; i < 3; i++) {
+      // Register only 2 members (minimum is 3)
+      for (let i = 0; i < 2; i++) {
         await t.request.post('/api/members').send({
           name: `Member${i}`, gender: 'MALE', language: 'BOTH',
-          gradeGroup: i < 2 ? 'UPPER' : 'LOWER', memberType: 'PARENT_SINGLE', sameGenderOnly: false,
+          gradeGroup: i < 1 ? 'UPPER' : 'LOWER', memberType: 'PARENT_SINGLE', sameGenderOnly: false,
         }).expect(201);
       }
       await seedSchedule(t.request, 2027, 4);
@@ -281,7 +286,7 @@ describe('Assignment API', () => {
     });
 
     it('T11 normal day: candidates with role=UPPER returns only UPPER members', async () => {
-      const { schedules } = await setupMembersAndSchedule();
+      const { schedules } = await setupMembersAndSchedule({ splitClass: false });
       await t.request.post('/api/assignments/generate').send({ year: 2027, month: 4 }).expect(200);
 
       const res = await t.request
@@ -296,7 +301,7 @@ describe('Assignment API', () => {
     });
 
     it('T13 normal day: candidates with role=LOWER returns only LOWER members', async () => {
-      const { schedules } = await setupMembersAndSchedule();
+      const { schedules } = await setupMembersAndSchedule({ splitClass: false });
       await t.request.post('/api/assignments/generate').send({ year: 2027, month: 4 }).expect(200);
 
       const res = await t.request

@@ -228,7 +228,7 @@ describe('adjustAssignment', () => {
 
     const scheduleResult = Schedule.create('2026-04-05');
     if (!scheduleResult.ok) throw new Error('bad schedule');
-    const schedule = scheduleResult.value;
+    const schedule = scheduleResult.value.toggleSplitClass(); // split-class day for grade group check
 
     // groupNumber=2 → LOWER group
     const assignment = Assignment.create(schedule.id, 2, [m1.id, m2.id]);

@@ -28,6 +28,16 @@ function pairKey(a: MemberId, b: MemberId): string {
   return [a, b].sort().join('-');
 }
 
+/** Update pastPairCounts for all 2-member combinations in the group */
+function updatePairCounts(memberIds: MemberId[], pastPairCounts: Map<string, number>): void {
+  for (let i = 0; i < memberIds.length; i++) {
+    for (let j = i + 1; j < memberIds.length; j++) {
+      const pk = pairKey(memberIds[i], memberIds[j]);
+      pastPairCounts.set(pk, (pastPairCounts.get(pk) ?? 0) + 1);
+    }
+  }
+}
+
 function shuffle<T>(array: T[]): T[] {
   const result = [...array];
   for (let i = result.length - 1; i > 0; i--) {
@@ -42,7 +52,7 @@ interface ClassContext {
 }
 
 /**
- * Score a candidate pair for a group assignment.
+ * Score a candidate pair for a group assignment (split-class days: 2 members per group).
  * Lower score = better candidate.
  */
 function scorePair(
@@ -176,6 +186,138 @@ function scorePair(
   return { score, violations };
 }
 
+/**
+ * Score a candidate trio for a combined-day assignment (3 members, 1 group).
+ * Lower score = better candidate.
+ */
+function scoreTrio(
+  members: [Member, Member, Member],
+  context: GenerationContext,
+  monthAssignments: Assignment[],
+  pastPairCounts: Map<string, number>,
+  poolMinCount: number,
+): { score: number; violations: ConstraintViolation[] } {
+  let score = 0;
+  const violations: ConstraintViolation[] = [];
+
+  // HARD: Language balance — need both JP and EN coverage
+  const hasJapanese = members.some((m) => coversJapanese(m.language));
+  const hasEnglish = members.some((m) => coversEnglish(m.language));
+  if (!hasJapanese || !hasEnglish) {
+    score += 100000;
+  }
+
+  // Same-gender constraint: NOT applied for 3-member groups
+
+  // BOTH conservation: +3 per BOTH member (same as combined-day pair logic)
+  for (const m of members) {
+    if (m.language === Language.BOTH) {
+      score += 3;
+    }
+  }
+
+  // Available-dates priority
+  for (const m of members) {
+    if (m.availableDates && m.availableDates.length > 0) {
+      score -= 30;
+    }
+  }
+
+  // SOFT: Monthly duplicate
+  for (const m of members) {
+    const alreadyAssigned = monthAssignments.some((a) => a.containsMember(m.id));
+    if (alreadyAssigned) {
+      score += 100;
+    }
+  }
+
+  // Equal distribution
+  const counts = context.assignmentCounts;
+  for (const m of members) {
+    const memberCount = counts.get(m.id) ?? 0;
+    score += (memberCount - poolMinCount) * 50;
+  }
+
+  // SOFT: Spouse avoidance — check all pairs within the trio
+  for (let i = 0; i < members.length; i++) {
+    for (let j = i + 1; j < members.length; j++) {
+      const mi = members[i];
+      const mj = members[j];
+      if (
+        mi.memberType === MemberType.PARENT_COUPLE &&
+        mj.memberType === MemberType.PARENT_COUPLE &&
+        mi.spouseId === mj.id
+      ) {
+        score += 30;
+      }
+    }
+  }
+
+  // SOFT: HELPER deferral
+  for (const m of members) {
+    if (m.memberType === MemberType.HELPER) {
+      const alreadyAssigned = monthAssignments.some((a) => a.containsMember(m.id));
+      if (alreadyAssigned) {
+        score += 5;
+      }
+    }
+  }
+
+  // Pair diversity — check all 3 pairs within the trio
+  for (let i = 0; i < members.length; i++) {
+    for (let j = i + 1; j < members.length; j++) {
+      const pk = pairKey(members[i].id, members[j].id);
+      const pairCount = pastPairCounts.get(pk) ?? 0;
+      score += pairCount * 10;
+    }
+  }
+
+  return { score, violations };
+}
+
+interface TrioResult {
+  members: [Member, Member, Member];
+  violations: ConstraintViolation[];
+}
+
+function pickBestTrio(
+  candidates: Member[],
+  context: GenerationContext,
+  monthAssignments: Assignment[],
+  pastPairCounts: Map<string, number>,
+): TrioResult | null {
+  if (candidates.length < 3) return null;
+
+  const counts = context.assignmentCounts;
+  const poolMinCount = Math.min(...candidates.map((m) => counts.get(m.id) ?? 0));
+
+  const shuffled = shuffle(candidates);
+  let bestScore = Infinity;
+  let bestTrio: TrioResult | null = null;
+
+  for (let i = 0; i < shuffled.length; i++) {
+    for (let j = i + 1; j < shuffled.length; j++) {
+      for (let k = j + 1; k < shuffled.length; k++) {
+        const trio: [Member, Member, Member] = [shuffled[i], shuffled[j], shuffled[k]];
+        const { score, violations } = scoreTrio(
+          trio,
+          context,
+          monthAssignments,
+          pastPairCounts,
+          poolMinCount,
+        );
+
+        if (score < bestScore || (score === bestScore && Math.random() < 0.5)) {
+          bestScore = score;
+          bestTrio = { members: trio, violations };
+        }
+      }
+    }
+  }
+
+  return bestTrio;
+}
+
 export function generateAssignments(
   schedules: Schedule[],
   allMembers: Member[],
@@ -191,11 +333,10 @@ export function generateAssignments(
   for (const s of schedules) {
     scheduleIdToDate.set(s.id, s.date);
   }
-  // Build past pair counts from existing assignments
+  // Build past pair counts from existing assignments (handle 2 or 3 members)
   const pastPairCounts = new Map<string, number>();
   for (const a of existingAssignmentsAll) {
-    const pk = pairKey(a.memberIds[0], a.memberIds[1]);
-    pastPairCounts.set(pk, (pastPairCounts.get(pk) ?? 0) + 1);
+    updatePairCounts([...a.memberIds], pastPairCounts);
   }
 
   // Copy counts so we can update during generation
@@ -226,13 +367,61 @@ export function generateAssignments(
       .filter((m) => m.isAvailableOn(dateStr))
       .filter((m) => !schedule.isEvent || m.memberType !== MemberType.HELPER);
 
-    const upperBase = available.filter((m) => m.gradeGroup === GradeGroup.UPPER || m.gradeGroup === GradeGroup.ANY);
-    const lowerBase = available.filter((m) => m.gradeGroup === GradeGroup.LOWER || m.gradeGroup === GradeGroup.ANY);
+    if (!schedule.isSplitClass) {
+      // === 合同日: 3人×1グループ ===
+      // All members in a single pool (no UPPER/LOWER distinction)
+      if (available.length < 3) {
+        allViolations.push({
+          type: ViolationType.UNEQUAL_COUNT,
+          severity: Severity.WARNING,
+          memberIds: [],
+          message: `Not enough members for combined day ${dateStr}: ${available.length} available`,
+          messageKey: 'violations.notEnoughMembersCombined',
+          messageParams: { date: dateStr, count: String(available.length) },
+        });
+        continue;
+      }
 
-    // On split-class days, allow bilingual (BOTH) members to cross grade boundaries
-    let upperMembers = upperBase;
-    let lowerMembers = lowerBase;
-    if (schedule.isSplitClass) {
+      const trioResult = pickBestTrio(
+        available,
+        context,
+        monthAssignments,
+        pastPairCounts,
+      );
+
+      if (trioResult) {
+        const assignment = Assignment.create(schedule.id, 1, [
+          trioResult.members[0].id,
+          trioResult.members[1].id,
+          trioResult.members[2].id,
+        ]);
+        dayAssignments.push(assignment);
+        monthAssignments.push(assignment);
+        allAssignments.push(assignment);
+        allViolations.push(...trioResult.violations);
+
+        for (const m of trioResult.members) {
+          counts.set(m.id, (counts.get(m.id) ?? 0) + 1);
+        }
+        updatePairCounts(trioResult.members.map((m) => m.id), pastPairCounts);
+      } else {
+        allViolations.push({
+          type: ViolationType.UNEQUAL_COUNT,
+          severity: Severity.WARNING,
+          memberIds: [],
+          message: `Could not form group for combined day ${dateStr}`,
+          messageKey: 'violations.cannotFormGroup',
+          messageParams: { group: '1', date: dateStr },
+        });
+      }
+    } else {
+      // === 分級日: 2人×2グループ（既存ロジック）===
+      const upperBase = available.filter((m) => m.gradeGroup === GradeGroup.UPPER || m.gradeGroup === GradeGroup.ANY);
+      const lowerBase = available.filter((m) => m.gradeGroup === GradeGroup.LOWER || m.gradeGroup === GradeGroup.ANY);
+
+      // On split-class days, allow bilingual (BOTH) members to cross grade boundaries
+      let upperMembers = upperBase;
+      let lowerMembers = lowerBase;
       const upperBothCount = upperBase.filter((m) => m.language === Language.BOTH).length;
       const lowerBothCount = lowerBase.filter((m) => m.language === Language.BOTH).length;
       if (lowerBothCount < 1 && upperBothCount > 2) {
@@ -247,103 +436,99 @@ export function generateAssignments(
           ...lowerBase.filter((m) => m.language === Language.BOTH),
         ];
       }
-    }
 
-    if (upperMembers.length < 2 || lowerMembers.length < 2) {
-      allViolations.push({
-        type: ViolationType.UNEQUAL_COUNT,
-        severity: Severity.WARNING,
-        memberIds: [],
-        message: `Not enough members for ${dateStr}: ${upperMembers.length} upper, ${lowerMembers.length} lower`,
-        messageKey: 'violations.notEnoughMembers',
-        messageParams: { date: dateStr, upper: String(upperMembers.length), lower: String(lowerMembers.length) },
-      });
-      // Try with whatever we have
-      if (upperMembers.length < 1 || lowerMembers.length < 1) continue;
-    }
+      if (upperMembers.length < 2 || lowerMembers.length < 2) {
+        allViolations.push({
+          type: ViolationType.UNEQUAL_COUNT,
+          severity: Severity.WARNING,
+          memberIds: [],
+          message: `Not enough members for ${dateStr}: ${upperMembers.length} upper, ${lowerMembers.length} lower`,
+          messageKey: 'violations.notEnoughMembers',
+          messageParams: { date: dateStr, upper: String(upperMembers.length), lower: String(lowerMembers.length) },
+        });
+        if (upperMembers.length < 1 || lowerMembers.length < 1) continue;
+      }
 
-    // Group 1 (UPPER): pick 2 from upperPool
-    const group1Result = pickBestPairSameGrade(
-      upperMembers,
-      context,
-      monthAssignments,
-      dayAssignments,
-      pastPairCounts,
-      undefined,
-      schedule.isSplitClass,
-    );
-
-    if (group1Result) {
-      const assignment1 = Assignment.create(schedule.id, 1, [
-        group1Result.member1.id,
-        group1Result.member2.id,
-      ]);
-      dayAssignments.push(assignment1);
-      monthAssignments.push(assignment1);
-      allAssignments.push(assignment1);
-      allViolations.push(...group1Result.violations);
-
-      // Update counts
-      counts.set(group1Result.member1.id, (counts.get(group1Result.member1.id) ?? 0) + 1);
-      counts.set(group1Result.member2.id, (counts.get(group1Result.member2.id) ?? 0) + 1);
-
-      // Update pair counts
-      const pk = pairKey(group1Result.member1.id, group1Result.member2.id);
-      pastPairCounts.set(pk, (pastPairCounts.get(pk) ?? 0) + 1);
-
-      // Group 2 (LOWER): pick 2 from lowerPool, excluding members used in Group 1
-      const usedIds = new Set([group1Result.member1.id, group1Result.member2.id]);
-      const remainingLower = lowerMembers.filter((m) => !usedIds.has(m.id));
-
-      // On split-class days, pass class context so Group 2 considers bilingual coverage
-      const group2ClassContext = schedule.isSplitClass
-        ? { group1Members: [group1Result.member1, group1Result.member2] as [Member, Member] }
-        : undefined;
-
-      const group2Result = pickBestPairSameGrade(
-        remainingLower,
+      // Group 1 (UPPER): pick 2 from upperPool
+      const group1Result = pickBestPairSameGrade(
+        upperMembers,
         context,
         monthAssignments,
         dayAssignments,
         pastPairCounts,
-        group2ClassContext,
+        undefined,
         schedule.isSplitClass,
       );
 
-      if (group2Result) {
-        const assignment2 = Assignment.create(schedule.id, 2, [
-          group2Result.member1.id,
-          group2Result.member2.id,
+      if (group1Result) {
+        const assignment1 = Assignment.create(schedule.id, 1, [
+          group1Result.member1.id,
+          group1Result.member2.id,
         ]);
-        dayAssignments.push(assignment2);
-        monthAssignments.push(assignment2);
-        allAssignments.push(assignment2);
-        allViolations.push(...group2Result.violations);
+        dayAssignments.push(assignment1);
+        monthAssignments.push(assignment1);
+        allAssignments.push(assignment1);
+        allViolations.push(...group1Result.violations);
 
-        counts.set(group2Result.member1.id, (counts.get(group2Result.member1.id) ?? 0) + 1);
-        counts.set(group2Result.member2.id, (counts.get(group2Result.member2.id) ?? 0) + 1);
+        counts.set(group1Result.member1.id, (counts.get(group1Result.member1.id) ?? 0) + 1);
+        counts.set(group1Result.member2.id, (counts.get(group1Result.member2.id) ?? 0) + 1);
 
-        const pk2 = pairKey(group2Result.member1.id, group2Result.member2.id);
-        pastPairCounts.set(pk2, (pastPairCounts.get(pk2) ?? 0) + 1);
+        const pk = pairKey(group1Result.member1.id, group1Result.member2.id);
+        pastPairCounts.set(pk, (pastPairCounts.get(pk) ?? 0) + 1);
+
+        // Group 2 (LOWER): pick 2 from lowerPool, excluding members used in Group 1
+        const usedIds = new Set([group1Result.member1.id, group1Result.member2.id]);
+        const remainingLower = lowerMembers.filter((m) => !usedIds.has(m.id));
+
+        const group2ClassContext: ClassContext = {
+          group1Members: [group1Result.member1, group1Result.member2] as [Member, Member],
+        };
+
+        const group2Result = pickBestPairSameGrade(
+          remainingLower,
+          context,
+          monthAssignments,
+          dayAssignments,
+          pastPairCounts,
+          group2ClassContext,
+          schedule.isSplitClass,
+        );
+
+        if (group2Result) {
+          const assignment2 = Assignment.create(schedule.id, 2, [
+            group2Result.member1.id,
+            group2Result.member2.id,
+          ]);
+          dayAssignments.push(assignment2);
+          monthAssignments.push(assignment2);
+          allAssignments.push(assignment2);
+          allViolations.push(...group2Result.violations);
+
+          counts.set(group2Result.member1.id, (counts.get(group2Result.member1.id) ?? 0) + 1);
+          counts.set(group2Result.member2.id, (counts.get(group2Result.member2.id) ?? 0) + 1);
+
+          const pk2 = pairKey(group2Result.member1.id, group2Result.member2.id);
+          pastPairCounts.set(pk2, (pastPairCounts.get(pk2) ?? 0) + 1);
+        } else {
+          allViolations.push({
+            type: ViolationType.UNEQUAL_COUNT,
+            severity: Severity.WARNING,
+            memberIds: [],
+            message: `Could not form group 2 for ${dateStr}`,
+            messageKey: 'violations.cannotFormGroup',
+            messageParams: { group: '2', date: dateStr },
+          });
+        }
       } else {
         allViolations.push({
           type: ViolationType.UNEQUAL_COUNT,
           severity: Severity.WARNING,
           memberIds: [],
-          message: `Could not form group 2 for ${dateStr}`,
+          message: `Could not form group 1 for ${dateStr}`,
           messageKey: 'violations.cannotFormGroup',
-          messageParams: { group: '2', date: dateStr },
+          messageParams: { group: '1', date: dateStr },
         });
       }
-    } else {
-      allViolations.push({
-        type: ViolationType.UNEQUAL_COUNT,
-        severity: Severity.WARNING,
-        memberIds: [],
-        message: `Could not form group 1 for ${dateStr}`,
-        messageKey: 'violations.cannotFormGroup',
-        messageParams: { group: '1', date: dateStr },
-      });
     }
   }
 

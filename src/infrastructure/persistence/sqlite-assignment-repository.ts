@@ -9,14 +9,19 @@ interface AssignmentRow {
   group_number: number;
   member_id_1: string;
   member_id_2: string;
+  member_id_3: string | null;
 }
 
 function rowToAssignment(row: AssignmentRow): Assignment {
+  const memberIds: MemberId[] = [asMemberId(row.member_id_1), asMemberId(row.member_id_2)];
+  if (row.member_id_3) {
+    memberIds.push(asMemberId(row.member_id_3));
+  }
   return Assignment.reconstruct({
     id: asAssignmentId(row.id),
     scheduleId: asScheduleId(row.schedule_id),
     groupNumber: row.group_number as 1 | 2,
-    memberIds: [asMemberId(row.member_id_1), asMemberId(row.member_id_2)],
+    memberIds,
   });
 }
 
@@ -26,8 +31,8 @@ export class SqliteAssignmentRepository implements AssignmentRepository {
   save(assignment: Assignment): void {
     this.db
       .prepare(
-        `INSERT OR REPLACE INTO assignments (id, schedule_id, group_number, member_id_1, member_id_2)
-       VALUES (?, ?, ?, ?, ?)`,
+        `INSERT OR REPLACE INTO assignments (id, schedule_id, group_number, member_id_1, member_id_2, member_id_3)
+       VALUES (?, ?, ?, ?, ?, ?)`,
       )
       .run(
         assignment.id,
@@ -35,6 +40,7 @@ export class SqliteAssignmentRepository implements AssignmentRepository {
         assignment.groupNumber,
         assignment.memberIds[0],
         assignment.memberIds[1],
+        assignment.memberIds[2] ?? null,
       );
   }
 
@@ -68,10 +74,10 @@ export class SqliteAssignmentRepository implements AssignmentRepository {
       .prepare(
         `SELECT a.* FROM assignments a
        JOIN schedules s ON a.schedule_id = s.id
-       WHERE (a.member_id_1 = ? OR a.member_id_2 = ?) AND s.year = ?
+       WHERE (a.member_id_1 = ? OR a.member_id_2 = ? OR a.member_id_3 = ?) AND s.year = ?
        ORDER BY s.date`,
       )
-      .all(memberId, memberId, fiscalYear) as AssignmentRow[];
+      .all(memberId, memberId, memberId, fiscalYear) as AssignmentRow[];
     return rows.map(rowToAssignment);
   }
 
@@ -80,9 +86,9 @@ export class SqliteAssignmentRepository implements AssignmentRepository {
       .prepare(
         `SELECT COUNT(*) as count FROM assignments a
        JOIN schedules s ON a.schedule_id = s.id
-       WHERE (a.member_id_1 = ? OR a.member_id_2 = ?) AND s.year = ?`,
+       WHERE (a.member_id_1 = ? OR a.member_id_2 = ? OR a.member_id_3 = ?) AND s.year = ?`,
       )
-      .get(memberId, memberId, fiscalYear) as { count: number };
+      .get(memberId, memberId, memberId, fiscalYear) as { count: number };
     return row.count;
   }
 
@@ -95,9 +101,12 @@ export class SqliteAssignmentRepository implements AssignmentRepository {
           UNION ALL
           SELECT a.member_id_2 as member_id FROM assignments a
           JOIN schedules s ON a.schedule_id = s.id WHERE s.year = ?
+          UNION ALL
+          SELECT a.member_id_3 as member_id FROM assignments a
+          JOIN schedules s ON a.schedule_id = s.id WHERE s.year = ? AND a.member_id_3 IS NOT NULL
         ) GROUP BY member_id`,
       )
-      .all(fiscalYear, fiscalYear) as { member_id: string; count: number }[];
+      .all(fiscalYear, fiscalYear, fiscalYear) as { member_id: string; count: number }[];
     const map = new Map<MemberId, number>();
     for (const row of rows) {
       map.set(asMemberId(row.member_id), row.count);

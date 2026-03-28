@@ -70,11 +70,12 @@ export function formatLineMessage(
     );
 
     for (const assignment of dayAssignments) {
-      const m1 = members.get(assignment.memberIds[0]);
-      const m2 = members.get(assignment.memberIds[1]);
       const sep = lang === 'ja' ? '・' : ' & ';
+      const names = assignment.memberIds
+        .map((mid) => members.get(mid)?.name ?? '?')
+        .join(sep);
       lines.push(
-        `  ${groupLabel[lang]} ${assignment.groupNumber}: ${m1?.name ?? '?'}${sep}${m2?.name ?? '?'}`,
+        `  ${groupLabel[lang]} ${assignment.groupNumber}: ${names}`,
       );
     }
 

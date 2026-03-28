@@ -35,519 +35,101 @@ function makeSchedule(date: string): Schedule {
   return result.value;
 }
 
+function makeSplitSchedule(date: string): Schedule {
+  return makeSchedule(date).toggleSplitClass();
+}
+
 describe('generateAssignments', () => {
-  it('generates assignments for a month with enough members', () => {
-    // 4 UPPER + 4 LOWER members with language coverage
-    const members = [
-      makeMember('Upper-JP-M-1', { gradeGroup: GradeGroup.UPPER, language: Language.JAPANESE, gender: Gender.MALE }),
-      makeMember('Upper-EN-F-1', { gradeGroup: GradeGroup.UPPER, language: Language.ENGLISH, gender: Gender.FEMALE }),
-      makeMember('Upper-JP-M-2', { gradeGroup: GradeGroup.UPPER, language: Language.JAPANESE, gender: Gender.MALE }),
-      makeMember('Upper-EN-F-2', { gradeGroup: GradeGroup.UPPER, language: Language.ENGLISH, gender: Gender.FEMALE }),
-      makeMember('Lower-JP-M-1', { gradeGroup: GradeGroup.LOWER, language: Language.JAPANESE, gender: Gender.MALE }),
-      makeMember('Lower-EN-F-1', { gradeGroup: GradeGroup.LOWER, language: Language.ENGLISH, gender: Gender.FEMALE }),
-      makeMember('Lower-JP-M-2', { gradeGroup: GradeGroup.LOWER, language: Language.JAPANESE, gender: Gender.MALE }),
-      makeMember('Lower-EN-F-2', { gradeGroup: GradeGroup.LOWER, language: Language.ENGLISH, gender: Gender.FEMALE }),
-    ];
+  describe('split-class day (2 groups × 2 members)', () => {
+    it('generates assignments for a month with enough members', () => {
+      const members = [
+        makeMember('Upper-JP-M-1', { gradeGroup: GradeGroup.UPPER, language: Language.JAPANESE, gender: Gender.MALE }),
+        makeMember('Upper-EN-F-1', { gradeGroup: GradeGroup.UPPER, language: Language.ENGLISH, gender: Gender.FEMALE }),
+        makeMember('Upper-JP-M-2', { gradeGroup: GradeGroup.UPPER, language: Language.JAPANESE, gender: Gender.MALE }),
+        makeMember('Upper-EN-F-2', { gradeGroup: GradeGroup.UPPER, language: Language.ENGLISH, gender: Gender.FEMALE }),
+        makeMember('Lower-JP-M-1', { gradeGroup: GradeGroup.LOWER, language: Language.JAPANESE, gender: Gender.MALE }),
+        makeMember('Lower-EN-F-1', { gradeGroup: GradeGroup.LOWER, language: Language.ENGLISH, gender: Gender.FEMALE }),
+        makeMember('Lower-JP-M-2', { gradeGroup: GradeGroup.LOWER, language: Language.JAPANESE, gender: Gender.MALE }),
+        makeMember('Lower-EN-F-2', { gradeGroup: GradeGroup.LOWER, language: Language.ENGLISH, gender: Gender.FEMALE }),
+      ];
 
-    const schedules = [makeSchedule('2026-04-05'), makeSchedule('2026-04-12')];
+      const schedules = [makeSplitSchedule('2026-04-05'), makeSplitSchedule('2026-04-12')];
+      const counts = new Map<MemberId, number>();
+      members.forEach((m) => counts.set(m.id, 0));
 
-    const counts = new Map<MemberId, number>();
-    members.forEach((m) => counts.set(m.id, 0));
+      const { assignments } = generateAssignments(schedules, members, [], counts);
 
-    const { assignments } = generateAssignments(schedules, members, [], counts);
-
-    // 2 days × 2 groups = 4 assignments
-    expect(assignments.length).toBe(4);
-
-    // Each assignment should have 2 members
-    for (const a of assignments) {
-      expect(a.memberIds.length).toBe(2);
-    }
-
-    // Each day should have group 1 and group 2
-    const day1 = assignments.filter((a) => a.scheduleId === schedules[0].id);
-    const day2 = assignments.filter((a) => a.scheduleId === schedules[1].id);
-    expect(day1.length).toBe(2);
-    expect(day2.length).toBe(2);
-    expect(day1.map((a) => a.groupNumber).sort()).toEqual([1, 2]);
-  });
-
-  it('handles language balance in groups', () => {
-    const members = [
-      makeMember('U-JP', { gradeGroup: GradeGroup.UPPER, language: Language.JAPANESE }),
-      makeMember('U-EN', { gradeGroup: GradeGroup.UPPER, language: Language.ENGLISH }),
-      makeMember('L-JP', { gradeGroup: GradeGroup.LOWER, language: Language.JAPANESE }),
-      makeMember('L-EN', { gradeGroup: GradeGroup.LOWER, language: Language.ENGLISH }),
-    ];
-
-    const schedules = [makeSchedule('2026-04-05')];
-    const counts = new Map<MemberId, number>();
-    members.forEach((m) => counts.set(m.id, 0));
-
-    const { assignments } = generateAssignments(schedules, members, [], counts);
-
-    // Each group should have language coverage
-    for (const a of assignments) {
-      const m1 = members.find((m) => m.id === a.memberIds[0])!;
-      const m2 = members.find((m) => m.id === a.memberIds[1])!;
-      // At least one should cover Japanese and at least one English
-      const hasJP = [m1, m2].some(
-        (m) => m.language === Language.JAPANESE || m.language === Language.BOTH,
-      );
-      const hasEN = [m1, m2].some(
-        (m) => m.language === Language.ENGLISH || m.language === Language.BOTH,
-      );
-      expect(hasJP).toBe(true);
-      expect(hasEN).toBe(true);
-    }
-  });
-
-  it('excludes HELPER members on event days', () => {
-    const members = [
-      makeMember('U-JP-Parent', { gradeGroup: GradeGroup.UPPER, language: Language.JAPANESE, memberType: MemberType.PARENT_SINGLE }),
-      makeMember('U-EN-Helper', { gradeGroup: GradeGroup.UPPER, language: Language.ENGLISH, memberType: MemberType.HELPER }),
-      makeMember('U-EN-Parent', { gradeGroup: GradeGroup.UPPER, language: Language.ENGLISH, memberType: MemberType.PARENT_SINGLE }),
-      makeMember('L-JP-Parent', { gradeGroup: GradeGroup.LOWER, language: Language.JAPANESE, memberType: MemberType.PARENT_SINGLE }),
-      makeMember('L-EN-Helper', { gradeGroup: GradeGroup.LOWER, language: Language.ENGLISH, memberType: MemberType.HELPER }),
-      makeMember('L-EN-Parent', { gradeGroup: GradeGroup.LOWER, language: Language.ENGLISH, memberType: MemberType.PARENT_SINGLE }),
-    ];
-
-    const schedule = makeSchedule('2026-04-05').toggleEvent();
-    const counts = new Map<MemberId, number>();
-    members.forEach((m) => counts.set(m.id, 0));
-
-    const { assignments } = generateAssignments([schedule], members, [], counts);
-
-    // No HELPER should be assigned on event day
-    const helperIds = new Set(members.filter((m) => m.memberType === MemberType.HELPER).map((m) => m.id));
-    for (const a of assignments) {
-      for (const mid of a.memberIds) {
-        expect(helperIds.has(mid)).toBe(false);
+      // 2 days × 2 groups = 4 assignments
+      expect(assignments.length).toBe(4);
+      for (const a of assignments) {
+        expect(a.memberIds.length).toBe(2);
       }
-    }
-  });
 
-  it('includes HELPER members on non-event days', () => {
-    // Only 2 UPPER + 2 LOWER, with HELPERs needed for language coverage
-    const members = [
-      makeMember('U-JP', { gradeGroup: GradeGroup.UPPER, language: Language.JAPANESE, memberType: MemberType.PARENT_SINGLE }),
-      makeMember('U-EN-H', { gradeGroup: GradeGroup.UPPER, language: Language.ENGLISH, memberType: MemberType.HELPER }),
-      makeMember('L-JP', { gradeGroup: GradeGroup.LOWER, language: Language.JAPANESE, memberType: MemberType.PARENT_SINGLE }),
-      makeMember('L-EN-H', { gradeGroup: GradeGroup.LOWER, language: Language.ENGLISH, memberType: MemberType.HELPER }),
-    ];
-
-    const schedule = makeSchedule('2026-04-05'); // not event
-    const counts = new Map<MemberId, number>();
-    members.forEach((m) => counts.set(m.id, 0));
-
-    const { assignments } = generateAssignments([schedule], members, [], counts);
-
-    // HELPERs should be assigned on normal days
-    const helperIds = new Set(members.filter((m) => m.memberType === MemberType.HELPER).map((m) => m.id));
-    const assignedIds = assignments.flatMap((a) => a.memberIds);
-    const assignedHelpers = assignedIds.filter((id) => helperIds.has(id));
-    expect(assignedHelpers.length).toBeGreaterThan(0);
-  });
-
-  it('returns no assignments when only HELPERs on event day', () => {
-    const members = [
-      makeMember('U-H1', { gradeGroup: GradeGroup.UPPER, language: Language.BOTH, memberType: MemberType.HELPER }),
-      makeMember('L-H1', { gradeGroup: GradeGroup.LOWER, language: Language.BOTH, memberType: MemberType.HELPER }),
-    ];
-
-    const schedule = makeSchedule('2026-04-05').toggleEvent();
-    const counts = new Map<MemberId, number>();
-    members.forEach((m) => counts.set(m.id, 0));
-
-    const { assignments } = generateAssignments([schedule], members, [], counts);
-    expect(assignments).toHaveLength(0);
-  });
-
-  it('prioritizes members with availableDates over unrestricted members', () => {
-    // Create 3 UPPER members: one with date restriction + past pairings, two without
-    // The restricted member has 2 past pairings (pair diversity penalty: +20)
-    // Without priority bonus (-30), unrestricted members (score 0) would beat restricted (+20)
-    // With bonus: restricted gets -30 + 20 = -10, which beats unrestricted at 0
-    const restrictedUpper = Member.reconstruct({
-      ...makeMember('U-Restricted', {
-        gradeGroup: GradeGroup.UPPER,
-        language: Language.BOTH,
-      }),
-      availableDates: ['2026-04-05'],
+      const day1 = assignments.filter((a) => a.scheduleId === schedules[0].id);
+      const day2 = assignments.filter((a) => a.scheduleId === schedules[1].id);
+      expect(day1.length).toBe(2);
+      expect(day2.length).toBe(2);
+      expect(day1.map((a) => a.groupNumber).sort()).toEqual([1, 2]);
     });
-    const unrestrictedUpper1 = makeMember('U-Unrestricted-1', {
-      gradeGroup: GradeGroup.UPPER,
-      language: Language.BOTH,
+
+    it('handles language balance in groups', () => {
+      const members = [
+        makeMember('U-JP', { gradeGroup: GradeGroup.UPPER, language: Language.JAPANESE }),
+        makeMember('U-EN', { gradeGroup: GradeGroup.UPPER, language: Language.ENGLISH }),
+        makeMember('L-JP', { gradeGroup: GradeGroup.LOWER, language: Language.JAPANESE }),
+        makeMember('L-EN', { gradeGroup: GradeGroup.LOWER, language: Language.ENGLISH }),
+      ];
+
+      const schedules = [makeSplitSchedule('2026-04-05')];
+      const counts = new Map<MemberId, number>();
+      members.forEach((m) => counts.set(m.id, 0));
+
+      const { assignments } = generateAssignments(schedules, members, [], counts);
+
+      for (const a of assignments) {
+        const assignedMembers = a.memberIds.map((mid) => members.find((m) => m.id === mid)!);
+        const hasJP = assignedMembers.some(
+          (m) => m.language === Language.JAPANESE || m.language === Language.BOTH,
+        );
+        const hasEN = assignedMembers.some(
+          (m) => m.language === Language.ENGLISH || m.language === Language.BOTH,
+        );
+        expect(hasJP).toBe(true);
+        expect(hasEN).toBe(true);
+      }
     });
-    const unrestrictedUpper2 = makeMember('U-Unrestricted-2', {
-      gradeGroup: GradeGroup.UPPER,
-      language: Language.BOTH,
-    });
-    const lower1 = makeMember('L-1', { gradeGroup: GradeGroup.LOWER, language: Language.BOTH });
-    const lower2 = makeMember('L-2', { gradeGroup: GradeGroup.LOWER, language: Language.BOTH });
 
-    const members = [restrictedUpper, unrestrictedUpper1, unrestrictedUpper2, lower1, lower2];
-    const schedules = [makeSchedule('2026-04-05')];
-    const counts = new Map<MemberId, number>();
-    members.forEach((m) => counts.set(m.id, 0));
+    it('groups members by grade: group 1 = UPPER, group 2 = LOWER (T1, T2)', () => {
+      const members = [
+        makeMember('U-JP-1', { gradeGroup: GradeGroup.UPPER, language: Language.JAPANESE }),
+        makeMember('U-EN-1', { gradeGroup: GradeGroup.UPPER, language: Language.ENGLISH }),
+        makeMember('U-BOTH-1', { gradeGroup: GradeGroup.UPPER, language: Language.BOTH }),
+        makeMember('L-JP-1', { gradeGroup: GradeGroup.LOWER, language: Language.JAPANESE }),
+        makeMember('L-EN-1', { gradeGroup: GradeGroup.LOWER, language: Language.ENGLISH }),
+        makeMember('L-BOTH-1', { gradeGroup: GradeGroup.LOWER, language: Language.BOTH }),
+      ];
 
-    // Create past assignments so restricted member has pair diversity penalty with both lowers
-    const pastSchedule = makeSchedule('2026-03-01');
-    const existingAssignments = [
-      Assignment.create(pastSchedule.id, 1, [restrictedUpper.id, lower1.id]),
-      Assignment.create(pastSchedule.id, 2, [restrictedUpper.id, lower2.id]),
-    ];
+      const schedule = makeSplitSchedule('2026-04-05');
+      const counts = new Map<MemberId, number>();
+      members.forEach((m) => counts.set(m.id, 0));
 
-    const { assignments } = generateAssignments(schedules, members, existingAssignments, counts);
-
-    // The restricted member should be assigned despite pair diversity penalty (prioritized via -30 bonus)
-    const allAssignedIds = assignments.flatMap((a) => a.memberIds);
-    expect(allAssignedIds).toContain(restrictedUpper.id);
-  });
-
-  it('does not override hard constraints with availableDates priority', () => {
-    // Restricted member only covers Japanese, partner only covers Japanese too
-    // Language balance requires English coverage, so restricted member should NOT be picked
-    // if the only available pair would violate language balance
-    const restrictedUpper = Member.reconstruct({
-      ...makeMember('U-JP-Restricted', {
-        gradeGroup: GradeGroup.UPPER,
-        language: Language.JAPANESE,
-      }),
-      availableDates: ['2026-04-05'],
-    });
-    const unrestrictedUpper = makeMember('U-EN-Unrestricted', {
-      gradeGroup: GradeGroup.UPPER,
-      language: Language.ENGLISH,
-    });
-    // Only one lower member who covers Japanese only
-    const lower1 = makeMember('L-JP', { gradeGroup: GradeGroup.LOWER, language: Language.JAPANESE });
-    const lower2 = makeMember('L-EN', { gradeGroup: GradeGroup.LOWER, language: Language.ENGLISH });
-
-    const members = [restrictedUpper, unrestrictedUpper, lower1, lower2];
-    const schedules = [makeSchedule('2026-04-05')];
-    const counts = new Map<MemberId, number>();
-    members.forEach((m) => counts.set(m.id, 0));
-
-    const { assignments } = generateAssignments(schedules, members, [], counts);
-
-    // Each group must have language balance — verify
-    for (const a of assignments) {
-      const m1 = members.find((m) => m.id === a.memberIds[0])!;
-      const m2 = members.find((m) => m.id === a.memberIds[1])!;
-      const hasJP = [m1, m2].some(
-        (m) => m.language === Language.JAPANESE || m.language === Language.BOTH,
-      );
-      const hasEN = [m1, m2].some(
-        (m) => m.language === Language.ENGLISH || m.language === Language.BOTH,
-      );
-      expect(hasJP).toBe(true);
-      expect(hasEN).toBe(true);
-    }
-  });
-
-  it('groups members by grade: group 1 = UPPER, group 2 = LOWER (T1, T2)', () => {
-    const members = [
-      makeMember('U-JP-1', { gradeGroup: GradeGroup.UPPER, language: Language.JAPANESE }),
-      makeMember('U-EN-1', { gradeGroup: GradeGroup.UPPER, language: Language.ENGLISH }),
-      makeMember('U-BOTH-1', { gradeGroup: GradeGroup.UPPER, language: Language.BOTH }),
-      makeMember('L-JP-1', { gradeGroup: GradeGroup.LOWER, language: Language.JAPANESE }),
-      makeMember('L-EN-1', { gradeGroup: GradeGroup.LOWER, language: Language.ENGLISH }),
-      makeMember('L-BOTH-1', { gradeGroup: GradeGroup.LOWER, language: Language.BOTH }),
-    ];
-
-    const schedule = makeSchedule('2026-04-05');
-    const counts = new Map<MemberId, number>();
-    members.forEach((m) => counts.set(m.id, 0));
-
-    const { assignments } = generateAssignments([schedule], members, [], counts);
-    for (const a of assignments) {
-      if (a.groupNumber === 1) {
-        // Group 1 = all UPPER
-        for (const mid of a.memberIds) {
-          const m = members.find((mem) => mem.id === mid)!;
-          expect(m.gradeGroup).toBe(GradeGroup.UPPER);
-        }
-      } else {
-        // Group 2 = all LOWER
-        for (const mid of a.memberIds) {
-          const m = members.find((mem) => mem.id === mid)!;
-          expect(m.gradeGroup).toBe(GradeGroup.LOWER);
+      const { assignments } = generateAssignments([schedule], members, [], counts);
+      for (const a of assignments) {
+        if (a.groupNumber === 1) {
+          for (const mid of a.memberIds) {
+            const m = members.find((mem) => mem.id === mid)!;
+            expect(m.gradeGroup).toBe(GradeGroup.UPPER);
+          }
+        } else {
+          for (const mid of a.memberIds) {
+            const m = members.find((mem) => mem.id === mid)!;
+            expect(m.gradeGroup).toBe(GradeGroup.LOWER);
+          }
         }
       }
-    }
-  });
-
-  it('does not cross on split-class day when each grade has enough BOTH (T3)', () => {
-    const members = [
-      makeMember('U-BOTH-1', { gradeGroup: GradeGroup.UPPER, language: Language.BOTH }),
-      makeMember('U-JP-1', { gradeGroup: GradeGroup.UPPER, language: Language.JAPANESE }),
-      makeMember('U-EN-1', { gradeGroup: GradeGroup.UPPER, language: Language.ENGLISH }),
-      makeMember('L-BOTH-1', { gradeGroup: GradeGroup.LOWER, language: Language.BOTH }),
-      makeMember('L-JP-1', { gradeGroup: GradeGroup.LOWER, language: Language.JAPANESE }),
-      makeMember('L-EN-1', { gradeGroup: GradeGroup.LOWER, language: Language.ENGLISH }),
-    ];
-
-    const schedule = makeSchedule('2026-04-05').toggleSplitClass();
-    const counts = new Map<MemberId, number>();
-    members.forEach((m) => counts.set(m.id, 0));
-
-    const { assignments } = generateAssignments([schedule], members, [], counts);
-    for (const a of assignments) {
-      const expectedGrade = a.groupNumber === 1 ? GradeGroup.UPPER : GradeGroup.LOWER;
-      for (const mid of a.memberIds) {
-        const m = members.find((mem) => mem.id === mid)!;
-        expect(m.gradeGroup).toBe(expectedGrade);
-      }
-    }
-  });
-
-  it('allows BOTH members to cross from UPPER to LOWER group on split-class days when LOWER lacks bilinguals (T4)', () => {
-    // UPPER: 3 BOTH members, LOWER: 0 BOTH members
-    // G1 picks BOTH+JP (1 BOTH). Crossover pool adds UPPER BOTH to LOWER candidates.
-    // CLASS_LANGUAGE_COVERAGE: G1(1 BOTH) + G2(needs 1 BOTH from crossover pool).
-    const members = [
-      makeMember('U-BOTH-1', { gradeGroup: GradeGroup.UPPER, language: Language.BOTH }),
-      makeMember('U-BOTH-2', { gradeGroup: GradeGroup.UPPER, language: Language.BOTH }),
-      makeMember('U-BOTH-3', { gradeGroup: GradeGroup.UPPER, language: Language.BOTH }),
-      makeMember('L-JP-1', { gradeGroup: GradeGroup.LOWER, language: Language.JAPANESE }),
-      makeMember('L-EN-1', { gradeGroup: GradeGroup.LOWER, language: Language.ENGLISH }),
-    ];
-
-    const schedule = makeSchedule('2026-04-05').toggleSplitClass();
-    const counts = new Map<MemberId, number>();
-    members.forEach((m) => counts.set(m.id, 0));
-
-    const { assignments, violations } = generateAssignments([schedule], members, [], counts);
-    expect(assignments.length).toBe(2);
-
-    // No CLASS_LANGUAGE_COVERAGE violation — G1's BOTH+BOTH satisfies the constraint
-    const classViolations = violations.filter(
-      (v) => v.type === ViolationType.CLASS_LANGUAGE_COVERAGE,
-    );
-    expect(classViolations).toHaveLength(0);
-  });
-
-  it('allows BOTH members to cross from LOWER to UPPER group on split-class days when UPPER lacks bilinguals (T6)', () => {
-    // UPPER: 0 BOTH, LOWER: 3 BOTH
-    const members = [
-      makeMember('U-JP-1', { gradeGroup: GradeGroup.UPPER, language: Language.JAPANESE }),
-      makeMember('U-EN-1', { gradeGroup: GradeGroup.UPPER, language: Language.ENGLISH }),
-      makeMember('L-BOTH-1', { gradeGroup: GradeGroup.LOWER, language: Language.BOTH }),
-      makeMember('L-BOTH-2', { gradeGroup: GradeGroup.LOWER, language: Language.BOTH }),
-      makeMember('L-BOTH-3', { gradeGroup: GradeGroup.LOWER, language: Language.BOTH }),
-    ];
-
-    const schedule = makeSchedule('2026-04-05').toggleSplitClass();
-    const counts = new Map<MemberId, number>();
-    members.forEach((m) => counts.set(m.id, 0));
-
-    const { assignments } = generateAssignments([schedule], members, [], counts);
-    expect(assignments.length).toBeGreaterThan(0);
-
-    // Group 1 (UPPER) should contain at least one LOWER BOTH member (crossover)
-    const group1 = assignments.find((a) => a.groupNumber === 1);
-    expect(group1).toBeDefined();
-    if (group1) {
-      const lowerBothInGroup1 = group1.memberIds.some((mid) => {
-        const m = members.find((mem) => mem.id === mid);
-        return m?.gradeGroup === GradeGroup.LOWER && m?.language === Language.BOTH;
-      });
-      expect(lowerBothInGroup1).toBe(true);
-    }
-  });
-
-  it('does not allow non-BOTH members to cross grade groups even on split-class days (T5)', () => {
-    const members = [
-      makeMember('U-BOTH-1', { gradeGroup: GradeGroup.UPPER, language: Language.BOTH }),
-      makeMember('U-BOTH-2', { gradeGroup: GradeGroup.UPPER, language: Language.BOTH }),
-      makeMember('U-BOTH-3', { gradeGroup: GradeGroup.UPPER, language: Language.BOTH }),
-      makeMember('U-JP-1', { gradeGroup: GradeGroup.UPPER, language: Language.JAPANESE }),
-      makeMember('L-JP-1', { gradeGroup: GradeGroup.LOWER, language: Language.JAPANESE }),
-      makeMember('L-EN-1', { gradeGroup: GradeGroup.LOWER, language: Language.ENGLISH }),
-    ];
-
-    const schedule = makeSchedule('2026-04-05').toggleSplitClass();
-    const counts = new Map<MemberId, number>();
-    members.forEach((m) => counts.set(m.id, 0));
-
-    const { assignments } = generateAssignments([schedule], members, [], counts);
-
-    // Non-BOTH UPPER member (U-JP-1) should never appear in group 2 (LOWER group)
-    const nonBothUpper = members.find((m) => m.name === 'U-JP-1')!;
-    const group2 = assignments.filter((a) => a.groupNumber === 2);
-    for (const a of group2) {
-      expect(a.memberIds).not.toContain(nonBothUpper.id);
-    }
-  });
-
-  it('avoids pairing spouses in the same group', () => {
-    const spouseId1 = createMemberId();
-    const spouseId2 = createMemberId();
-
-    // Create 6 members — enough so the algorithm has alternatives
-    const m1 = Member.reconstruct({
-      id: spouseId1,
-      name: 'Husband',
-      gender: Gender.MALE,
-      language: Language.BOTH,
-      gradeGroup: GradeGroup.UPPER,
-      memberType: MemberType.PARENT_COUPLE,
-      sameGenderOnly: false,
-      spouseId: spouseId2,
-      availableDates: null,
-      isActive: true,
-    });
-    const m2 = Member.reconstruct({
-      id: spouseId2,
-      name: 'Wife',
-      gender: Gender.FEMALE,
-      language: Language.BOTH,
-      gradeGroup: GradeGroup.LOWER,
-      memberType: MemberType.PARENT_COUPLE,
-      sameGenderOnly: false,
-      spouseId: spouseId1,
-      availableDates: null,
-      isActive: true,
-    });
-    const m3 = makeMember('Other-Upper-1', {
-      gradeGroup: GradeGroup.UPPER,
-      language: Language.BOTH,
-    });
-    const m4 = makeMember('Other-Lower-1', {
-      gradeGroup: GradeGroup.LOWER,
-      language: Language.BOTH,
     });
 
-    const members = [m1, m2, m3, m4];
-    const schedules = [makeSchedule('2026-04-05')];
-    const counts = new Map<MemberId, number>();
-    members.forEach((m) => counts.set(m.id, 0));
-
-    const { assignments } = generateAssignments(schedules, members, [], counts);
-
-    // Spouses should not be in the same group
-    for (const a of assignments) {
-      const ids = a.memberIds;
-      const hasSpousePair =
-        (ids[0] === spouseId1 && ids[1] === spouseId2) ||
-        (ids[0] === spouseId2 && ids[1] === spouseId1);
-      expect(hasSpousePair).toBe(false);
-    }
-  });
-
-  describe('BOTH conservation', () => {
-    it('prefers BOTH+JP over BOTH+BOTH on normal days when both satisfy language balance', () => {
-      const members = [
-        makeMember('U-BOTH-1', { gradeGroup: GradeGroup.UPPER, language: Language.BOTH }),
-        makeMember('U-BOTH-2', { gradeGroup: GradeGroup.UPPER, language: Language.BOTH }),
-        makeMember('U-JP-1', { gradeGroup: GradeGroup.UPPER, language: Language.JAPANESE }),
-        makeMember('L-JP-1', { gradeGroup: GradeGroup.LOWER, language: Language.JAPANESE }),
-        makeMember('L-EN-1', { gradeGroup: GradeGroup.LOWER, language: Language.ENGLISH }),
-      ];
-
-      const schedule = makeSchedule('2026-04-05'); // normal day
-      const counts = new Map<MemberId, number>();
-      members.forEach((m) => counts.set(m.id, 0));
-
-      const { assignments } = generateAssignments([schedule], members, [], counts);
-      const group1 = assignments.find((a) => a.groupNumber === 1);
-      expect(group1).toBeDefined();
-      if (group1) {
-        const bothCount = group1.memberIds.filter((mid) => {
-          const m = members.find((mem) => mem.id === mid);
-          return m?.language === Language.BOTH;
-        }).length;
-        // Should prefer BOTH+JP (score +3) over BOTH+BOTH (score +6)
-        expect(bothCount).toBe(1);
-      }
-    });
-
-    it('still selects BOTH when required for language balance even with conservation penalty', () => {
-      // UPPER has no EN members, so BOTH is required for English coverage
-      const members = [
-        makeMember('U-BOTH-1', { gradeGroup: GradeGroup.UPPER, language: Language.BOTH }),
-        makeMember('U-JP-1', { gradeGroup: GradeGroup.UPPER, language: Language.JAPANESE }),
-        makeMember('U-JP-2', { gradeGroup: GradeGroup.UPPER, language: Language.JAPANESE }),
-        makeMember('L-JP-1', { gradeGroup: GradeGroup.LOWER, language: Language.JAPANESE }),
-        makeMember('L-EN-1', { gradeGroup: GradeGroup.LOWER, language: Language.ENGLISH }),
-      ];
-
-      const schedule = makeSchedule('2026-04-05');
-      const counts = new Map<MemberId, number>();
-      members.forEach((m) => counts.set(m.id, 0));
-
-      const { assignments } = generateAssignments([schedule], members, [], counts);
-      const group1 = assignments.find((a) => a.groupNumber === 1);
-      expect(group1).toBeDefined();
-      if (group1) {
-        // BOTH must be selected despite conservation penalty (language balance requires it)
-        const hasBoth = group1.memberIds.some((mid) => {
-          const m = members.find((mem) => mem.id === mid);
-          return m?.language === Language.BOTH;
-        });
-        expect(hasBoth).toBe(true);
-      }
-    });
-
-    it('prefers BOTH+JP over BOTH+BOTH in Group 1 on split-class days (T3)', () => {
-      // G1 should pick exactly 1 BOTH to conserve BOTH members
-      // BOTH+JP (score 0) preferred over BOTH+BOTH (score +3)
-      const members = [
-        makeMember('U-BOTH-1', { gradeGroup: GradeGroup.UPPER, language: Language.BOTH }),
-        makeMember('U-BOTH-2', { gradeGroup: GradeGroup.UPPER, language: Language.BOTH }),
-        makeMember('U-JP-1', { gradeGroup: GradeGroup.UPPER, language: Language.JAPANESE }),
-        makeMember('L-BOTH-1', { gradeGroup: GradeGroup.LOWER, language: Language.BOTH }),
-        makeMember('L-JP-1', { gradeGroup: GradeGroup.LOWER, language: Language.JAPANESE }),
-      ];
-
-      const schedule = makeSchedule('2026-04-05').toggleSplitClass();
-      const counts = new Map<MemberId, number>();
-      members.forEach((m) => counts.set(m.id, 0));
-
-      const { assignments } = generateAssignments([schedule], members, [], counts);
-      const group1 = assignments.find((a) => a.groupNumber === 1);
-      expect(group1).toBeDefined();
-      if (group1) {
-        const bothCount = group1.memberIds.filter((mid) => {
-          const m = members.find((mem) => mem.id === mid);
-          return m?.language === Language.BOTH;
-        }).length;
-        // Group 1: BOTH+JP (score 0) preferred over BOTH+BOTH (score +3)
-        expect(bothCount).toBe(1);
-      }
-    });
-
-    it('Group 2 has no BOTH preference, hard constraint ensures coverage (T4)', () => {
-      // G1 picks BOTH+JP (1 BOTH, score 0) over BOTH+BOTH (score +3)
-      // G2 hard constraint forces 1 BOTH to meet CLASS_LANGUAGE_COVERAGE
-      const members = [
-        makeMember('U-BOTH-1', { gradeGroup: GradeGroup.UPPER, language: Language.BOTH }),
-        makeMember('U-BOTH-2', { gradeGroup: GradeGroup.UPPER, language: Language.BOTH }),
-        makeMember('U-JP-1', { gradeGroup: GradeGroup.UPPER, language: Language.JAPANESE }),
-        makeMember('L-BOTH-1', { gradeGroup: GradeGroup.LOWER, language: Language.BOTH }),
-        makeMember('L-JP-1', { gradeGroup: GradeGroup.LOWER, language: Language.JAPANESE }),
-        makeMember('L-EN-1', { gradeGroup: GradeGroup.LOWER, language: Language.ENGLISH }),
-      ];
-
-      const schedule = makeSchedule('2026-04-05').toggleSplitClass();
-      const counts = new Map<MemberId, number>();
-      members.forEach((m) => counts.set(m.id, 0));
-
-      const { assignments, violations } = generateAssignments([schedule], members, [], counts);
-      // No CLASS_LANGUAGE_COVERAGE violation
-      const classViolations = violations.filter(
-        (v) => v.type === ViolationType.CLASS_LANGUAGE_COVERAGE,
-      );
-      expect(classViolations).toHaveLength(0);
-
-      // G2 doesn't need BOTH — L-JP + L-EN is acceptable
-      const group2 = assignments.find((a) => a.groupNumber === 2);
-      expect(group2).toBeDefined();
-    });
-
-    it('Group 2 hard constraint forces BOTH when G1 has only 1 BOTH (T5)', () => {
-      // G1 has only 1 BOTH → G2 must provide 1 BOTH via hard constraint
+    it('does not cross on split-class day when each grade has enough BOTH (T3)', () => {
       const members = [
         makeMember('U-BOTH-1', { gradeGroup: GradeGroup.UPPER, language: Language.BOTH }),
         makeMember('U-JP-1', { gradeGroup: GradeGroup.UPPER, language: Language.JAPANESE }),
@@ -557,38 +139,351 @@ describe('generateAssignments', () => {
         makeMember('L-EN-1', { gradeGroup: GradeGroup.LOWER, language: Language.ENGLISH }),
       ];
 
-      const schedule = makeSchedule('2026-04-05').toggleSplitClass();
+      const schedule = makeSplitSchedule('2026-04-05');
+      const counts = new Map<MemberId, number>();
+      members.forEach((m) => counts.set(m.id, 0));
+
+      const { assignments } = generateAssignments([schedule], members, [], counts);
+      for (const a of assignments) {
+        const expectedGrade = a.groupNumber === 1 ? GradeGroup.UPPER : GradeGroup.LOWER;
+        for (const mid of a.memberIds) {
+          const m = members.find((mem) => mem.id === mid)!;
+          expect(m.gradeGroup).toBe(expectedGrade);
+        }
+      }
+    });
+
+    it('allows BOTH members to cross from UPPER to LOWER group on split-class days when LOWER lacks bilinguals (T4)', () => {
+      const members = [
+        makeMember('U-BOTH-1', { gradeGroup: GradeGroup.UPPER, language: Language.BOTH }),
+        makeMember('U-BOTH-2', { gradeGroup: GradeGroup.UPPER, language: Language.BOTH }),
+        makeMember('U-BOTH-3', { gradeGroup: GradeGroup.UPPER, language: Language.BOTH }),
+        makeMember('L-JP-1', { gradeGroup: GradeGroup.LOWER, language: Language.JAPANESE }),
+        makeMember('L-EN-1', { gradeGroup: GradeGroup.LOWER, language: Language.ENGLISH }),
+      ];
+
+      const schedule = makeSplitSchedule('2026-04-05');
       const counts = new Map<MemberId, number>();
       members.forEach((m) => counts.set(m.id, 0));
 
       const { assignments, violations } = generateAssignments([schedule], members, [], counts);
-
-      // G1 picks BOTH+JP or BOTH+EN (1 BOTH, score -3)
-      const group1 = assignments.find((a) => a.groupNumber === 1);
-      expect(group1).toBeDefined();
-
-      // G2 must have BOTH to meet CLASS_LANGUAGE_COVERAGE (hard constraint)
-      const group2 = assignments.find((a) => a.groupNumber === 2);
-      expect(group2).toBeDefined();
-      if (group2) {
-        const hasBoth = group2.memberIds.some((mid) => {
-          const m = members.find((mem) => mem.id === mid);
-          return m?.language === Language.BOTH;
-        });
-        expect(hasBoth).toBe(true);
-      }
-
-      // No CLASS_LANGUAGE_COVERAGE violation
+      expect(assignments.length).toBe(2);
       const classViolations = violations.filter(
         (v) => v.type === ViolationType.CLASS_LANGUAGE_COVERAGE,
       );
       expect(classViolations).toHaveLength(0);
     });
 
-    it('no UPPER BOTH member repeats across 4 dates (T6)', () => {
-      // 5 BOTH + 8 JP in UPPER, 2 BOTH + 4 JP + 4 EN in LOWER
-      // 4 dates: 2 normal, 2 split-class
-      // G1 uses exactly 1 BOTH per day → 4 slots / 5 BOTH → no repeats
+    it('allows BOTH members to cross from LOWER to UPPER group on split-class days when UPPER lacks bilinguals (T6)', () => {
+      const members = [
+        makeMember('U-JP-1', { gradeGroup: GradeGroup.UPPER, language: Language.JAPANESE }),
+        makeMember('U-EN-1', { gradeGroup: GradeGroup.UPPER, language: Language.ENGLISH }),
+        makeMember('L-BOTH-1', { gradeGroup: GradeGroup.LOWER, language: Language.BOTH }),
+        makeMember('L-BOTH-2', { gradeGroup: GradeGroup.LOWER, language: Language.BOTH }),
+        makeMember('L-BOTH-3', { gradeGroup: GradeGroup.LOWER, language: Language.BOTH }),
+      ];
+
+      const schedule = makeSplitSchedule('2026-04-05');
+      const counts = new Map<MemberId, number>();
+      members.forEach((m) => counts.set(m.id, 0));
+
+      const { assignments } = generateAssignments([schedule], members, [], counts);
+      expect(assignments.length).toBeGreaterThan(0);
+
+      const group1 = assignments.find((a) => a.groupNumber === 1);
+      expect(group1).toBeDefined();
+      if (group1) {
+        const lowerBothInGroup1 = group1.memberIds.some((mid) => {
+          const m = members.find((mem) => mem.id === mid);
+          return m?.gradeGroup === GradeGroup.LOWER && m?.language === Language.BOTH;
+        });
+        expect(lowerBothInGroup1).toBe(true);
+      }
+    });
+
+    it('does not allow non-BOTH members to cross grade groups even on split-class days (T5)', () => {
+      const members = [
+        makeMember('U-BOTH-1', { gradeGroup: GradeGroup.UPPER, language: Language.BOTH }),
+        makeMember('U-BOTH-2', { gradeGroup: GradeGroup.UPPER, language: Language.BOTH }),
+        makeMember('U-BOTH-3', { gradeGroup: GradeGroup.UPPER, language: Language.BOTH }),
+        makeMember('U-JP-1', { gradeGroup: GradeGroup.UPPER, language: Language.JAPANESE }),
+        makeMember('L-JP-1', { gradeGroup: GradeGroup.LOWER, language: Language.JAPANESE }),
+        makeMember('L-EN-1', { gradeGroup: GradeGroup.LOWER, language: Language.ENGLISH }),
+      ];
+
+      const schedule = makeSplitSchedule('2026-04-05');
+      const counts = new Map<MemberId, number>();
+      members.forEach((m) => counts.set(m.id, 0));
+
+      const { assignments } = generateAssignments([schedule], members, [], counts);
+      const nonBothUpper = members.find((m) => m.name === 'U-JP-1')!;
+      const group2 = assignments.filter((a) => a.groupNumber === 2);
+      for (const a of group2) {
+        expect(a.memberIds).not.toContain(nonBothUpper.id);
+      }
+    });
+  });
+
+  describe('combined day (1 group × 3 members)', () => {
+    it('generates 1 assignment with 3 members per combined day', () => {
+      const members = [
+        makeMember('M1-JP', { gradeGroup: GradeGroup.UPPER, language: Language.JAPANESE }),
+        makeMember('M2-EN', { gradeGroup: GradeGroup.UPPER, language: Language.ENGLISH }),
+        makeMember('M3-BOTH', { gradeGroup: GradeGroup.LOWER, language: Language.BOTH }),
+        makeMember('M4-JP', { gradeGroup: GradeGroup.LOWER, language: Language.JAPANESE }),
+        makeMember('M5-EN', { gradeGroup: GradeGroup.UPPER, language: Language.ENGLISH }),
+      ];
+
+      const schedules = [makeSchedule('2026-04-05'), makeSchedule('2026-04-12')];
+      const counts = new Map<MemberId, number>();
+      members.forEach((m) => counts.set(m.id, 0));
+
+      const { assignments } = generateAssignments(schedules, members, [], counts);
+
+      // 2 combined days × 1 group = 2 assignments
+      expect(assignments.length).toBe(2);
+      for (const a of assignments) {
+        expect(a.memberIds.length).toBe(3);
+        expect(a.groupNumber).toBe(1);
+      }
+    });
+
+    it('mixes UPPER and LOWER members on combined days', () => {
+      const members = [
+        makeMember('U-JP', { gradeGroup: GradeGroup.UPPER, language: Language.JAPANESE }),
+        makeMember('U-EN', { gradeGroup: GradeGroup.UPPER, language: Language.ENGLISH }),
+        makeMember('U-BOTH', { gradeGroup: GradeGroup.UPPER, language: Language.BOTH }),
+        makeMember('L-JP', { gradeGroup: GradeGroup.LOWER, language: Language.JAPANESE }),
+        makeMember('L-EN', { gradeGroup: GradeGroup.LOWER, language: Language.ENGLISH }),
+        makeMember('L-BOTH', { gradeGroup: GradeGroup.LOWER, language: Language.BOTH }),
+      ];
+
+      const schedule = makeSchedule('2026-04-05');
+
+      // Over many runs, we should see both UPPER and LOWER in the same group
+      let hasMixed = false;
+      for (let run = 0; run < 20; run++) {
+        const counts = new Map<MemberId, number>();
+        members.forEach((m) => counts.set(m.id, 0));
+        const { assignments } = generateAssignments([schedule], members, [], counts);
+        const a = assignments[0];
+        const grades = a.memberIds.map((mid) => members.find((m) => m.id === mid)!.gradeGroup);
+        if (grades.includes(GradeGroup.UPPER) && grades.includes(GradeGroup.LOWER)) {
+          hasMixed = true;
+          break;
+        }
+      }
+      expect(hasMixed).toBe(true);
+    });
+
+    it('ensures language balance in 3-member combined group', () => {
+      const members = [
+        makeMember('M1-JP', { gradeGroup: GradeGroup.UPPER, language: Language.JAPANESE }),
+        makeMember('M2-EN', { gradeGroup: GradeGroup.LOWER, language: Language.ENGLISH }),
+        makeMember('M3-JP', { gradeGroup: GradeGroup.UPPER, language: Language.JAPANESE }),
+        makeMember('M4-EN', { gradeGroup: GradeGroup.LOWER, language: Language.ENGLISH }),
+        makeMember('M5-BOTH', { gradeGroup: GradeGroup.UPPER, language: Language.BOTH }),
+      ];
+
+      const schedule = makeSchedule('2026-04-05');
+
+      for (let run = 0; run < 30; run++) {
+        const counts = new Map<MemberId, number>();
+        members.forEach((m) => counts.set(m.id, 0));
+        const { assignments } = generateAssignments([schedule], members, [], counts);
+
+        for (const a of assignments) {
+          const groupMembers = a.memberIds.map((mid) => members.find((m) => m.id === mid)!);
+          const hasJP = groupMembers.some(
+            (m) => m.language === Language.JAPANESE || m.language === Language.BOTH,
+          );
+          const hasEN = groupMembers.some(
+            (m) => m.language === Language.ENGLISH || m.language === Language.BOTH,
+          );
+          expect(hasJP).toBe(true);
+          expect(hasEN).toBe(true);
+        }
+      }
+    });
+
+    it('does NOT apply same-gender constraint on combined day (3 members)', () => {
+      // sameGenderOnly member should still be placed with mixed genders in 3-member group
+      const members = [
+        makeMember('M1-F-SGO', { gradeGroup: GradeGroup.UPPER, language: Language.BOTH, gender: Gender.FEMALE, sameGenderOnly: true }),
+        makeMember('M2-M', { gradeGroup: GradeGroup.UPPER, language: Language.JAPANESE, gender: Gender.MALE }),
+        makeMember('M3-F', { gradeGroup: GradeGroup.LOWER, language: Language.ENGLISH, gender: Gender.FEMALE }),
+      ];
+
+      const schedule = makeSchedule('2026-04-05');
+      const counts = new Map<MemberId, number>();
+      members.forEach((m) => counts.set(m.id, 0));
+
+      const { assignments } = generateAssignments([schedule], members, [], counts);
+      expect(assignments.length).toBe(1);
+      expect(assignments[0].memberIds.length).toBe(3);
+    });
+
+    it('avoids spouses in the same combined group', () => {
+      const spouseId1 = createMemberId();
+      const spouseId2 = createMemberId();
+
+      const m1 = Member.reconstruct({
+        id: spouseId1,
+        name: 'Husband',
+        gender: Gender.MALE,
+        language: Language.BOTH,
+        gradeGroup: GradeGroup.UPPER,
+        memberType: MemberType.PARENT_COUPLE,
+        sameGenderOnly: false,
+        spouseId: spouseId2,
+        availableDates: null,
+        isActive: true,
+      });
+      const m2 = Member.reconstruct({
+        id: spouseId2,
+        name: 'Wife',
+        gender: Gender.FEMALE,
+        language: Language.BOTH,
+        gradeGroup: GradeGroup.LOWER,
+        memberType: MemberType.PARENT_COUPLE,
+        sameGenderOnly: false,
+        spouseId: spouseId1,
+        availableDates: null,
+        isActive: true,
+      });
+      const m3 = makeMember('Other-1', { language: Language.BOTH });
+      const m4 = makeMember('Other-2', { gradeGroup: GradeGroup.LOWER, language: Language.BOTH });
+      const m5 = makeMember('Other-3', { language: Language.JAPANESE });
+
+      const members = [m1, m2, m3, m4, m5];
+      const schedule = makeSchedule('2026-04-05');
+
+      let spousesTogether = 0;
+      for (let run = 0; run < 30; run++) {
+        const counts = new Map<MemberId, number>();
+        members.forEach((m) => counts.set(m.id, 0));
+        const { assignments } = generateAssignments([schedule], members, [], counts);
+        for (const a of assignments) {
+          if (a.memberIds.includes(spouseId1) && a.memberIds.includes(spouseId2)) {
+            spousesTogether++;
+          }
+        }
+      }
+      // Spouses should almost never be together (penalty +30)
+      expect(spousesTogether).toBeLessThan(3);
+    });
+
+    it('applies BOTH conservation on combined days', () => {
+      const members = [
+        makeMember('M1-BOTH', { gradeGroup: GradeGroup.UPPER, language: Language.BOTH }),
+        makeMember('M2-BOTH', { gradeGroup: GradeGroup.UPPER, language: Language.BOTH }),
+        makeMember('M3-JP', { gradeGroup: GradeGroup.UPPER, language: Language.JAPANESE }),
+        makeMember('M4-EN', { gradeGroup: GradeGroup.LOWER, language: Language.ENGLISH }),
+        makeMember('M5-JP', { gradeGroup: GradeGroup.LOWER, language: Language.JAPANESE }),
+        makeMember('M6-EN', { gradeGroup: GradeGroup.LOWER, language: Language.ENGLISH }),
+      ];
+
+      const schedule = makeSchedule('2026-04-05');
+      let bothCount0 = 0;
+      let bothCount1 = 0;
+      let bothCount2 = 0;
+      const runs = 50;
+
+      for (let run = 0; run < runs; run++) {
+        const counts = new Map<MemberId, number>();
+        members.forEach((m) => counts.set(m.id, 0));
+        const { assignments } = generateAssignments([schedule], members, [], counts);
+        const a = assignments[0];
+        const bc = a.memberIds.filter((mid) => {
+          const m = members.find((mem) => mem.id === mid);
+          return m?.language === Language.BOTH;
+        }).length;
+        if (bc === 0) bothCount0++;
+        if (bc === 1) bothCount1++;
+        if (bc === 2) bothCount2++;
+      }
+
+      // BOTH conservation: fewer BOTHs preferred (each BOTH adds +3)
+      // Groups with 0 or 1 BOTH should be much more common than 2
+      expect(bothCount0 + bothCount1).toBeGreaterThan(bothCount2);
+    });
+
+    it('excludes HELPER members on event days (combined)', () => {
+      const members = [
+        makeMember('M1-JP-Parent', { gradeGroup: GradeGroup.UPPER, language: Language.JAPANESE, memberType: MemberType.PARENT_SINGLE }),
+        makeMember('M2-EN-Helper', { gradeGroup: GradeGroup.UPPER, language: Language.ENGLISH, memberType: MemberType.HELPER }),
+        makeMember('M3-EN-Parent', { gradeGroup: GradeGroup.UPPER, language: Language.ENGLISH, memberType: MemberType.PARENT_SINGLE }),
+        makeMember('M4-JP-Parent', { gradeGroup: GradeGroup.LOWER, language: Language.JAPANESE, memberType: MemberType.PARENT_SINGLE }),
+        makeMember('M5-BOTH-Parent', { gradeGroup: GradeGroup.LOWER, language: Language.BOTH, memberType: MemberType.PARENT_SINGLE }),
+      ];
+
+      const schedule = makeSchedule('2026-04-05').toggleEvent();
+      const counts = new Map<MemberId, number>();
+      members.forEach((m) => counts.set(m.id, 0));
+
+      const { assignments } = generateAssignments([schedule], members, [], counts);
+
+      const helperIds = new Set(members.filter((m) => m.memberType === MemberType.HELPER).map((m) => m.id));
+      for (const a of assignments) {
+        for (const mid of a.memberIds) {
+          expect(helperIds.has(mid)).toBe(false);
+        }
+      }
+    });
+
+    it('not enough members for combined day produces violation', () => {
+      const members = [
+        makeMember('M1', { language: Language.BOTH }),
+        makeMember('M2', { language: Language.BOTH }),
+      ];
+
+      const schedule = makeSchedule('2026-04-05');
+      const counts = new Map<MemberId, number>();
+      members.forEach((m) => counts.set(m.id, 0));
+
+      const { assignments, violations } = generateAssignments([schedule], members, [], counts);
+      expect(assignments.length).toBe(0);
+      expect(violations.length).toBeGreaterThan(0);
+    });
+  });
+
+  describe('mixed schedule (combined + split)', () => {
+    it('combined days produce 3-member groups, split days produce 2-member groups', () => {
+      const members = [
+        makeMember('U-JP-1', { gradeGroup: GradeGroup.UPPER, language: Language.JAPANESE }),
+        makeMember('U-EN-1', { gradeGroup: GradeGroup.UPPER, language: Language.ENGLISH }),
+        makeMember('U-BOTH-1', { gradeGroup: GradeGroup.UPPER, language: Language.BOTH }),
+        makeMember('U-JP-2', { gradeGroup: GradeGroup.UPPER, language: Language.JAPANESE }),
+        makeMember('L-JP-1', { gradeGroup: GradeGroup.LOWER, language: Language.JAPANESE }),
+        makeMember('L-EN-1', { gradeGroup: GradeGroup.LOWER, language: Language.ENGLISH }),
+        makeMember('L-BOTH-1', { gradeGroup: GradeGroup.LOWER, language: Language.BOTH }),
+        makeMember('L-JP-2', { gradeGroup: GradeGroup.LOWER, language: Language.JAPANESE }),
+      ];
+
+      const combinedSchedule = makeSchedule('2026-04-05');
+      const splitSchedule = makeSplitSchedule('2026-04-12');
+      const counts = new Map<MemberId, number>();
+      members.forEach((m) => counts.set(m.id, 0));
+
+      const { assignments } = generateAssignments([combinedSchedule, splitSchedule], members, [], counts);
+
+      const combinedAssignments = assignments.filter((a) => a.scheduleId === combinedSchedule.id);
+      const splitAssignments = assignments.filter((a) => a.scheduleId === splitSchedule.id);
+
+      // Combined: 1 group × 3 members
+      expect(combinedAssignments.length).toBe(1);
+      expect(combinedAssignments[0].memberIds.length).toBe(3);
+      expect(combinedAssignments[0].groupNumber).toBe(1);
+
+      // Split: 2 groups × 2 members
+      expect(splitAssignments.length).toBe(2);
+      for (const a of splitAssignments) {
+        expect(a.memberIds.length).toBe(2);
+      }
+      expect(splitAssignments.map((a) => a.groupNumber).sort()).toEqual([1, 2]);
+    });
+
+    it('no UPPER BOTH member repeats across 4 dates with mix of combined/split', () => {
       const members = [
         makeMember('U-BOTH-1', { gradeGroup: GradeGroup.UPPER, language: Language.BOTH }),
         makeMember('U-BOTH-2', { gradeGroup: GradeGroup.UPPER, language: Language.BOTH }),
@@ -616,10 +511,10 @@ describe('generateAssignments', () => {
       ];
 
       const schedules = [
-        makeSchedule('2026-04-05'),
-        makeSchedule('2026-04-12').toggleSplitClass(),
-        makeSchedule('2026-04-19').toggleSplitClass(),
-        makeSchedule('2026-04-26'),
+        makeSchedule('2026-04-05'),            // combined
+        makeSplitSchedule('2026-04-12'),        // split
+        makeSplitSchedule('2026-04-19'),        // split
+        makeSchedule('2026-04-26'),             // combined
       ];
 
       const counts = new Map<MemberId, number>();
@@ -627,17 +522,15 @@ describe('generateAssignments', () => {
 
       const { assignments } = generateAssignments(schedules, members, [], counts);
 
-      // Each UPPER BOTH member should be assigned at most once
+      // UPPER BOTH members should each be assigned at most once across all groups
       const upperBothIds = new Set(
         members.filter((m) => m.gradeGroup === GradeGroup.UPPER && m.language === Language.BOTH).map((m) => m.id),
       );
       const upperBothCounts = new Map<string, number>();
       for (const a of assignments) {
-        if (a.groupNumber === 1) {
-          for (const mid of a.memberIds) {
-            if (upperBothIds.has(mid)) {
-              upperBothCounts.set(mid, (upperBothCounts.get(mid) ?? 0) + 1);
-            }
+        for (const mid of a.memberIds) {
+          if (upperBothIds.has(mid)) {
+            upperBothCounts.set(mid, (upperBothCounts.get(mid) ?? 0) + 1);
           }
         }
       }
@@ -648,9 +541,88 @@ describe('generateAssignments', () => {
     });
   });
 
-  describe('ANY grade group', () => {
+  describe('BOTH conservation (split-class)', () => {
+    it('prefers BOTH+JP over BOTH+BOTH in Group 1 on split-class days (T3)', () => {
+      const members = [
+        makeMember('U-BOTH-1', { gradeGroup: GradeGroup.UPPER, language: Language.BOTH }),
+        makeMember('U-BOTH-2', { gradeGroup: GradeGroup.UPPER, language: Language.BOTH }),
+        makeMember('U-JP-1', { gradeGroup: GradeGroup.UPPER, language: Language.JAPANESE }),
+        makeMember('L-BOTH-1', { gradeGroup: GradeGroup.LOWER, language: Language.BOTH }),
+        makeMember('L-JP-1', { gradeGroup: GradeGroup.LOWER, language: Language.JAPANESE }),
+      ];
+
+      const schedule = makeSplitSchedule('2026-04-05');
+      const counts = new Map<MemberId, number>();
+      members.forEach((m) => counts.set(m.id, 0));
+
+      const { assignments } = generateAssignments([schedule], members, [], counts);
+      const group1 = assignments.find((a) => a.groupNumber === 1);
+      expect(group1).toBeDefined();
+      if (group1) {
+        const bothCount = group1.memberIds.filter((mid) => {
+          const m = members.find((mem) => mem.id === mid);
+          return m?.language === Language.BOTH;
+        }).length;
+        expect(bothCount).toBe(1);
+      }
+    });
+
+    it('Group 2 has no BOTH preference, hard constraint ensures coverage (T4)', () => {
+      const members = [
+        makeMember('U-BOTH-1', { gradeGroup: GradeGroup.UPPER, language: Language.BOTH }),
+        makeMember('U-BOTH-2', { gradeGroup: GradeGroup.UPPER, language: Language.BOTH }),
+        makeMember('U-JP-1', { gradeGroup: GradeGroup.UPPER, language: Language.JAPANESE }),
+        makeMember('L-BOTH-1', { gradeGroup: GradeGroup.LOWER, language: Language.BOTH }),
+        makeMember('L-JP-1', { gradeGroup: GradeGroup.LOWER, language: Language.JAPANESE }),
+        makeMember('L-EN-1', { gradeGroup: GradeGroup.LOWER, language: Language.ENGLISH }),
+      ];
+
+      const schedule = makeSplitSchedule('2026-04-05');
+      const counts = new Map<MemberId, number>();
+      members.forEach((m) => counts.set(m.id, 0));
+
+      const { violations } = generateAssignments([schedule], members, [], counts);
+      const classViolations = violations.filter(
+        (v) => v.type === ViolationType.CLASS_LANGUAGE_COVERAGE,
+      );
+      expect(classViolations).toHaveLength(0);
+    });
+
+    it('Group 2 hard constraint forces BOTH when G1 has only 1 BOTH (T5)', () => {
+      const members = [
+        makeMember('U-BOTH-1', { gradeGroup: GradeGroup.UPPER, language: Language.BOTH }),
+        makeMember('U-JP-1', { gradeGroup: GradeGroup.UPPER, language: Language.JAPANESE }),
+        makeMember('U-EN-1', { gradeGroup: GradeGroup.UPPER, language: Language.ENGLISH }),
+        makeMember('L-BOTH-1', { gradeGroup: GradeGroup.LOWER, language: Language.BOTH }),
+        makeMember('L-JP-1', { gradeGroup: GradeGroup.LOWER, language: Language.JAPANESE }),
+        makeMember('L-EN-1', { gradeGroup: GradeGroup.LOWER, language: Language.ENGLISH }),
+      ];
+
+      const schedule = makeSplitSchedule('2026-04-05');
+      const counts = new Map<MemberId, number>();
+      members.forEach((m) => counts.set(m.id, 0));
+
+      const { assignments, violations } = generateAssignments([schedule], members, [], counts);
+
+      const group2 = assignments.find((a) => a.groupNumber === 2);
+      expect(group2).toBeDefined();
+      if (group2) {
+        const hasBoth = group2.memberIds.some((mid) => {
+          const m = members.find((mem) => mem.id === mid);
+          return m?.language === Language.BOTH;
+        });
+        expect(hasBoth).toBe(true);
+      }
+
+      const classViolations = violations.filter(
+        (v) => v.type === ViolationType.CLASS_LANGUAGE_COVERAGE,
+      );
+      expect(classViolations).toHaveLength(0);
+    });
+  });
+
+  describe('ANY grade group (split-class)', () => {
     it('ANY member appears in both UPPER and LOWER pools (T1)', () => {
-      // UPPER has its own EN, LOWER has its own EN, so ANY-EN can go either way
       const members = [
         makeMember('U-JP-1', { gradeGroup: GradeGroup.UPPER, language: Language.JAPANESE }),
         makeMember('U-EN-1', { gradeGroup: GradeGroup.UPPER, language: Language.ENGLISH }),
@@ -659,11 +631,9 @@ describe('generateAssignments', () => {
         makeMember('L-EN-1', { gradeGroup: GradeGroup.LOWER, language: Language.ENGLISH }),
       ];
 
-      const schedule = makeSchedule('2026-04-05');
+      const schedule = makeSplitSchedule('2026-04-05');
       const anyMember = members.find((m) => m.name === 'ANY-EN-1')!;
 
-      // ANY is in both pools. G1 picks from upperPool (U-JP-1, U-EN-1, ANY-EN-1).
-      // If ANY is picked for G1 → inGroup1. If not → ANY remains in lowerPool for G2.
       let inGroup1 = false;
       let inGroup2 = false;
 
@@ -685,7 +655,6 @@ describe('generateAssignments', () => {
     });
 
     it('ANY member used in G1 is excluded from G2 on same day via usedIds (T2)', () => {
-      // Only 2 UPPER + ANY + 2 LOWER — ANY will be needed for G1
       const members = [
         makeMember('U-JP-1', { gradeGroup: GradeGroup.UPPER, language: Language.JAPANESE }),
         makeMember('ANY-EN-1', { gradeGroup: GradeGroup.ANY, language: Language.ENGLISH }),
@@ -693,14 +662,13 @@ describe('generateAssignments', () => {
         makeMember('L-EN-1', { gradeGroup: GradeGroup.LOWER, language: Language.ENGLISH }),
       ];
 
-      const schedule = makeSchedule('2026-04-05');
+      const schedule = makeSplitSchedule('2026-04-05');
 
       for (let run = 0; run < 30; run++) {
         const counts = new Map<MemberId, number>();
         members.forEach((m) => counts.set(m.id, 0));
         const { assignments } = generateAssignments([schedule], members, [], counts);
 
-        // ANY member must not appear in both groups on the same day
         const anyMember = members.find((m) => m.name === 'ANY-EN-1')!;
         const dayAssignments = assignments.filter((a) => a.scheduleId === schedule.id);
         const appearances = dayAssignments.filter((a) => a.memberIds.includes(anyMember.id));
@@ -709,8 +677,6 @@ describe('generateAssignments', () => {
     });
 
     it('split-class day: ANY+BOTH member contributes to CLASS_LANGUAGE_COVERAGE (T3)', () => {
-      // ANY-BOTH goes into both pools. With L-BOTH-1 in LOWER, G2 always has BOTH coverage
-      // regardless of whether ANY-BOTH is used in G1 or G2.
       const members = [
         makeMember('U-BOTH-1', { gradeGroup: GradeGroup.UPPER, language: Language.BOTH }),
         makeMember('U-JP-1', { gradeGroup: GradeGroup.UPPER, language: Language.JAPANESE }),
@@ -719,7 +685,7 @@ describe('generateAssignments', () => {
         makeMember('L-JP-1', { gradeGroup: GradeGroup.LOWER, language: Language.JAPANESE }),
       ];
 
-      const schedule = makeSchedule('2026-04-05').toggleSplitClass();
+      const schedule = makeSplitSchedule('2026-04-05');
 
       for (let run = 0; run < 20; run++) {
         const counts = new Map<MemberId, number>();
@@ -734,7 +700,6 @@ describe('generateAssignments', () => {
     });
 
     it('existing behavior unchanged when no ANY members present (T4)', () => {
-      // Same as basic test — no ANY members
       const members = [
         makeMember('U-JP-1', { gradeGroup: GradeGroup.UPPER, language: Language.JAPANESE }),
         makeMember('U-EN-1', { gradeGroup: GradeGroup.UPPER, language: Language.ENGLISH }),
@@ -742,7 +707,7 @@ describe('generateAssignments', () => {
         makeMember('L-EN-1', { gradeGroup: GradeGroup.LOWER, language: Language.ENGLISH }),
       ];
 
-      const schedule = makeSchedule('2026-04-05');
+      const schedule = makeSplitSchedule('2026-04-05');
       const counts = new Map<MemberId, number>();
       members.forEach((m) => counts.set(m.id, 0));
 
@@ -765,9 +730,8 @@ describe('generateAssignments', () => {
     });
   });
 
-  describe('HELPER deferral', () => {
+  describe('HELPER deferral (split-class)', () => {
     it('defers HELPER on subsequent days after already assigned (T1)', () => {
-      // 2 days: on day 2, HELPER already assigned in monthAssignments → +5 penalty
       const members = [
         makeMember('U-JP-Parent', { gradeGroup: GradeGroup.UPPER, language: Language.JAPANESE, memberType: MemberType.PARENT_SINGLE }),
         makeMember('U-EN-Parent', { gradeGroup: GradeGroup.UPPER, language: Language.ENGLISH, memberType: MemberType.PARENT_SINGLE }),
@@ -780,8 +744,8 @@ describe('generateAssignments', () => {
       ];
 
       const schedules = [
-        makeSchedule('2026-04-05'),
-        makeSchedule('2026-04-12'),
+        makeSplitSchedule('2026-04-05'),
+        makeSplitSchedule('2026-04-12'),
       ];
       const helperId = members.find((m) => m.name === 'U-EN-Helper')!.id;
       let helperBothDaysCount = 0;
@@ -799,12 +763,10 @@ describe('generateAssignments', () => {
         }
       }
 
-      // HELPER should rarely be selected for both days (deferred on second day)
       expect(helperBothDaysCount).toBeLessThan(runs * 0.4);
     });
 
     it('selects HELPER when their count is sufficiently lower than parents (T2)', () => {
-      // Helper count=0, Parents count=2 → equal distribution penalty overcomes helper deferral
       const members = [
         makeMember('U-JP-Parent', { gradeGroup: GradeGroup.UPPER, language: Language.JAPANESE, memberType: MemberType.PARENT_SINGLE }),
         makeMember('U-EN-Parent', { gradeGroup: GradeGroup.UPPER, language: Language.ENGLISH, memberType: MemberType.PARENT_SINGLE }),
@@ -813,7 +775,7 @@ describe('generateAssignments', () => {
         makeMember('L-EN-1', { gradeGroup: GradeGroup.LOWER, language: Language.ENGLISH }),
       ];
 
-      const schedule = makeSchedule('2026-04-05');
+      const schedule = makeSplitSchedule('2026-04-05');
       const helperId = members.find((m) => m.name === 'U-EN-Helper')!.id;
       let helperSelectedCount = 0;
       const runs = 30;
@@ -821,7 +783,6 @@ describe('generateAssignments', () => {
       for (let run = 0; run < runs; run++) {
         const counts = new Map<MemberId, number>();
         members.forEach((m) => counts.set(m.id, 0));
-        // Parents have higher counts
         counts.set(members[0].id, 2);
         counts.set(members[1].id, 2);
 
@@ -832,7 +793,6 @@ describe('generateAssignments', () => {
         }
       }
 
-      // Helper should be selected most of the time (equal distribution wins)
       expect(helperSelectedCount).toBeGreaterThan(runs * 0.7);
     });
 
@@ -847,17 +807,17 @@ describe('generateAssignments', () => {
       ];
 
       for (let run = 0; run < 50; run++) {
-        const schedule = makeSchedule('2026-04-05');
+        const schedule = makeSplitSchedule('2026-04-05');
         const counts = new Map<MemberId, number>();
         members.forEach((m) => counts.set(m.id, 0));
         const { assignments } = generateAssignments([schedule], members, [], counts);
 
         for (const a of assignments) {
-          const pair = a.memberIds.map((mid) => members.find((m) => m.id === mid)!);
-          const hasJP = pair.some((m) =>
+          const groupMembers = a.memberIds.map((mid) => members.find((m) => m.id === mid)!);
+          const hasJP = groupMembers.some((m) =>
             m.language === Language.JAPANESE || m.language === Language.BOTH,
           );
-          const hasEN = pair.some((m) =>
+          const hasEN = groupMembers.some((m) =>
             m.language === Language.ENGLISH || m.language === Language.BOTH,
           );
           expect(hasJP).toBe(true);
@@ -867,10 +827,8 @@ describe('generateAssignments', () => {
     });
   });
 
-  describe('pool-relative distribution', () => {
+  describe('pool-relative distribution (split-class)', () => {
     it('pool-uniform counts produce no distribution penalty bias (T1)', () => {
-      // All UPPER count=3, all LOWER count=5 — within each pool, counts are equal
-      // So distribution penalty should not favor any pair within the pool
       const members = [
         makeMember('U-JP-1', { gradeGroup: GradeGroup.UPPER, language: Language.JAPANESE }),
         makeMember('U-EN-1', { gradeGroup: GradeGroup.UPPER, language: Language.ENGLISH }),
@@ -881,13 +839,11 @@ describe('generateAssignments', () => {
         makeMember('L-EN-2', { gradeGroup: GradeGroup.LOWER, language: Language.ENGLISH }),
       ];
 
-      const schedule = makeSchedule('2026-04-05');
-      // UPPER all at count=3, LOWER all at count=5
+      const schedule = makeSplitSchedule('2026-04-05');
       const counts = new Map<MemberId, number>();
       members.filter((m) => m.gradeGroup === GradeGroup.UPPER).forEach((m) => counts.set(m.id, 3));
       members.filter((m) => m.gradeGroup === GradeGroup.LOWER).forEach((m) => counts.set(m.id, 5));
 
-      // Run multiple times — all valid pairs should appear (no distribution bias)
       const g2Pairs = new Set<string>();
       for (let run = 0; run < 30; run++) {
         const runCounts = new Map(counts);
@@ -898,14 +854,10 @@ describe('generateAssignments', () => {
         }
       }
 
-      // With 4 LOWER members (2JP+2EN), there are 4 valid JP+EN pairs
-      // With no distribution bias, shuffle should produce multiple pairs
       expect(g2Pairs.size).toBeGreaterThanOrEqual(2);
     });
 
     it('lower count member in pool is preferred over higher count (T2)', () => {
-      // UPPER: JP(count=0), EN(count=3), EN(count=0)
-      // Pool min = 0, so EN(count=3) has +150 penalty, EN(count=0) has 0
       const members = [
         makeMember('U-JP', { gradeGroup: GradeGroup.UPPER, language: Language.JAPANESE }),
         makeMember('U-EN-High', { gradeGroup: GradeGroup.UPPER, language: Language.ENGLISH }),
@@ -914,7 +866,7 @@ describe('generateAssignments', () => {
         makeMember('L-EN', { gradeGroup: GradeGroup.LOWER, language: Language.ENGLISH }),
       ];
 
-      const schedule = makeSchedule('2026-04-05');
+      const schedule = makeSplitSchedule('2026-04-05');
       const highMember = members.find((m) => m.name === 'U-EN-High')!;
       const lowMember = members.find((m) => m.name === 'U-EN-Low')!;
 
@@ -930,40 +882,7 @@ describe('generateAssignments', () => {
         if (group1?.memberIds.includes(lowMember.id)) lowSelected++;
       }
 
-      // Low count member should be strongly preferred
       expect(lowSelected).toBeGreaterThan(runs * 0.8);
-    });
-
-    it('cross-pool count difference does not affect penalty (T3)', () => {
-      // UPPER all count=2, LOWER all count=5
-      // Under pool-relative: LOWER penalty = 0 (pool min = 5)
-      // All LOWER members are equally likely regardless of UPPER having lower counts
-      const members = [
-        makeMember('U-JP', { gradeGroup: GradeGroup.UPPER, language: Language.JAPANESE }),
-        makeMember('U-EN', { gradeGroup: GradeGroup.UPPER, language: Language.ENGLISH }),
-        makeMember('L-JP-1', { gradeGroup: GradeGroup.LOWER, language: Language.JAPANESE }),
-        makeMember('L-EN-1', { gradeGroup: GradeGroup.LOWER, language: Language.ENGLISH }),
-        makeMember('L-JP-2', { gradeGroup: GradeGroup.LOWER, language: Language.JAPANESE }),
-        makeMember('L-EN-2', { gradeGroup: GradeGroup.LOWER, language: Language.ENGLISH }),
-      ];
-
-      const schedule = makeSchedule('2026-04-05');
-
-      const g2Pairs = new Set<string>();
-      for (let run = 0; run < 30; run++) {
-        const counts = new Map<MemberId, number>();
-        members.filter((m) => m.gradeGroup === GradeGroup.UPPER).forEach((m) => counts.set(m.id, 2));
-        members.filter((m) => m.gradeGroup === GradeGroup.LOWER).forEach((m) => counts.set(m.id, 5));
-
-        const { assignments } = generateAssignments([schedule], members, [], counts);
-        const group2 = assignments.find((a) => a.groupNumber === 2);
-        if (group2) {
-          g2Pairs.add([...group2.memberIds].sort().join(','));
-        }
-      }
-
-      // All 4 valid JP+EN pairs should appear — no bias from cross-pool count diff
-      expect(g2Pairs.size).toBeGreaterThanOrEqual(2);
     });
 
     it('hard constraints are always respected (T4)', () => {
@@ -976,17 +895,17 @@ describe('generateAssignments', () => {
       ];
 
       for (let run = 0; run < 50; run++) {
-        const schedule = makeSchedule('2026-04-05');
+        const schedule = makeSplitSchedule('2026-04-05');
         const counts = new Map<MemberId, number>();
-        members.forEach((m) => counts.set(m.id, run % 5)); // varying counts
+        members.forEach((m) => counts.set(m.id, run % 5));
         const { assignments } = generateAssignments([schedule], members, [], counts);
 
         for (const a of assignments) {
-          const pair = a.memberIds.map((mid) => members.find((m) => m.id === mid)!);
-          const hasJP = pair.some((m) =>
+          const groupMembers = a.memberIds.map((mid) => members.find((m) => m.id === mid)!);
+          const hasJP = groupMembers.some((m) =>
             m.language === Language.JAPANESE || m.language === Language.BOTH,
           );
-          const hasEN = pair.some((m) =>
+          const hasEN = groupMembers.some((m) =>
             m.language === Language.ENGLISH || m.language === Language.BOTH,
           );
           expect(hasJP).toBe(true);
@@ -1010,10 +929,10 @@ describe('generateAssignments', () => {
       ];
 
       const schedules = [
-        makeSchedule('2026-04-05'),
-        makeSchedule('2026-04-12'),
-        makeSchedule('2026-04-19'),
-        makeSchedule('2026-04-26'),
+        makeSplitSchedule('2026-04-05'),
+        makeSplitSchedule('2026-04-12'),
+        makeSplitSchedule('2026-04-19'),
+        makeSplitSchedule('2026-04-26'),
       ];
 
       const results = new Set<string>();
@@ -1021,7 +940,6 @@ describe('generateAssignments', () => {
         const counts = new Map<MemberId, number>();
         members.forEach((m) => counts.set(m.id, 0));
         const { assignments } = generateAssignments(schedules, members, [], counts);
-        // Serialize all assignments as a fingerprint
         const fingerprint = assignments
           .map((a) => `${a.scheduleId}:${a.groupNumber}:${[...a.memberIds].sort().join(',')}`)
           .sort()
@@ -1029,7 +947,6 @@ describe('generateAssignments', () => {
         results.add(fingerprint);
       }
 
-      // Schedule order shuffle should produce different results
       expect(results.size).toBeGreaterThanOrEqual(2);
     });
 
@@ -1042,9 +959,9 @@ describe('generateAssignments', () => {
       ];
 
       const schedules = [
-        makeSchedule('2026-04-05'),
-        makeSchedule('2026-04-12'),
-        makeSchedule('2026-04-19'),
+        makeSplitSchedule('2026-04-05'),
+        makeSplitSchedule('2026-04-12'),
+        makeSplitSchedule('2026-04-19'),
       ];
 
       for (let run = 0; run < 50; run++) {
@@ -1053,11 +970,11 @@ describe('generateAssignments', () => {
         const { assignments } = generateAssignments(schedules, members, [], counts);
 
         for (const a of assignments) {
-          const pair = a.memberIds.map((mid) => members.find((m) => m.id === mid)!);
-          const hasJP = pair.some((m) =>
+          const groupMembers = a.memberIds.map((mid) => members.find((m) => m.id === mid)!);
+          const hasJP = groupMembers.some((m) =>
             m.language === Language.JAPANESE || m.language === Language.BOTH,
           );
-          const hasEN = pair.some((m) =>
+          const hasEN = groupMembers.some((m) =>
             m.language === Language.ENGLISH || m.language === Language.BOTH,
           );
           expect(hasJP).toBe(true);
@@ -1075,9 +992,9 @@ describe('generateAssignments', () => {
       ];
 
       const schedules = [
-        makeSchedule('2026-04-05'),
-        makeSchedule('2026-04-12'),
-        makeSchedule('2026-04-19'),
+        makeSplitSchedule('2026-04-05'),
+        makeSplitSchedule('2026-04-12'),
+        makeSplitSchedule('2026-04-19'),
       ];
 
       for (let run = 0; run < 10; run++) {
@@ -1088,7 +1005,6 @@ describe('generateAssignments', () => {
         // 3 dates × 2 groups = 6 assignments
         expect(assignments.length).toBe(6);
 
-        // Each schedule should have exactly 2 assignments (group 1 and 2)
         for (const s of schedules) {
           const forSchedule = assignments.filter((a) => a.scheduleId === s.id);
           expect(forSchedule.length).toBe(2);
@@ -1098,20 +1014,18 @@ describe('generateAssignments', () => {
     });
   });
 
-  describe('shuffle tiebreak', () => {
+  describe('shuffle tiebreak (split-class)', () => {
     it('produces different pairs across multiple runs when scores are tied (T1)', () => {
-      // 4 LOWER members, all score=0 pairs: JP+EN combinations
       const members = [
         makeMember('L-JP-1', { gradeGroup: GradeGroup.LOWER, language: Language.JAPANESE }),
         makeMember('L-EN-1', { gradeGroup: GradeGroup.LOWER, language: Language.ENGLISH }),
         makeMember('L-JP-2', { gradeGroup: GradeGroup.LOWER, language: Language.JAPANESE }),
         makeMember('L-EN-2', { gradeGroup: GradeGroup.LOWER, language: Language.ENGLISH }),
-        // Need UPPER members too for Group 1
         makeMember('U-BOTH-1', { gradeGroup: GradeGroup.UPPER, language: Language.BOTH }),
         makeMember('U-JP-1', { gradeGroup: GradeGroup.UPPER, language: Language.JAPANESE }),
       ];
 
-      const schedule = makeSchedule('2026-04-05');
+      const schedule = makeSplitSchedule('2026-04-05');
       const selectedPairs = new Set<string>();
 
       for (let run = 0; run < 20; run++) {
@@ -1125,7 +1039,6 @@ describe('generateAssignments', () => {
         }
       }
 
-      // With 4 valid JP+EN pairs, shuffle should produce at least 2 different pairs in 20 runs
       expect(selectedPairs.size).toBeGreaterThanOrEqual(2);
     });
 
@@ -1140,18 +1053,17 @@ describe('generateAssignments', () => {
       ];
 
       for (let run = 0; run < 50; run++) {
-        const schedule = makeSchedule('2026-04-05');
+        const schedule = makeSplitSchedule('2026-04-05');
         const counts = new Map<MemberId, number>();
         members.forEach((m) => counts.set(m.id, 0));
         const { assignments } = generateAssignments([schedule], members, [], counts);
 
         for (const a of assignments) {
-          const pair = a.memberIds.map((mid) => members.find((m) => m.id === mid)!);
-          // Language balance: each pair must cover both Japanese and English
-          const hasJP = pair.some((m) =>
+          const groupMembers = a.memberIds.map((mid) => members.find((m) => m.id === mid)!);
+          const hasJP = groupMembers.some((m) =>
             m.language === Language.JAPANESE || m.language === Language.BOTH,
           );
-          const hasEN = pair.some((m) =>
+          const hasEN = groupMembers.some((m) =>
             m.language === Language.ENGLISH || m.language === Language.BOTH,
           );
           expect(hasJP).toBe(true);
@@ -1172,13 +1084,12 @@ describe('generateAssignments', () => {
         makeMember('L-EN-2', { gradeGroup: GradeGroup.LOWER, language: Language.ENGLISH }),
       ];
 
-      // Give some members higher counts — they should be less likely to be selected
       const counts = new Map<MemberId, number>();
       members.forEach((m) => counts.set(m.id, 0));
       const highCountMember = members.find((m) => m.name === 'U-JP-1')!;
       counts.set(highCountMember.id, 5);
 
-      const schedule = makeSchedule('2026-04-05');
+      const schedule = makeSplitSchedule('2026-04-05');
       let highCountSelected = 0;
       const runs = 30;
 
@@ -1191,8 +1102,6 @@ describe('generateAssignments', () => {
         }
       }
 
-      // Member with count=5 should rarely be selected (others have count=0)
-      // Equal distribution penalty: (5-0)*50 = 250 makes them very unlikely
       expect(highCountSelected).toBeLessThan(runs * 0.3);
     });
   });

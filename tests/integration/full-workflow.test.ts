@@ -47,6 +47,11 @@ describe('Full Workflow', () => {
     expect(updatedSchedules.body.find((s: { id: string }) => s.id === schedules.body[0].id).isExcluded).toBe(true);
     expect(updatedSchedules.body.find((s: { id: string }) => s.id === schedules.body[1].id).isEvent).toBe(true);
 
+    // Toggle all schedules to split-class for 2-group behavior
+    for (const s of schedules.body) {
+      await t.request.post(`/api/schedules/${s.id}/toggle-split-class`).expect(200);
+    }
+
     // 6.5 Generate assignments (excluded days should not have assignments)
     const gen = await t.request
       .post('/api/assignments/generate')

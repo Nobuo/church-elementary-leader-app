@@ -4,14 +4,14 @@ export interface AssignmentProps {
   readonly id: AssignmentId;
   readonly scheduleId: ScheduleId;
   readonly groupNumber: 1 | 2;
-  readonly memberIds: readonly [MemberId, MemberId];
+  readonly memberIds: readonly MemberId[];
 }
 
 export class Assignment {
   readonly id: AssignmentId;
   readonly scheduleId: ScheduleId;
   readonly groupNumber: 1 | 2;
-  readonly memberIds: readonly [MemberId, MemberId];
+  readonly memberIds: readonly MemberId[];
 
   private constructor(props: AssignmentProps) {
     this.id = props.id;
@@ -23,8 +23,11 @@ export class Assignment {
   static create(
     scheduleId: ScheduleId,
     groupNumber: 1 | 2,
-    memberIds: [MemberId, MemberId],
+    memberIds: MemberId[],
   ): Assignment {
+    if (memberIds.length < 2 || memberIds.length > 3) {
+      throw new Error('Assignment requires 2 or 3 members');
+    }
     return new Assignment({
       id: createAssignmentId(),
       scheduleId,
@@ -43,7 +46,7 @@ export class Assignment {
     }
     const newMemberIds = this.memberIds.map((id) =>
       id === oldMemberId ? newMemberId : id,
-    ) as [MemberId, MemberId];
+    );
 
     return new Assignment({
       id: this.id,

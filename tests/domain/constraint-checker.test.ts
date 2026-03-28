@@ -128,7 +128,8 @@ describe('constraint-checker', () => {
         [m1.id, 31],
         [m2.id, 15],
       ]);
-      const violations = checkExcessiveCount([m1, m2], counts, 10);
+      // 10 sundays × 4 slots = 40 total slots
+      const violations = checkExcessiveCount([m1, m2], counts, 40);
       expect(violations[0].messageKey).toBe('violations.excessiveCount');
       expect(violations[0].messageParams.name).toBe('Alice');
       expect(violations[0].messageParams.direction).toBe('tooMany');
@@ -137,13 +138,13 @@ describe('constraint-checker', () => {
     it('warns when member count exceeds 1.5x expected', () => {
       const m1 = makeMember({ name: 'Alice' });
       const m2 = makeMember({ name: 'Bob' });
-      // 10 sundays, 2 members → expected = (10*4)/2 = 20
+      // 40 totalSlots, 2 members → expected = 40/2 = 20
       // Alice has 31 (>30), Bob has 15
       const counts = new Map<MemberId, number>([
         [m1.id, 31],
         [m2.id, 15],
       ]);
-      const violations = checkExcessiveCount([m1, m2], counts, 10);
+      const violations = checkExcessiveCount([m1, m2], counts, 40);
       expect(violations.length).toBe(1);
       expect(violations[0].message).toContain('Alice');
       expect(violations[0].message).toContain('too many');
@@ -153,14 +154,14 @@ describe('constraint-checker', () => {
       const m1 = makeMember({ name: 'Alice' });
       const m2 = makeMember({ name: 'Bob' });
       const m3 = makeMember({ name: 'Charlie' });
-      // 12 sundays, 3 members → expected = (12*4)/3 = 16
+      // 48 totalSlots, 3 members → expected = 48/3 = 16
       // Bob has 7 (<8), count > 0
       const counts = new Map<MemberId, number>([
         [m1.id, 16],
         [m2.id, 7],
         [m3.id, 25],
       ]);
-      const violations = checkExcessiveCount([m1, m2, m3], counts, 12);
+      const violations = checkExcessiveCount([m1, m2, m3], counts, 48);
       expect(violations.some((v) => v.message.includes('too few'))).toBe(true);
       expect(violations.some((v) => v.message.includes('too many'))).toBe(true);
     });
@@ -168,17 +169,17 @@ describe('constraint-checker', () => {
     it('returns no violations when counts are balanced', () => {
       const m1 = makeMember({ name: 'Alice' });
       const m2 = makeMember({ name: 'Bob' });
-      // 10 sundays, 2 members → expected = 20
+      // 40 totalSlots, 2 members → expected = 20
       const counts = new Map<MemberId, number>([
         [m1.id, 18],
         [m2.id, 22],
       ]);
-      const violations = checkExcessiveCount([m1, m2], counts, 10);
+      const violations = checkExcessiveCount([m1, m2], counts, 40);
       expect(violations).toHaveLength(0);
     });
 
     it('returns empty for no members', () => {
-      expect(checkExcessiveCount([], new Map(), 10)).toHaveLength(0);
+      expect(checkExcessiveCount([], new Map(), 40)).toHaveLength(0);
     });
   });
 });

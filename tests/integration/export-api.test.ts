@@ -7,7 +7,10 @@ describe('Export API', () => {
   beforeEach(async () => {
     t = createTestApp();
     await seedStandardMembers(t.request);
-    await seedSchedule(t.request, 2027, 4);
+    const schedules = await seedSchedule(t.request, 2027, 4);
+    for (const s of schedules) {
+      await t.request.post(`/api/schedules/${s.id}/toggle-split-class`).expect(200);
+    }
     await t.request.post('/api/assignments/generate').send({ year: 2027, month: 4 }).expect(200);
   });
   afterEach(() => { t.db.close(); });

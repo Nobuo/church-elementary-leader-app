@@ -97,4 +97,36 @@ describe('formatLineMessage', () => {
     expect(result).not.toContain('🎉');
     expect(result).not.toContain('📚');
   });
+
+  it('displays 3 members for combined day (ja)', () => {
+    const m1 = makeMember('Alice');
+    const m2 = makeMember('Bob');
+    const m3 = makeMember('Charlie');
+    const schedule = makeSchedule('2026-03-01');
+    const assignment = Assignment.create(schedule.id, 1, [m1.id, m2.id, m3.id]);
+
+    const members = new Map<MemberId, Member>();
+    members.set(m1.id, m1);
+    members.set(m2.id, m2);
+    members.set(m3.id, m3);
+
+    const result = formatLineMessage([assignment], [schedule], members, 2026, 3, 'ja');
+    expect(result).toContain('Alice・Bob・Charlie');
+  });
+
+  it('displays 3 members for combined day (en)', () => {
+    const m1 = makeMember('Alice');
+    const m2 = makeMember('Bob');
+    const m3 = makeMember('Charlie');
+    const schedule = makeSchedule('2026-03-01');
+    const assignment = Assignment.create(schedule.id, 1, [m1.id, m2.id, m3.id]);
+
+    const members = new Map<MemberId, Member>();
+    members.set(m1.id, m1);
+    members.set(m2.id, m2);
+    members.set(m3.id, m3);
+
+    const result = formatLineMessage([assignment], [schedule], members, 2026, 3, 'en');
+    expect(result).toContain('Alice & Bob & Charlie');
+  });
 });
