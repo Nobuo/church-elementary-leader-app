@@ -1,6 +1,5 @@
 import { describe, it, expect } from 'vitest';
 import { Member } from '@domain/entities/member';
-import { Assignment } from '@domain/entities/assignment';
 import { Schedule } from '@domain/entities/schedule';
 import { Gender } from '@domain/value-objects/gender';
 import { Language } from '@domain/value-objects/language';
