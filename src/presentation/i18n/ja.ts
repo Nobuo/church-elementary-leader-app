@@ -46,6 +46,8 @@ export const ja = {
     eventDay: 'イベント日',
     splitClass: '分級',
     splitClassDay: '分級あり',
+    splitTypeStandard: '1~3年 / 4~6年',
+    splitTypeSeniorDiscussion: '1~4年 / 5~6年',
   },
   assignments: {
     title: '割り当て結果',

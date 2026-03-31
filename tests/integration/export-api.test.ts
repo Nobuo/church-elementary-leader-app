@@ -51,7 +51,7 @@ describe('Export API', () => {
 
       expect(res.body).toHaveProperty('text');
       expect(res.body.text).toContain('2027');
-      expect(res.body.text).toContain('グループ 1');
+      expect(res.body.text).toContain('※ヘルパーの方で難しい日がありましたら');
     });
 
     it('4.5 exports LINE text in English', async () => {
@@ -59,8 +59,8 @@ describe('Export API', () => {
         .get('/api/assignments/export/line?year=2027&month=4&lang=en')
         .expect(200);
 
-      expect(res.body.text).toContain('Group 1');
-      expect(res.body.text).toContain('Group 2');
+      expect(res.body.text).toContain('Leader Schedule');
+      expect(res.body.text).toContain('If any helper');
     });
   });
 });

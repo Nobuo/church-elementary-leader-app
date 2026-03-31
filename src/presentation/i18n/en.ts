@@ -46,6 +46,8 @@ export const en = {
     eventDay: 'Event Day',
     splitClass: 'Split',
     splitClassDay: 'Split Class',
+    splitTypeStandard: 'Grades 1-3 / 4-6',
+    splitTypeSeniorDiscussion: 'Grades 1-4 / 5-6',
   },
   assignments: {
     title: 'Assignment Results',

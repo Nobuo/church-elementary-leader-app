@@ -5,6 +5,7 @@ import {
   toggleExclusion,
   toggleEvent,
   toggleSplitClass,
+  updateSplitType,
   listSchedules,
 } from '@application/use-cases/generate-monthly-schedule';
 import { isValidYear, isValidMonth } from '@shared/validators';
@@ -60,6 +61,20 @@ export function createScheduleController(scheduleRepo: ScheduleRepository): Rout
 
   router.post('/:id/toggle-split-class', (req: Request, res: Response) => {
     const result = toggleSplitClass(String(req.params.id), scheduleRepo);
+    if (!result.ok) {
+      res.status(400).json({ error: result.error });
+      return;
+    }
+    res.json(result.value);
+  });
+
+  router.post('/:id/split-type', (req: Request, res: Response) => {
+    const { splitType } = req.body;
+    if (splitType !== 'standard' && splitType !== 'senior_discussion') {
+      res.status(400).json({ error: 'splitType must be "standard" or "senior_discussion"' });
+      return;
+    }
+    const result = updateSplitType(String(req.params.id), splitType, scheduleRepo);
     if (!result.ok) {
       res.status(400).json({ error: result.error });
       return;

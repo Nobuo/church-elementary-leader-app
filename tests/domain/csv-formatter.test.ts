@@ -38,6 +38,7 @@ function makeSchedule(
     isExcluded: false,
     isEvent: opts.isEvent ?? false,
     isSplitClass: opts.isSplitClass ?? false,
+    splitType: null,
     year: 2025,
   });
 }

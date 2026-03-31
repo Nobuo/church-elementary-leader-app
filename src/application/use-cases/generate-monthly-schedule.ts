@@ -1,6 +1,6 @@
 import { Result, ok } from '@shared/result';
 import { asScheduleId } from '@shared/types';
-import { Schedule, getSundaysInMonth } from '@domain/entities/schedule';
+import { Schedule, getSundaysInMonth, SplitType } from '@domain/entities/schedule';
 import { ScheduleRepository } from '@domain/repositories/schedule-repository';
 
 export interface ScheduleDto {
@@ -9,11 +9,12 @@ export interface ScheduleDto {
   isExcluded: boolean;
   isEvent: boolean;
   isSplitClass: boolean;
+  splitType: SplitType | null;
   year: number;
 }
 
 function toScheduleDto(s: Schedule): ScheduleDto {
-  return { id: s.id, date: s.date, isExcluded: s.isExcluded, isEvent: s.isEvent, isSplitClass: s.isSplitClass, year: s.year };
+  return { id: s.id, date: s.date, isExcluded: s.isExcluded, isEvent: s.isEvent, isSplitClass: s.isSplitClass, splitType: s.splitType, year: s.year };
 }
 
 export function generateMonthlySchedule(
@@ -75,6 +76,20 @@ export function toggleSplitClass(
   const toggled = schedule.toggleSplitClass();
   scheduleRepo.save(toggled);
   return ok(toScheduleDto(toggled));
+}
+
+export function updateSplitType(
+  scheduleId: string,
+  splitType: SplitType,
+  scheduleRepo: ScheduleRepository,
+): Result<ScheduleDto> {
+  const schedule = scheduleRepo.findById(asScheduleId(scheduleId));
+  if (!schedule) return { ok: false, error: 'Schedule not found' };
+  if (!schedule.isSplitClass) return { ok: false, error: 'Schedule is not a split class day' };
+
+  const updated = schedule.setSplitType(splitType);
+  scheduleRepo.save(updated);
+  return ok(toScheduleDto(updated));
 }
 
 export function listSchedules(

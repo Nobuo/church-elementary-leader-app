@@ -24,6 +24,12 @@ function renderSchedules(schedules) {
       s.isEvent ? t('eventDay') : '',
       s.isSplitClass ? t('splitClassDay') : '',
     ].filter(Boolean).join(' / ');
+    const splitTypeSelect = s.isSplitClass && !s.isExcluded
+      ? `<select class="split-type-select" data-action="set-split-type" data-id="${escapeHtml(s.id)}">
+          <option value="standard" ${(s.splitType || 'standard') === 'standard' ? 'selected' : ''}>${t('splitTypeStandard')}</option>
+          <option value="senior_discussion" ${s.splitType === 'senior_discussion' ? 'selected' : ''}>${t('splitTypeSeniorDiscussion')}</option>
+        </select>`
+      : '';
     return `<div class="schedule-card ${s.isExcluded ? 'excluded' : ''} ${s.isEvent ? 'event-day' : ''} ${s.isSplitClass ? 'split-class' : ''}">
       <div class="date">${label}</div>
       <div>${tags}</div>
@@ -37,6 +43,7 @@ function renderSchedules(schedules) {
         <button class="btn-small btn-split ${s.isSplitClass ? 'active' : ''}" data-action="toggle-split-class" data-id="${escapeHtml(s.id)}" ${s.isExcluded ? 'disabled' : ''}>
           ${t('splitClass')}
         </button>
+        ${splitTypeSelect}
       </div>
     </div>`;
   }).join('');
@@ -44,13 +51,19 @@ function renderSchedules(schedules) {
 
 // Event delegation for schedule actions
 document.getElementById('schedule-list')?.addEventListener('click', (e) => {
-  const btn = e.target.closest('[data-action]');
+  const btn = e.target.closest('button[data-action]');
   if (!btn) return;
   const action = btn.dataset.action;
   const id = btn.dataset.id;
   if (action === 'toggle-exclusion') toggleScheduleExclusion(id);
   if (action === 'toggle-event') toggleScheduleEvent(id);
   if (action === 'toggle-split-class') toggleScheduleSplitClass(id);
+});
+
+document.getElementById('schedule-list')?.addEventListener('change', (e) => {
+  const select = e.target.closest('select[data-action="set-split-type"]');
+  if (!select) return;
+  setSplitType(select.dataset.id, select.value);
 });
 
 async function generateSchedules() {
@@ -86,6 +99,15 @@ async function toggleScheduleEvent(id) {
 async function toggleScheduleSplitClass(id) {
   try {
     await API.post(`/api/schedules/${id}/toggle-split-class`);
+    loadSchedules();
+  } catch (e) {
+    alert(e.message);
+  }
+}
+
+async function setSplitType(id, splitType) {
+  try {
+    await API.post(`/api/schedules/${id}/split-type`, { splitType });
     loadSchedules();
   } catch (e) {
     alert(e.message);

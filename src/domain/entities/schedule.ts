@@ -2,12 +2,15 @@ import { ScheduleId, createScheduleId } from '@shared/types';
 import { Result, ok, err } from '@shared/result';
 import { getFiscalYear } from '@domain/value-objects/fiscal-year';
 
+export type SplitType = 'standard' | 'senior_discussion';
+
 export interface ScheduleProps {
   readonly id: ScheduleId;
   readonly date: string; // ISO date string (YYYY-MM-DD)
   readonly isExcluded: boolean;
   readonly isEvent: boolean;
   readonly isSplitClass: boolean;
+  readonly splitType: SplitType | null;
   readonly year: number; // fiscal year
 }
 
@@ -17,6 +20,7 @@ export class Schedule {
   readonly isExcluded: boolean;
   readonly isEvent: boolean;
   readonly isSplitClass: boolean;
+  readonly splitType: SplitType | null;
   readonly year: number;
 
   private constructor(props: ScheduleProps) {
@@ -25,7 +29,12 @@ export class Schedule {
     this.isExcluded = props.isExcluded;
     this.isEvent = props.isEvent;
     this.isSplitClass = props.isSplitClass;
+    this.splitType = props.splitType;
     this.year = props.year;
+  }
+
+  get effectiveSplitType(): SplitType {
+    return this.splitType ?? 'standard';
   }
 
   static create(date: string): Result<Schedule> {
@@ -41,6 +50,7 @@ export class Schedule {
         isExcluded: false,
         isEvent: false,
         isSplitClass: false,
+        splitType: null,
         year: getFiscalYear(d),
       }),
     );
@@ -72,9 +82,18 @@ export class Schedule {
   }
 
   toggleSplitClass(): Schedule {
+    const newIsSplit = !this.isSplitClass;
     return new Schedule({
       ...this,
-      isSplitClass: !this.isSplitClass,
+      isSplitClass: newIsSplit,
+      splitType: newIsSplit ? (this.splitType ?? 'standard') : null,
+    });
+  }
+
+  setSplitType(type: SplitType | null): Schedule {
+    return new Schedule({
+      ...this,
+      splitType: type,
     });
   }
 }

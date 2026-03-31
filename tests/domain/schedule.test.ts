@@ -40,6 +40,8 @@ describe('Schedule', () => {
       date: original.value.date,
       isExcluded: false,
       isEvent: true,
+      isSplitClass: false,
+      splitType: null,
       year: original.value.year,
     });
     expect(reconstructed.isEvent).toBe(true);

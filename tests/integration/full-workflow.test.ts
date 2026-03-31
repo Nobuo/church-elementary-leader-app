@@ -112,8 +112,8 @@ describe('Full Workflow', () => {
 
     // 6.13 LINE export (English)
     const line = await t.request.get('/api/assignments/export/line?year=2027&month=4&lang=en').expect(200);
-    expect(line.body.text).toContain('Group 1');
-    expect(line.body.text).toContain('Group 2');
+    expect(line.body.text).toContain('Leader Schedule');
+    expect(line.body.text).toContain('If any helper');
 
     // 6.14 Member CSV round-trip
     const csvExport = await t.request.get('/api/members/export/csv?lang=ja').expect(200);
