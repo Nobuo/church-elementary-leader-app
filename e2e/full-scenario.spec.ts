@@ -97,7 +97,7 @@ test('full scenario: register → schedule → assign → replace → export →
   await page.waitForTimeout(500);
   await expect(page.locator('#line-dialog')).toBeVisible();
   const lineText = await page.locator('#line-text').inputValue();
-  expect(lineText).toContain('グループ 1');
+  expect(lineText).toContain('リーダー担当表');
   await page.click('#btn-close-line');
 
   // --- Step 13-14: Switch to English ---

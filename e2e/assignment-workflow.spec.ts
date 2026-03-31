@@ -132,7 +132,7 @@ test('E3.14-E3.15 LINE text dialog', async ({ page, request }) => {
 
   // Should have text in textarea
   const text = await page.locator('#line-text').inputValue();
-  expect(text).toContain('グループ 1');
+  expect(text).toContain('リーダー担当表');
 
   // Click copy button
   await page.click('#btn-copy-line');
