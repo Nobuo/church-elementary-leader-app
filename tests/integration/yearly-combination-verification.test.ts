@@ -4,11 +4,13 @@ import { createTestApp, seedStandardMembers, type TestApp } from './helpers/setu
 /**
  * 年間組み合わせ検証テスト
  *
- * 2026年度（2026/4〜2027/3）の全12ヶ月を順番に生成し、
+ * 未来の年度の全12ヶ月を順番に生成し、
  * 各月ごとに「全クリア→4月から再生成」を繰り返して
  * 制約違反やペア多様性、割り当て均等性を検証する。
+ *
+ * 注意: 当月以前の割り当ては削除不可のため、十分未来の年度を使用する。
  */
-describe('Yearly Combination Verification (2026/4 ~ 2027/3)', () => {
+describe('Yearly Combination Verification', () => {
   let t: TestApp;
 
   beforeEach(() => {
@@ -35,20 +37,21 @@ describe('Yearly Combination Verification (2026/4 ~ 2027/3)', () => {
       spouseId: husband.id,
     }).expect(201);
 
-    const fiscalYear = 2026;
+    // Use a future fiscal year to avoid "Cannot clear current or past month" restriction
+    const fiscalYear = new Date().getFullYear() + 1;
     const months = [
-      { year: 2026, month: 4 },
-      { year: 2026, month: 5 },
-      { year: 2026, month: 6 },
-      { year: 2026, month: 7 },
-      { year: 2026, month: 8 },
-      { year: 2026, month: 9 },
-      { year: 2026, month: 10 },
-      { year: 2026, month: 11 },
-      { year: 2026, month: 12 },
-      { year: 2027, month: 1 },
-      { year: 2027, month: 2 },
-      { year: 2027, month: 3 },
+      { year: fiscalYear, month: 4 },
+      { year: fiscalYear, month: 5 },
+      { year: fiscalYear, month: 6 },
+      { year: fiscalYear, month: 7 },
+      { year: fiscalYear, month: 8 },
+      { year: fiscalYear, month: 9 },
+      { year: fiscalYear, month: 10 },
+      { year: fiscalYear, month: 11 },
+      { year: fiscalYear, month: 12 },
+      { year: fiscalYear + 1, month: 1 },
+      { year: fiscalYear + 1, month: 2 },
+      { year: fiscalYear + 1, month: 3 },
     ];
 
     // === Phase 1: Generate schedules for all months ===
@@ -221,7 +224,7 @@ describe('Yearly Combination Verification (2026/4 ~ 2027/3)', () => {
 
     // --- Report Output ---
     console.log('\n' + '='.repeat(80));
-    console.log('年間組み合わせ検証レポート（2026年度: 2026/4〜2027/3）');
+    console.log(`年間組み合わせ検証レポート（${fiscalYear}年度: ${fiscalYear}/4〜${fiscalYear + 1}/3）`);
     console.log('='.repeat(80));
 
     console.log('\n--- メンバー構成 ---');
@@ -375,20 +378,21 @@ describe('Yearly Combination Verification (2026/4 ~ 2027/3)', () => {
       await t.request.post('/api/members').send(input).expect(201);
     }
 
-    const fiscalYear = 2026;
+    // Use a future fiscal year to avoid "Cannot clear current or past month" restriction
+    const fiscalYear = new Date().getFullYear() + 1;
     const months = [
-      { year: 2026, month: 4 },
-      { year: 2026, month: 5 },
-      { year: 2026, month: 6 },
-      { year: 2026, month: 7 },
-      { year: 2026, month: 8 },
-      { year: 2026, month: 9 },
-      { year: 2026, month: 10 },
-      { year: 2026, month: 11 },
-      { year: 2026, month: 12 },
-      { year: 2027, month: 1 },
-      { year: 2027, month: 2 },
-      { year: 2027, month: 3 },
+      { year: fiscalYear, month: 4 },
+      { year: fiscalYear, month: 5 },
+      { year: fiscalYear, month: 6 },
+      { year: fiscalYear, month: 7 },
+      { year: fiscalYear, month: 8 },
+      { year: fiscalYear, month: 9 },
+      { year: fiscalYear, month: 10 },
+      { year: fiscalYear, month: 11 },
+      { year: fiscalYear, month: 12 },
+      { year: fiscalYear + 1, month: 1 },
+      { year: fiscalYear + 1, month: 2 },
+      { year: fiscalYear + 1, month: 3 },
     ];
 
     // Generate schedules for all months
