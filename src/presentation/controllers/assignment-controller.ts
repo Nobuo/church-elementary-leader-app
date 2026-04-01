@@ -124,6 +124,7 @@ export function createAssignmentController(
     // Check schedule flags
     const schedule = scheduleRepo.findByDate(date);
     const isEventDay = schedule?.isEvent ?? false;
+    const isEbtDay = schedule?.isEbt ?? false;
     const isSplitClass = schedule?.isSplitClass ?? false;
 
     const activeMembers = memberRepo.findAll(true);
@@ -159,6 +160,18 @@ export function createAssignmentController(
       .filter((m) => !excludeIds.includes(m.id))
       .filter((m) => m.isAvailableOn(date))
       .filter((m) => !isEventDay || m.memberType !== MemberType.HELPER)
+      .filter((m) => {
+        if (!isEbtDay) return true;
+        if (m.language !== Language.ENGLISH) return true;
+        // Exception: keep if no non-EBT active dates are available
+        if (m.availableDates && m.availableDates.length > 0) {
+          const hasNonEbtDate = allFiscalYearSchedules.some(
+            (s) => s.date !== date && !s.isExcluded && !s.isEbt && m.isAvailableOn(s.date),
+          );
+          if (!hasNonEbtDate) return true;
+        }
+        return false;
+      })
       .filter((m) => {
         if (!role || (role !== GradeGroup.UPPER && role !== GradeGroup.LOWER)) return true;
         if (m.gradeGroup === role) return true;

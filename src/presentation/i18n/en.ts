@@ -44,6 +44,8 @@ export const en = {
     exclude: 'Exclude',
     event: 'Event',
     eventDay: 'Event Day',
+    ebt: 'EBT',
+    ebtDay: 'EBT Day',
     splitClass: 'Split',
     splitClassDay: 'Split Class',
     splitTypeStandard: 'Grades 1-3 / 4-6',

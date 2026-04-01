@@ -22,6 +22,7 @@ function renderSchedules(schedules) {
     const tags = [
       s.isExcluded ? t('excluded') : '',
       s.isEvent ? t('eventDay') : '',
+      s.isEbt ? t('ebtDay') : '',
       s.isSplitClass ? t('splitClassDay') : '',
     ].filter(Boolean).join(' / ');
     const splitTypeSelect = s.isSplitClass && !s.isExcluded
@@ -30,7 +31,7 @@ function renderSchedules(schedules) {
           <option value="senior_discussion" ${s.splitType === 'senior_discussion' ? 'selected' : ''}>${t('splitTypeSeniorDiscussion')}</option>
         </select>`
       : '';
-    return `<div class="schedule-card ${s.isExcluded ? 'excluded' : ''} ${s.isEvent ? 'event-day' : ''} ${s.isSplitClass ? 'split-class' : ''}">
+    return `<div class="schedule-card ${s.isExcluded ? 'excluded' : ''} ${s.isEvent ? 'event-day' : ''} ${s.isEbt ? 'ebt-day' : ''} ${s.isSplitClass ? 'split-class' : ''}">
       <div class="date">${label}</div>
       <div>${tags}</div>
       <div class="schedule-actions">
@@ -39,6 +40,9 @@ function renderSchedules(schedules) {
         </button>
         <button class="btn-small btn-event ${s.isEvent ? 'active' : ''}" data-action="toggle-event" data-id="${escapeHtml(s.id)}" ${s.isExcluded ? 'disabled' : ''}>
           ${t('event')}
+        </button>
+        <button class="btn-small btn-ebt ${s.isEbt ? 'active' : ''}" data-action="toggle-ebt" data-id="${escapeHtml(s.id)}" ${s.isExcluded ? 'disabled' : ''}>
+          ${t('ebt')}
         </button>
         <button class="btn-small btn-split ${s.isSplitClass ? 'active' : ''}" data-action="toggle-split-class" data-id="${escapeHtml(s.id)}" ${s.isExcluded ? 'disabled' : ''}>
           ${t('splitClass')}
@@ -57,6 +61,7 @@ document.getElementById('schedule-list')?.addEventListener('click', (e) => {
   const id = btn.dataset.id;
   if (action === 'toggle-exclusion') toggleScheduleExclusion(id);
   if (action === 'toggle-event') toggleScheduleEvent(id);
+  if (action === 'toggle-ebt') toggleScheduleEbt(id);
   if (action === 'toggle-split-class') toggleScheduleSplitClass(id);
 });
 
@@ -90,6 +95,15 @@ async function toggleScheduleExclusion(id) {
 async function toggleScheduleEvent(id) {
   try {
     await API.post(`/api/schedules/${id}/toggle-event`);
+    loadSchedules();
+  } catch (e) {
+    alert(e.message);
+  }
+}
+
+async function toggleScheduleEbt(id) {
+  try {
+    await API.post(`/api/schedules/${id}/toggle-ebt`);
     loadSchedules();
   } catch (e) {
     alert(e.message);

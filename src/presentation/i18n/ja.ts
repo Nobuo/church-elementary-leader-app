@@ -44,6 +44,8 @@ export const ja = {
     exclude: '除外する',
     event: 'イベント',
     eventDay: 'イベント日',
+    ebt: 'EBT',
+    ebtDay: 'EBT日',
     splitClass: '分級',
     splitClassDay: '分級あり',
     splitTypeStandard: '1~3年 / 4~6年',

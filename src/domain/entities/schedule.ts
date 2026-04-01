@@ -9,6 +9,7 @@ export interface ScheduleProps {
   readonly date: string; // ISO date string (YYYY-MM-DD)
   readonly isExcluded: boolean;
   readonly isEvent: boolean;
+  readonly isEbt: boolean;
   readonly isSplitClass: boolean;
   readonly splitType: SplitType | null;
   readonly year: number; // fiscal year
@@ -19,6 +20,7 @@ export class Schedule {
   readonly date: string;
   readonly isExcluded: boolean;
   readonly isEvent: boolean;
+  readonly isEbt: boolean;
   readonly isSplitClass: boolean;
   readonly splitType: SplitType | null;
   readonly year: number;
@@ -28,6 +30,7 @@ export class Schedule {
     this.date = props.date;
     this.isExcluded = props.isExcluded;
     this.isEvent = props.isEvent;
+    this.isEbt = props.isEbt;
     this.isSplitClass = props.isSplitClass;
     this.splitType = props.splitType;
     this.year = props.year;
@@ -49,6 +52,7 @@ export class Schedule {
         date,
         isExcluded: false,
         isEvent: false,
+        isEbt: false,
         isSplitClass: false,
         splitType: null,
         year: getFiscalYear(d),
@@ -78,6 +82,13 @@ export class Schedule {
     return new Schedule({
       ...this,
       isEvent: !this.isEvent,
+    });
+  }
+
+  toggleEbt(): Schedule {
+    return new Schedule({
+      ...this,
+      isEbt: !this.isEbt,
     });
   }
 

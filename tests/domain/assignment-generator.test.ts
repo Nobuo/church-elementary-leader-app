@@ -1104,4 +1104,149 @@ describe('generateAssignments', () => {
       expect(highCountSelected).toBeLessThan(runs * 0.3);
     });
   });
+
+  describe('EBT day filtering', () => {
+    function makeEbtSchedule(date: string): Schedule {
+      return makeSchedule(date).toggleEbt();
+    }
+
+    it('excludes ENGLISH members on EBT days (combined)', () => {
+      const members = [
+        makeMember('M1-JP', { language: Language.JAPANESE }),
+        makeMember('M2-EN', { language: Language.ENGLISH }),
+        makeMember('M3-BOTH', { language: Language.BOTH }),
+        makeMember('M4-JP2', { language: Language.JAPANESE }),
+        makeMember('M5-BOTH2', { language: Language.BOTH }),
+      ];
+
+      const schedule = makeEbtSchedule('2026-04-05');
+      const counts = new Map<MemberId, number>();
+      members.forEach((m) => counts.set(m.id, 0));
+
+      const { assignments } = generateAssignments([schedule], members, [], counts);
+
+      const englishOnlyIds = new Set(
+        members.filter((m) => m.language === Language.ENGLISH).map((m) => m.id),
+      );
+      for (const a of assignments) {
+        for (const mid of a.memberIds) {
+          expect(englishOnlyIds.has(mid)).toBe(false);
+        }
+      }
+    });
+
+    it('keeps JAPANESE and BOTH members on EBT days', () => {
+      const members = [
+        makeMember('M1-JP', { language: Language.JAPANESE }),
+        makeMember('M2-BOTH', { language: Language.BOTH }),
+        makeMember('M3-JP2', { language: Language.JAPANESE }),
+        makeMember('M4-BOTH2', { language: Language.BOTH }),
+      ];
+
+      const schedule = makeEbtSchedule('2026-04-05');
+      const counts = new Map<MemberId, number>();
+      members.forEach((m) => counts.set(m.id, 0));
+
+      const { assignments } = generateAssignments([schedule], members, [], counts);
+      expect(assignments.length).toBe(1);
+      expect(assignments[0].memberIds.length).toBe(3);
+    });
+
+    it('exception: keeps ENGLISH member who can only attend EBT days', () => {
+      const ebtDate = '2026-04-05';
+      const nonEbtDate = '2026-04-12';
+      const members = [
+        makeMember('M1-JP', { language: Language.JAPANESE }),
+        makeMember('M2-BOTH', { language: Language.BOTH }),
+        makeMember('M3-JP2', { language: Language.JAPANESE }),
+        makeMember('M4-BOTH2', { language: Language.BOTH }),
+        // This ENGLISH member can only attend the EBT day
+        makeMember('M5-EN-restricted', { language: Language.ENGLISH, availableDates: [ebtDate] }),
+      ];
+
+      const ebtSchedule = makeEbtSchedule(ebtDate);
+      const normalSchedule = makeSchedule(nonEbtDate);
+      const counts = new Map<MemberId, number>();
+      members.forEach((m) => counts.set(m.id, 0));
+
+      const { assignments } = generateAssignments([ebtSchedule, normalSchedule], members, [], counts);
+
+      const ebtAssignments = assignments.filter((a) => a.scheduleId === ebtSchedule.id);
+      const restrictedMember = members.find((m) => m.name === 'M5-EN-restricted')!;
+      const isAssigned = ebtAssignments.some((a) => a.memberIds.includes(restrictedMember.id));
+      expect(isAssigned).toBe(true);
+    });
+
+    it('excludes ENGLISH member who has non-EBT dates available', () => {
+      const ebtDate = '2026-04-05';
+      const nonEbtDate = '2026-04-12';
+      const members = [
+        makeMember('M1-JP', { language: Language.JAPANESE }),
+        makeMember('M2-BOTH', { language: Language.BOTH }),
+        makeMember('M3-JP2', { language: Language.JAPANESE }),
+        makeMember('M4-BOTH2', { language: Language.BOTH }),
+        // This ENGLISH member can attend both days
+        makeMember('M5-EN-flexible', { language: Language.ENGLISH, availableDates: [ebtDate, nonEbtDate] }),
+      ];
+
+      const ebtSchedule = makeEbtSchedule(ebtDate);
+      const normalSchedule = makeSchedule(nonEbtDate);
+      const counts = new Map<MemberId, number>();
+      members.forEach((m) => counts.set(m.id, 0));
+
+      const { assignments } = generateAssignments([ebtSchedule, normalSchedule], members, [], counts);
+
+      const ebtAssignments = assignments.filter((a) => a.scheduleId === ebtSchedule.id);
+      const flexibleMember = members.find((m) => m.name === 'M5-EN-flexible')!;
+      const isAssignedToEbt = ebtAssignments.some((a) => a.memberIds.includes(flexibleMember.id));
+      expect(isAssignedToEbt).toBe(false);
+    });
+
+    it('EBT + event day excludes both ENGLISH and HELPER members', () => {
+      const members = [
+        makeMember('M1-JP-Parent', { language: Language.JAPANESE, memberType: MemberType.PARENT_SINGLE }),
+        makeMember('M2-EN-Parent', { language: Language.ENGLISH, memberType: MemberType.PARENT_SINGLE }),
+        makeMember('M3-BOTH-Helper', { language: Language.BOTH, memberType: MemberType.HELPER }),
+        makeMember('M4-BOTH-Parent', { language: Language.BOTH, memberType: MemberType.PARENT_SINGLE }),
+        makeMember('M5-JP-Parent2', { language: Language.JAPANESE, memberType: MemberType.PARENT_SINGLE }),
+        makeMember('M6-BOTH-Parent2', { language: Language.BOTH, memberType: MemberType.PARENT_SINGLE }),
+      ];
+
+      const schedule = makeSchedule('2026-04-05').toggleEvent().toggleEbt();
+      const counts = new Map<MemberId, number>();
+      members.forEach((m) => counts.set(m.id, 0));
+
+      const { assignments } = generateAssignments([schedule], members, [], counts);
+
+      const englishIds = new Set(members.filter((m) => m.language === Language.ENGLISH).map((m) => m.id));
+      const helperIds = new Set(members.filter((m) => m.memberType === MemberType.HELPER).map((m) => m.id));
+
+      for (const a of assignments) {
+        for (const mid of a.memberIds) {
+          expect(englishIds.has(mid)).toBe(false);
+          expect(helperIds.has(mid)).toBe(false);
+        }
+      }
+    });
+
+    it('non-EBT day includes ENGLISH members normally', () => {
+      const members = [
+        makeMember('M1-JP', { language: Language.JAPANESE }),
+        makeMember('M2-EN', { language: Language.ENGLISH }),
+        makeMember('M3-BOTH', { language: Language.BOTH }),
+        makeMember('M4-JP2', { language: Language.JAPANESE }),
+      ];
+
+      const schedule = makeSchedule('2026-04-05'); // not EBT
+      const counts = new Map<MemberId, number>();
+      members.forEach((m) => counts.set(m.id, 0));
+
+      const { assignments } = generateAssignments([schedule], members, [], counts);
+      expect(assignments.length).toBe(1);
+
+      const englishMember = members.find((m) => m.language === Language.ENGLISH)!;
+      const isAssigned = assignments.some((a) => a.memberIds.includes(englishMember.id));
+      expect(isAssigned).toBe(true);
+    });
+  });
 });

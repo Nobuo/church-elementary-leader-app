@@ -4,6 +4,7 @@ import {
   generateMonthlySchedule,
   toggleExclusion,
   toggleEvent,
+  toggleEbt,
   toggleSplitClass,
   updateSplitType,
   listSchedules,
@@ -52,6 +53,15 @@ export function createScheduleController(scheduleRepo: ScheduleRepository): Rout
 
   router.post('/:id/toggle-event', (req: Request, res: Response) => {
     const result = toggleEvent(String(req.params.id), scheduleRepo);
+    if (!result.ok) {
+      res.status(400).json({ error: result.error });
+      return;
+    }
+    res.json(result.value);
+  });
+
+  router.post('/:id/toggle-ebt', (req: Request, res: Response) => {
+    const result = toggleEbt(String(req.params.id), scheduleRepo);
     if (!result.ok) {
       res.status(400).json({ error: result.error });
       return;

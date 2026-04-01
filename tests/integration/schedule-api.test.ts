@@ -95,6 +95,29 @@ describe('Schedule API', () => {
     });
   });
 
+  describe('POST /api/schedules/:id/toggle-ebt', () => {
+    it('toggles EBT on', async () => {
+      const schedules = await t.request.post('/api/schedules/generate').send({ year: 2027, month: 4 }).expect(200);
+      const id = schedules.body[0].id;
+
+      const res = await t.request.post(`/api/schedules/${id}/toggle-ebt`).expect(200);
+      expect(res.body.isEbt).toBe(true);
+    });
+
+    it('toggles EBT off', async () => {
+      const schedules = await t.request.post('/api/schedules/generate').send({ year: 2027, month: 4 }).expect(200);
+      const id = schedules.body[0].id;
+
+      await t.request.post(`/api/schedules/${id}/toggle-ebt`).expect(200);
+      const res = await t.request.post(`/api/schedules/${id}/toggle-ebt`).expect(200);
+      expect(res.body.isEbt).toBe(false);
+    });
+
+    it('returns 400 for non-existent ID', async () => {
+      await t.request.post('/api/schedules/non-existent/toggle-ebt').expect(400);
+    });
+  });
+
   describe('POST /api/schedules/:id/toggle-split-class', () => {
     it('2.12 toggles split-class on', async () => {
       const schedules = await t.request.post('/api/schedules/generate').send({ year: 2027, month: 4 }).expect(200);

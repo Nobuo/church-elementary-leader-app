@@ -363,9 +363,22 @@ export function generateAssignments(
 
     // Get available members for this date
     // On event days, exclude HELPER members
+    // On EBT days, exclude ENGLISH-only members (unless they can only attend EBT days)
     const available = activeMembers
       .filter((m) => m.isAvailableOn(dateStr))
-      .filter((m) => !schedule.isEvent || m.memberType !== MemberType.HELPER);
+      .filter((m) => !schedule.isEvent || m.memberType !== MemberType.HELPER)
+      .filter((m) => {
+        if (!schedule.isEbt) return true;
+        if (m.language !== Language.ENGLISH) return true;
+        // Exception: keep if no non-EBT active dates are available
+        if (m.availableDates && m.availableDates.length > 0) {
+          const hasNonEbtDate = activeDates.some(
+            (s) => s.date !== dateStr && !s.isEbt && m.isAvailableOn(s.date),
+          );
+          if (!hasNonEbtDate) return true;
+        }
+        return false;
+      });
 
     if (!schedule.isSplitClass) {
       // === 合同日: 3人×1グループ ===

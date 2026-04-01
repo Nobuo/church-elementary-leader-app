@@ -37,6 +37,7 @@ function makeSchedule(
     date,
     isExcluded: false,
     isEvent: opts.isEvent ?? false,
+    isEbt: false,
     isSplitClass: opts.isSplitClass ?? false,
     splitType: opts.splitType ?? null,
     year: 2025,

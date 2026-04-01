@@ -40,6 +40,7 @@ describe('Schedule', () => {
       date: original.value.date,
       isExcluded: false,
       isEvent: true,
+      isEbt: false,
       isSplitClass: false,
       splitType: null,
       year: original.value.year,
@@ -69,6 +70,45 @@ describe('Schedule', () => {
     if (!result.ok) throw new Error('should succeed');
     const toggled = result.value.toggleEvent();
     expect(toggled).not.toBe(result.value);
+  });
+
+  it('creates with isEbt defaulting to false', () => {
+    const result = Schedule.create('2026-04-05');
+    if (!result.ok) throw new Error('should succeed');
+    expect(result.value.isEbt).toBe(false);
+  });
+
+  it('toggles EBT flag', () => {
+    const result = Schedule.create('2026-04-05');
+    if (!result.ok) throw new Error('should succeed');
+    const withEbt = result.value.toggleEbt();
+    expect(withEbt.isEbt).toBe(true);
+    expect(withEbt.id).toBe(result.value.id);
+    const withoutEbt = withEbt.toggleEbt();
+    expect(withoutEbt.isEbt).toBe(false);
+  });
+
+  it('toggleEbt returns a new instance', () => {
+    const result = Schedule.create('2026-04-05');
+    if (!result.ok) throw new Error('should succeed');
+    const toggled = result.value.toggleEbt();
+    expect(toggled).not.toBe(result.value);
+  });
+
+  it('reconstructs with isEbt true', () => {
+    const original = Schedule.create('2026-04-05');
+    if (!original.ok) throw new Error('should succeed');
+    const reconstructed = Schedule.reconstruct({
+      id: original.value.id,
+      date: original.value.date,
+      isExcluded: false,
+      isEvent: false,
+      isEbt: true,
+      isSplitClass: false,
+      splitType: null,
+      year: original.value.year,
+    });
+    expect(reconstructed.isEbt).toBe(true);
   });
 });
 

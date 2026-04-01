@@ -57,10 +57,12 @@ function renderAssignments(assignments, scheduleMap = {}) {
   const html = Object.keys(byDate).sort().map(date => {
     const d = new Date(date);
     const isEvent = scheduleMap[date]?.isEvent ?? false;
+    const isEbt = scheduleMap[date]?.isEbt ?? false;
     const isSplitClass = scheduleMap[date]?.isSplitClass ?? false;
     const eventTag = isEvent ? ` <span class="event-tag">${t('eventDay')}</span>` : '';
+    const ebtTag = isEbt ? ` <span class="ebt-tag">${t('ebtDay')}</span>` : '';
     const splitTag = isSplitClass ? ` <span class="split-tag">${t('splitClassDay')}</span>` : '';
-    const dateLabel = `${d.getMonth()+1}/${d.getDate()} (${dayNames[d.getDay()]})${eventTag}${splitTag}`;
+    const dateLabel = `${d.getMonth()+1}/${d.getDate()} (${dayNames[d.getDay()]})${eventTag}${ebtTag}${splitTag}`;
     const groups = byDate[date].sort((a, b) => a.groupNumber - b.groupNumber);
 
     // Collect all assigned member IDs for this date

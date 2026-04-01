@@ -8,6 +8,7 @@ interface ScheduleRow {
   date: string;
   is_excluded: number;
   is_event: number;
+  is_ebt: number;
   is_split_class: number;
   split_type: string | null;
   year: number;
@@ -19,6 +20,7 @@ function rowToSchedule(row: ScheduleRow): Schedule {
     date: row.date,
     isExcluded: row.is_excluded === 1,
     isEvent: row.is_event === 1,
+    isEbt: row.is_ebt === 1,
     isSplitClass: row.is_split_class === 1,
     splitType: (row.split_type as 'standard' | 'senior_discussion') ?? null,
     year: row.year,
@@ -31,10 +33,10 @@ export class SqliteScheduleRepository implements ScheduleRepository {
   save(schedule: Schedule): void {
     this.db
       .prepare(
-        `INSERT OR REPLACE INTO schedules (id, date, is_excluded, is_event, is_split_class, split_type, year)
-       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+        `INSERT OR REPLACE INTO schedules (id, date, is_excluded, is_event, is_ebt, is_split_class, split_type, year)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
       )
-      .run(schedule.id, schedule.date, schedule.isExcluded ? 1 : 0, schedule.isEvent ? 1 : 0, schedule.isSplitClass ? 1 : 0, schedule.splitType, schedule.year);
+      .run(schedule.id, schedule.date, schedule.isExcluded ? 1 : 0, schedule.isEvent ? 1 : 0, schedule.isEbt ? 1 : 0, schedule.isSplitClass ? 1 : 0, schedule.splitType, schedule.year);
   }
 
   findById(id: ScheduleId): Schedule | null {
