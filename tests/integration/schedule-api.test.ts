@@ -3,31 +3,32 @@ import { createTestApp, type TestApp } from './helpers/setup';
 
 describe('Schedule API', () => {
   let t: TestApp;
+  const testYear = new Date().getFullYear() + 1;
 
   beforeEach(() => { t = createTestApp(); });
   afterEach(() => { t.db.close(); });
 
   describe('POST /api/schedules/generate', () => {
-    it('2.1 generates schedule for April 2027', async () => {
+    it('2.1 generates schedule for April', async () => {
       const res = await t.request
         .post('/api/schedules/generate')
-        .send({ year: 2027, month: 4 })
+        .send({ year: testYear, month: 4 })
         .expect(200);
 
       expect(res.body.length).toBeGreaterThanOrEqual(4);
       expect(res.body.length).toBeLessThanOrEqual(5);
-      // All dates should be Sundays in April 2027
+      // All dates should be Sundays in April
       for (const s of res.body) {
         const d = new Date(s.date);
         expect(d.getDay()).toBe(0); // Sunday
         expect(d.getMonth()).toBe(3); // April (0-indexed)
-        expect(d.getFullYear()).toBe(2027);
+        expect(d.getFullYear()).toBe(testYear);
       }
     });
 
     it('2.2 regeneration is idempotent', async () => {
-      const res1 = await t.request.post('/api/schedules/generate').send({ year: 2027, month: 4 }).expect(200);
-      const res2 = await t.request.post('/api/schedules/generate').send({ year: 2027, month: 4 }).expect(200);
+      const res1 = await t.request.post('/api/schedules/generate').send({ year: testYear, month: 4 }).expect(200);
+      const res2 = await t.request.post('/api/schedules/generate').send({ year: testYear, month: 4 }).expect(200);
       expect(res2.body.length).toBe(res1.body.length);
     });
 
@@ -38,20 +39,20 @@ describe('Schedule API', () => {
 
   describe('GET /api/schedules', () => {
     it('2.4 returns schedules after generation', async () => {
-      await t.request.post('/api/schedules/generate').send({ year: 2027, month: 4 }).expect(200);
-      const res = await t.request.get('/api/schedules?year=2027&month=4').expect(200);
+      await t.request.post('/api/schedules/generate').send({ year: testYear, month: 4 }).expect(200);
+      const res = await t.request.get(`/api/schedules?year=${testYear}&month=4`).expect(200);
       expect(res.body.length).toBeGreaterThanOrEqual(4);
     });
 
     it('2.5 returns empty array for ungenerated month', async () => {
-      const res = await t.request.get('/api/schedules?year=2027&month=5').expect(200);
+      const res = await t.request.get(`/api/schedules?year=${testYear}&month=5`).expect(200);
       expect(res.body).toEqual([]);
     });
   });
 
   describe('POST /api/schedules/:id/toggle-exclusion', () => {
     it('2.6 toggles exclusion on', async () => {
-      const schedules = await t.request.post('/api/schedules/generate').send({ year: 2027, month: 4 }).expect(200);
+      const schedules = await t.request.post('/api/schedules/generate').send({ year: testYear, month: 4 }).expect(200);
       const id = schedules.body[0].id;
 
       const res = await t.request.post(`/api/schedules/${id}/toggle-exclusion`).expect(200);
@@ -59,7 +60,7 @@ describe('Schedule API', () => {
     });
 
     it('2.7 toggles exclusion off', async () => {
-      const schedules = await t.request.post('/api/schedules/generate').send({ year: 2027, month: 4 }).expect(200);
+      const schedules = await t.request.post('/api/schedules/generate').send({ year: testYear, month: 4 }).expect(200);
       const id = schedules.body[0].id;
 
       await t.request.post(`/api/schedules/${id}/toggle-exclusion`).expect(200);
@@ -74,7 +75,7 @@ describe('Schedule API', () => {
 
   describe('POST /api/schedules/:id/toggle-event', () => {
     it('2.9 toggles event on', async () => {
-      const schedules = await t.request.post('/api/schedules/generate').send({ year: 2027, month: 4 }).expect(200);
+      const schedules = await t.request.post('/api/schedules/generate').send({ year: testYear, month: 4 }).expect(200);
       const id = schedules.body[0].id;
 
       const res = await t.request.post(`/api/schedules/${id}/toggle-event`).expect(200);
@@ -82,7 +83,7 @@ describe('Schedule API', () => {
     });
 
     it('2.10 toggles event off', async () => {
-      const schedules = await t.request.post('/api/schedules/generate').send({ year: 2027, month: 4 }).expect(200);
+      const schedules = await t.request.post('/api/schedules/generate').send({ year: testYear, month: 4 }).expect(200);
       const id = schedules.body[0].id;
 
       await t.request.post(`/api/schedules/${id}/toggle-event`).expect(200);
@@ -97,7 +98,7 @@ describe('Schedule API', () => {
 
   describe('POST /api/schedules/:id/toggle-ebt', () => {
     it('toggles EBT on', async () => {
-      const schedules = await t.request.post('/api/schedules/generate').send({ year: 2027, month: 4 }).expect(200);
+      const schedules = await t.request.post('/api/schedules/generate').send({ year: testYear, month: 4 }).expect(200);
       const id = schedules.body[0].id;
 
       const res = await t.request.post(`/api/schedules/${id}/toggle-ebt`).expect(200);
@@ -105,7 +106,7 @@ describe('Schedule API', () => {
     });
 
     it('toggles EBT off', async () => {
-      const schedules = await t.request.post('/api/schedules/generate').send({ year: 2027, month: 4 }).expect(200);
+      const schedules = await t.request.post('/api/schedules/generate').send({ year: testYear, month: 4 }).expect(200);
       const id = schedules.body[0].id;
 
       await t.request.post(`/api/schedules/${id}/toggle-ebt`).expect(200);
@@ -120,7 +121,7 @@ describe('Schedule API', () => {
 
   describe('POST /api/schedules/:id/toggle-split-class', () => {
     it('2.12 toggles split-class on', async () => {
-      const schedules = await t.request.post('/api/schedules/generate').send({ year: 2027, month: 4 }).expect(200);
+      const schedules = await t.request.post('/api/schedules/generate').send({ year: testYear, month: 4 }).expect(200);
       const id = schedules.body[0].id;
 
       const res = await t.request.post(`/api/schedules/${id}/toggle-split-class`).expect(200);
@@ -128,7 +129,7 @@ describe('Schedule API', () => {
     });
 
     it('2.13 toggles split-class off', async () => {
-      const schedules = await t.request.post('/api/schedules/generate').send({ year: 2027, month: 4 }).expect(200);
+      const schedules = await t.request.post('/api/schedules/generate').send({ year: testYear, month: 4 }).expect(200);
       const id = schedules.body[0].id;
 
       await t.request.post(`/api/schedules/${id}/toggle-split-class`).expect(200);
@@ -137,11 +138,11 @@ describe('Schedule API', () => {
     });
 
     it('2.14 isSplitClass appears in GET response', async () => {
-      const schedules = await t.request.post('/api/schedules/generate').send({ year: 2027, month: 4 }).expect(200);
+      const schedules = await t.request.post('/api/schedules/generate').send({ year: testYear, month: 4 }).expect(200);
       const id = schedules.body[0].id;
       await t.request.post(`/api/schedules/${id}/toggle-split-class`).expect(200);
 
-      const res = await t.request.get('/api/schedules?year=2027&month=4').expect(200);
+      const res = await t.request.get(`/api/schedules?year=${testYear}&month=4`).expect(200);
       const updated = res.body.find((s: { id: string }) => s.id === id);
       expect(updated.isSplitClass).toBe(true);
     });

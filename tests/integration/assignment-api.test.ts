@@ -3,13 +3,14 @@ import { createTestApp, seedStandardMembers, seedSchedule, type TestApp } from '
 
 describe('Assignment API', () => {
   let t: TestApp;
+  const testYear = new Date().getFullYear() + 1;
 
   beforeEach(() => { t = createTestApp(); });
   afterEach(() => { t.db.close(); });
 
   async function setupMembersAndSchedule(options: { splitClass?: boolean } = { splitClass: true }) {
     const members = await seedStandardMembers(t.request);
-    const schedules = await seedSchedule(t.request, 2027, 4);
+    const schedules = await seedSchedule(t.request, testYear, 4);
     if (options.splitClass) {
       for (const s of schedules) {
         await t.request.post(`/api/schedules/${s.id}/toggle-split-class`).expect(200);
@@ -25,7 +26,7 @@ describe('Assignment API', () => {
 
       const res = await t.request
         .post('/api/assignments/generate')
-        .send({ year: 2027, month: 4 })
+        .send({ year: testYear, month: 4 })
         .expect(200);
 
       expect(res.body.assignments.length).toBe(activeDates * 2);
@@ -36,7 +37,7 @@ describe('Assignment API', () => {
       await seedStandardMembers(t.request);
       await t.request
         .post('/api/assignments/generate')
-        .send({ year: 2027, month: 4 })
+        .send({ year: testYear, month: 4 })
         .expect(400);
     });
 
@@ -48,11 +49,11 @@ describe('Assignment API', () => {
           gradeGroup: i < 1 ? 'UPPER' : 'LOWER', memberType: 'PARENT_SINGLE', sameGenderOnly: false,
         }).expect(201);
       }
-      await seedSchedule(t.request, 2027, 4);
+      await seedSchedule(t.request, testYear, 4);
 
       await t.request
         .post('/api/assignments/generate')
-        .send({ year: 2027, month: 4 })
+        .send({ year: testYear, month: 4 })
         .expect(400);
     });
 
@@ -63,7 +64,7 @@ describe('Assignment API', () => {
 
       const res = await t.request
         .post('/api/assignments/generate')
-        .send({ year: 2027, month: 4 })
+        .send({ year: testYear, month: 4 })
         .expect(200);
 
       const assignmentDates = res.body.assignments.map((a: { date: string }) => a.date);
@@ -73,11 +74,11 @@ describe('Assignment API', () => {
     it('3.5 incremental generation skips already-assigned weeks', async () => {
       await setupMembersAndSchedule();
 
-      const res1 = await t.request.post('/api/assignments/generate').send({ year: 2027, month: 4 }).expect(200);
+      const res1 = await t.request.post('/api/assignments/generate').send({ year: testYear, month: 4 }).expect(200);
       expect(res1.body.assignments.length).toBeGreaterThan(0);
 
       // Second call: all weeks already assigned, returns empty with message
-      const res2 = await t.request.post('/api/assignments/generate').send({ year: 2027, month: 4 }).expect(200);
+      const res2 = await t.request.post('/api/assignments/generate').send({ year: testYear, month: 4 }).expect(200);
       expect(res2.body.assignments.length).toBe(0);
       expect(res2.body.message).toBe('allWeeksAssigned');
     });
@@ -86,9 +87,9 @@ describe('Assignment API', () => {
   describe('GET /api/assignments', () => {
     it('3.6 returns assignments with required fields', async () => {
       await setupMembersAndSchedule();
-      await t.request.post('/api/assignments/generate').send({ year: 2027, month: 4 }).expect(200);
+      await t.request.post('/api/assignments/generate').send({ year: testYear, month: 4 }).expect(200);
 
-      const res = await t.request.get('/api/assignments?year=2027&month=4').expect(200);
+      const res = await t.request.get(`/api/assignments?year=${testYear}&month=4`).expect(200);
 
       for (const a of res.body) {
         expect(a).toHaveProperty('date');
@@ -99,9 +100,9 @@ describe('Assignment API', () => {
 
     it('3.7 each assignment has 2 members', async () => {
       await setupMembersAndSchedule();
-      await t.request.post('/api/assignments/generate').send({ year: 2027, month: 4 }).expect(200);
+      await t.request.post('/api/assignments/generate').send({ year: testYear, month: 4 }).expect(200);
 
-      const res = await t.request.get('/api/assignments?year=2027&month=4').expect(200);
+      const res = await t.request.get(`/api/assignments?year=${testYear}&month=4`).expect(200);
       for (const a of res.body) {
         expect(a.members.length).toBe(2);
       }
@@ -111,7 +112,7 @@ describe('Assignment API', () => {
   describe('PUT /api/assignments/:id/adjust', () => {
     it('3.8 successfully replaces a member', async () => {
       const { members } = await setupMembersAndSchedule();
-      const gen = await t.request.post('/api/assignments/generate').send({ year: 2027, month: 4 }).expect(200);
+      const gen = await t.request.post('/api/assignments/generate').send({ year: testYear, month: 4 }).expect(200);
 
       const assignment = gen.body.assignments[0];
       const oldMemberId = assignment.members[0].id;
@@ -142,8 +143,8 @@ describe('Assignment API', () => {
       await t.request.post('/api/members').send({ name: 'Both6', gender: 'FEMALE', language: 'BOTH', gradeGroup: 'LOWER', memberType: 'PARENT_SINGLE', sameGenderOnly: false });
       await t.request.post('/api/members').send({ name: 'Both7', gender: 'MALE', language: 'BOTH', gradeGroup: 'UPPER', memberType: 'PARENT_SINGLE', sameGenderOnly: false });
 
-      await seedSchedule(t.request, 2027, 4);
-      const gen = await t.request.post('/api/assignments/generate').send({ year: 2027, month: 4 }).expect(200);
+      await seedSchedule(t.request, testYear, 4);
+      const gen = await t.request.post('/api/assignments/generate').send({ year: testYear, month: 4 }).expect(200);
 
       // Find an assignment containing EN1 and replace with JP2
       const a = gen.body.assignments.find((a: { members: Array<{ id: string }> }) =>
@@ -174,7 +175,7 @@ describe('Assignment API', () => {
 
     it('3.12 returns 400 for non-existent member ID', async () => {
       await setupMembersAndSchedule();
-      const gen = await t.request.post('/api/assignments/generate').send({ year: 2027, month: 4 }).expect(200);
+      const gen = await t.request.post('/api/assignments/generate').send({ year: testYear, month: 4 }).expect(200);
       const assignment = gen.body.assignments[0];
 
       await t.request
@@ -187,11 +188,11 @@ describe('Assignment API', () => {
   describe('DELETE /api/assignments', () => {
     it('3.13 deletes all assignments for a month', async () => {
       await setupMembersAndSchedule();
-      await t.request.post('/api/assignments/generate').send({ year: 2027, month: 4 }).expect(200);
+      await t.request.post('/api/assignments/generate').send({ year: testYear, month: 4 }).expect(200);
 
-      await t.request.delete('/api/assignments?year=2027&month=4').expect(200);
+      await t.request.delete(`/api/assignments?year=${testYear}&month=4`).expect(200);
 
-      const res = await t.request.get('/api/assignments?year=2027&month=4').expect(200);
+      const res = await t.request.get(`/api/assignments?year=${testYear}&month=4`).expect(200);
       expect(res.body.length).toBe(0);
     });
   });
@@ -199,12 +200,12 @@ describe('Assignment API', () => {
   describe('DELETE /api/assignments/by-date', () => {
     it('3.14 clears assignments for a future date', async () => {
       const { schedules } = await setupMembersAndSchedule();
-      await t.request.post('/api/assignments/generate').send({ year: 2027, month: 4 }).expect(200);
+      await t.request.post('/api/assignments/generate').send({ year: testYear, month: 4 }).expect(200);
 
       const futureDate = schedules[schedules.length - 1].date; // Last Sunday, likely future
       await t.request.delete(`/api/assignments/by-date?date=${futureDate}`).expect(200);
 
-      const res = await t.request.get('/api/assignments?year=2027&month=4').expect(200);
+      const res = await t.request.get(`/api/assignments?year=${testYear}&month=4`).expect(200);
       const datesRemaining = res.body.map((a: { date: string }) => a.date);
       expect(datesRemaining).not.toContain(futureDate);
     });
@@ -217,7 +218,7 @@ describe('Assignment API', () => {
   describe('GET /api/assignments/candidates', () => {
     it('3.16 returns candidates with required fields', async () => {
       const { schedules } = await setupMembersAndSchedule();
-      await t.request.post('/api/assignments/generate').send({ year: 2027, month: 4 }).expect(200);
+      await t.request.post('/api/assignments/generate').send({ year: testYear, month: 4 }).expect(200);
 
       const res = await t.request
         .get(`/api/assignments/candidates?date=${schedules[0].date}&excludeIds=`)
@@ -235,7 +236,7 @@ describe('Assignment API', () => {
 
     it('3.17 excludeIds filters out specified members', async () => {
       const { members, schedules } = await setupMembersAndSchedule();
-      await t.request.post('/api/assignments/generate').send({ year: 2027, month: 4 }).expect(200);
+      await t.request.post('/api/assignments/generate').send({ year: testYear, month: 4 }).expect(200);
 
       const excludeId = members[0].id;
       const res = await t.request
@@ -247,7 +248,7 @@ describe('Assignment API', () => {
 
     it('3.20 recommended candidates are sorted first', async () => {
       const { schedules } = await setupMembersAndSchedule();
-      await t.request.post('/api/assignments/generate').send({ year: 2027, month: 4 }).expect(200);
+      await t.request.post('/api/assignments/generate').send({ year: testYear, month: 4 }).expect(200);
 
       const res = await t.request
         .get(`/api/assignments/candidates?date=${schedules[0].date}&excludeIds=`)
@@ -270,9 +271,9 @@ describe('Assignment API', () => {
   describe('Grade group: DTO and candidates filtering', () => {
     it('T10 group 1 = UPPER members, group 2 = LOWER members', async () => {
       await setupMembersAndSchedule();
-      await t.request.post('/api/assignments/generate').send({ year: 2027, month: 4 }).expect(200);
+      await t.request.post('/api/assignments/generate').send({ year: testYear, month: 4 }).expect(200);
 
-      const res = await t.request.get('/api/assignments?year=2027&month=4').expect(200);
+      const res = await t.request.get(`/api/assignments?year=${testYear}&month=4`).expect(200);
 
       for (const a of res.body) {
         expect(a).toHaveProperty('gradeGroup');
@@ -287,7 +288,7 @@ describe('Assignment API', () => {
 
     it('T11 normal day: candidates with role=UPPER returns only UPPER members', async () => {
       const { schedules } = await setupMembersAndSchedule({ splitClass: false });
-      await t.request.post('/api/assignments/generate').send({ year: 2027, month: 4 }).expect(200);
+      await t.request.post('/api/assignments/generate').send({ year: testYear, month: 4 }).expect(200);
 
       const res = await t.request
         .get(`/api/assignments/candidates?date=${schedules[0].date}&excludeIds=&role=UPPER`)
@@ -302,7 +303,7 @@ describe('Assignment API', () => {
 
     it('T13 normal day: candidates with role=LOWER returns only LOWER members', async () => {
       const { schedules } = await setupMembersAndSchedule({ splitClass: false });
-      await t.request.post('/api/assignments/generate').send({ year: 2027, month: 4 }).expect(200);
+      await t.request.post('/api/assignments/generate').send({ year: testYear, month: 4 }).expect(200);
 
       const res = await t.request
         .get(`/api/assignments/candidates?date=${schedules[0].date}&excludeIds=&role=LOWER`)
@@ -332,11 +333,11 @@ describe('Assignment API', () => {
       for (const input of memberInputs) {
         await t.request.post('/api/members').send(input).expect(201);
       }
-      const schedules = await seedSchedule(t.request, 2027, 4);
+      const schedules = await seedSchedule(t.request, testYear, 4);
 
       // Make first date a split-class day
       await t.request.post(`/api/schedules/${schedules[0].id}/toggle-split-class`).expect(200);
-      await t.request.post('/api/assignments/generate').send({ year: 2027, month: 4 }).expect(200);
+      await t.request.post('/api/assignments/generate').send({ year: testYear, month: 4 }).expect(200);
 
       const res = await t.request
         .get(`/api/assignments/candidates?date=${schedules[0].date}&excludeIds=&role=LOWER`)
@@ -361,9 +362,9 @@ describe('Assignment API', () => {
   describe('GET /api/assignments/counts', () => {
     it('3.21 returns counts with summary', async () => {
       await setupMembersAndSchedule();
-      await t.request.post('/api/assignments/generate').send({ year: 2027, month: 4 }).expect(200);
+      await t.request.post('/api/assignments/generate').send({ year: testYear, month: 4 }).expect(200);
 
-      const res = await t.request.get('/api/assignments/counts?fiscalYear=2027').expect(200);
+      const res = await t.request.get(`/api/assignments/counts?fiscalYear=${testYear}`).expect(200);
 
       expect(res.body).toHaveProperty('members');
       expect(res.body).toHaveProperty('summary');
@@ -374,9 +375,9 @@ describe('Assignment API', () => {
 
     it('3.22 total count equals assignments * 2', async () => {
       await setupMembersAndSchedule();
-      const gen = await t.request.post('/api/assignments/generate').send({ year: 2027, month: 4 }).expect(200);
+      const gen = await t.request.post('/api/assignments/generate').send({ year: testYear, month: 4 }).expect(200);
 
-      const res = await t.request.get('/api/assignments/counts?fiscalYear=2027').expect(200);
+      const res = await t.request.get(`/api/assignments/counts?fiscalYear=${testYear}`).expect(200);
 
       const totalCount = res.body.members.reduce((sum: number, m: { count: number }) => sum + m.count, 0);
       expect(totalCount).toBe(gen.body.assignments.length * 2);
@@ -404,11 +405,11 @@ describe('Assignment API', () => {
         members.push(res.body);
       }
 
-      const schedules = await seedSchedule(t.request, 2027, 4);
+      const schedules = await seedSchedule(t.request, testYear, 4);
       // Set first schedule as event day
       await t.request.post(`/api/schedules/${schedules[0].id}/toggle-event`).expect(200);
 
-      const gen = await t.request.post('/api/assignments/generate').send({ year: 2027, month: 4 }).expect(200);
+      const gen = await t.request.post('/api/assignments/generate').send({ year: testYear, month: 4 }).expect(200);
 
       const helperId = members.find(m => m.name === 'Helper1')!.id;
       const eventDateAssignments = gen.body.assignments.filter(
@@ -437,9 +438,9 @@ describe('Assignment API', () => {
         members.push(res.body);
       }
 
-      const schedules = await seedSchedule(t.request, 2027, 4);
+      const schedules = await seedSchedule(t.request, testYear, 4);
       await t.request.post(`/api/schedules/${schedules[0].id}/toggle-event`).expect(200);
-      const gen = await t.request.post('/api/assignments/generate').send({ year: 2027, month: 4 }).expect(200);
+      const gen = await t.request.post('/api/assignments/generate').send({ year: testYear, month: 4 }).expect(200);
 
       const eventAssignment = gen.body.assignments.find(
         (a: { date: string }) => a.date === schedules[0].date,
@@ -471,7 +472,7 @@ describe('Assignment API', () => {
         const res = await t.request.post('/api/members').send(input).expect(201);
         members.push(res.body);
       }
-      const schedules = await seedSchedule(t.request, 2027, 4);
+      const schedules = await seedSchedule(t.request, testYear, 4);
       return { members, schedules };
     }
 
@@ -484,7 +485,7 @@ describe('Assignment API', () => {
       // Mark first date as split-class
       await t.request.post(`/api/schedules/${schedules[0].id}/toggle-split-class`).expect(200);
 
-      const gen = await t.request.post('/api/assignments/generate').send({ year: 2027, month: 4 }).expect(200);
+      const gen = await t.request.post('/api/assignments/generate').send({ year: testYear, month: 4 }).expect(200);
 
       const classViolations = gen.body.violations.filter(
         (v: { type: string }) => v.type === 'CLASS_LANGUAGE_COVERAGE',
@@ -500,7 +501,7 @@ describe('Assignment API', () => {
 
       await t.request.post(`/api/schedules/${schedules[0].id}/toggle-split-class`).expect(200);
 
-      const gen = await t.request.post('/api/assignments/generate').send({ year: 2027, month: 4 }).expect(200);
+      const gen = await t.request.post('/api/assignments/generate').send({ year: testYear, month: 4 }).expect(200);
 
       const classViolations = gen.body.violations.filter(
         (v: { type: string }) => v.type === 'CLASS_LANGUAGE_COVERAGE',
@@ -515,7 +516,7 @@ describe('Assignment API', () => {
       });
       // No split-class toggle — all days are normal
 
-      const gen = await t.request.post('/api/assignments/generate').send({ year: 2027, month: 4 }).expect(200);
+      const gen = await t.request.post('/api/assignments/generate').send({ year: testYear, month: 4 }).expect(200);
 
       const classViolations = gen.body.violations.filter(
         (v: { type: string }) => v.type === 'CLASS_LANGUAGE_COVERAGE',
@@ -530,7 +531,7 @@ describe('Assignment API', () => {
       });
 
       await t.request.post(`/api/schedules/${schedules[0].id}/toggle-split-class`).expect(200);
-      const gen = await t.request.post('/api/assignments/generate').send({ year: 2027, month: 4 }).expect(200);
+      const gen = await t.request.post('/api/assignments/generate').send({ year: testYear, month: 4 }).expect(200);
 
       // Find an assignment on the split-class date that has a BOTH member
       const splitDateAssignments = gen.body.assignments.filter(

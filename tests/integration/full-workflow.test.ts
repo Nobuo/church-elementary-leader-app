@@ -3,6 +3,7 @@ import { createTestApp, seedStandardMembers, type TestApp } from './helpers/setu
 
 describe('Full Workflow', () => {
   let t: TestApp;
+  const testYear = new Date().getFullYear() + 1;
 
   beforeEach(() => { t = createTestApp(); });
   afterEach(() => { t.db.close(); });
@@ -32,10 +33,10 @@ describe('Full Workflow', () => {
     expect(h.spouseId).toBe(wifeRes.body.id);
     expect(h.memberType).toBe('PARENT_COUPLE');
 
-    // 6.3 Generate April 2027 schedule
+    // 6.3 Generate April schedule
     const schedules = await t.request
       .post('/api/schedules/generate')
-      .send({ year: 2027, month: 4 })
+      .send({ year: testYear, month: 4 })
       .expect(200);
     expect(schedules.body.length).toBeGreaterThanOrEqual(4);
 
@@ -43,7 +44,7 @@ describe('Full Workflow', () => {
     await t.request.post(`/api/schedules/${schedules.body[0].id}/toggle-exclusion`).expect(200);
     await t.request.post(`/api/schedules/${schedules.body[1].id}/toggle-event`).expect(200);
 
-    const updatedSchedules = await t.request.get('/api/schedules?year=2027&month=4').expect(200);
+    const updatedSchedules = await t.request.get(`/api/schedules?year=${testYear}&month=4`).expect(200);
     expect(updatedSchedules.body.find((s: { id: string }) => s.id === schedules.body[0].id).isExcluded).toBe(true);
     expect(updatedSchedules.body.find((s: { id: string }) => s.id === schedules.body[1].id).isEvent).toBe(true);
 
@@ -55,7 +56,7 @@ describe('Full Workflow', () => {
     // 6.5 Generate assignments (excluded days should not have assignments)
     const gen = await t.request
       .post('/api/assignments/generate')
-      .send({ year: 2027, month: 4 })
+      .send({ year: testYear, month: 4 })
       .expect(200);
 
     const activeDates = schedules.body.filter((s: { id: string }) => s.id !== schedules.body[0].id).length;
@@ -89,29 +90,29 @@ describe('Full Workflow', () => {
     }
 
     // 6.10 Assignment counts
-    const counts = await t.request.get('/api/assignments/counts?fiscalYear=2027').expect(200);
+    const counts = await t.request.get(`/api/assignments/counts?fiscalYear=${testYear}`).expect(200);
     expect(counts.body.summary).toHaveProperty('max');
     expect(counts.body.summary).toHaveProperty('min');
     expect(counts.body.summary).toHaveProperty('average');
     expect(counts.body.members.length).toBeGreaterThan(0);
 
     // 6.11 Clear future date assignments
-    const assignments = await t.request.get('/api/assignments?year=2027&month=4').expect(200);
+    const assignments = await t.request.get(`/api/assignments?year=${testYear}&month=4`).expect(200);
     const lastDate = [...new Set(assignments.body.map((a: { date: string }) => a.date))].sort().pop() as string;
     await t.request.delete(`/api/assignments/by-date?date=${lastDate}`).expect(200);
 
-    const afterClear = await t.request.get('/api/assignments?year=2027&month=4').expect(200);
+    const afterClear = await t.request.get(`/api/assignments?year=${testYear}&month=4`).expect(200);
     const remainingDates = afterClear.body.map((a: { date: string }) => a.date);
     expect(remainingDates).not.toContain(lastDate);
     expect(afterClear.body.length).toBeLessThan(assignments.body.length);
 
     // 6.12 CSV export (Japanese)
-    const csv = await t.request.get('/api/assignments/export/csv?year=2027&month=4&lang=ja').expect(200);
+    const csv = await t.request.get(`/api/assignments/export/csv?year=${testYear}&month=4&lang=ja`).expect(200);
     expect(csv.text).toContain('\uFEFF');
     expect(csv.text).toContain('日付');
 
     // 6.13 LINE export (English)
-    const line = await t.request.get('/api/assignments/export/line?year=2027&month=4&lang=en').expect(200);
+    const line = await t.request.get(`/api/assignments/export/line?year=${testYear}&month=4&lang=en`).expect(200);
     expect(line.body.text).toContain('Leader Schedule');
     expect(line.body.text).toContain('If any helper');
 
