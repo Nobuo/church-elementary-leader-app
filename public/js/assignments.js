@@ -89,7 +89,7 @@ function renderAssignments(assignments, scheduleMap = {}) {
             const count = memberCountMap[m.id];
             const countStr = count != null ? `(${count})` : '';
             const otherMembers = g.members.filter((_, i) => i !== idx);
-            const partnerId = otherMembers.length === 1 ? otherMembers[0].id : '';
+            const partnerId = otherMembers.map(om => om.id).join(',');
             const shortLabel = m.gradeGroup === 'UPPER' ? t('upperShort') : t('lowerShort');
             const isCrossover = !isMixed && m.gradeGroup && g.gradeGroup && m.gradeGroup !== g.gradeGroup;
             const crossoverClass = isCrossover ? ' crossover' : '';

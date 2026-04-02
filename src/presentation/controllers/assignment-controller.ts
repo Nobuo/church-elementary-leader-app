@@ -14,9 +14,9 @@ import {
 import { getAssignmentCounts } from '@application/use-cases/get-assignment-counts';
 import { MemberType } from '@domain/value-objects/member-type';
 import {
-  checkLanguageBalance,
-  checkSameGender,
-  checkSpouseSameGroup,
+  checkSameGenderGroup,
+  checkSpouseSameGroupMulti,
+  checkLanguageBalanceGroup,
   checkMonthlyDuplicate,
   checkMinInterval,
 } from '@domain/services/constraint-checker';
@@ -128,7 +128,10 @@ export function createAssignmentController(
     const isSplitClass = schedule?.isSplitClass ?? false;
 
     const activeMembers = memberRepo.findAll(true);
-    const partner = partnerId ? memberRepo.findById(partnerId as MemberId) : null;
+    const partnerIds = partnerId ? partnerId.split(',').filter(Boolean) : [];
+    const partners = partnerIds
+      .map((id) => memberRepo.findById(id as MemberId))
+      .filter((m): m is Member => m !== null);
 
     // Get fiscal year data for count/interval checks
     const fiscalYear = getFiscalYear(new Date(date));
@@ -181,11 +184,12 @@ export function createAssignmentController(
       .map((m) => {
         const warnings: string[] = [];
 
-        // Check pair constraints with partner
-        if (partner) {
-          if (checkLanguageBalance(m, partner)) warnings.push('language');
-          if (checkSameGender(m, partner)) warnings.push('sameGender');
-          if (checkSpouseSameGroup(m, partner)) warnings.push('spouse');
+        // Check group constraints with partners
+        if (partners.length > 0) {
+          const group = [m, ...partners];
+          if (checkLanguageBalanceGroup(group)) warnings.push('language');
+          if (checkSameGenderGroup(group)) warnings.push('sameGender');
+          if (checkSpouseSameGroupMulti(group)) warnings.push('spouse');
         }
 
         // Monthly duplicate

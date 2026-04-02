@@ -10,6 +10,7 @@ import {
   ViolationType,
   Severity,
 } from '@domain/value-objects/constraint-violation';
+import { checkSameGenderGroup } from '@domain/services/constraint-checker';
 
 interface GenerationContext {
   schedules: Schedule[];
@@ -109,20 +110,11 @@ function scorePair(
   }
   // 分級日 Group 2: BOTH優遇なし（ハード制約のみ）
 
-  // HARD: Same-gender constraint
-  if (
-    (member1.sameGenderOnly || member2.sameGenderOnly) &&
-    member1.gender !== member2.gender
-  ) {
+  // HARD: Same-gender constraint (majority rule)
+  const genderViolation = checkSameGenderGroup([member1, member2]);
+  if (genderViolation) {
     score += 100000;
-    violations.push({
-      type: ViolationType.SAME_GENDER,
-      severity: Severity.WARNING,
-      memberIds: [member1.id, member2.id],
-      message: `Same-gender constraint violated for ${member1.name} or ${member2.name}`,
-      messageKey: 'violations.sameGenderViolated',
-      messageParams: { name1: member1.name, name2: member2.name },
-    });
+    violations.push(genderViolation);
   }
 
   // Available-dates priority: members with date restrictions get a bonus
@@ -207,7 +199,12 @@ function scoreTrio(
     score += 100000;
   }
 
-  // Same-gender constraint: NOT applied for 3-member groups
+  // HARD: Same-gender constraint (majority rule)
+  const genderViolation = checkSameGenderGroup(members);
+  if (genderViolation) {
+    score += 100000;
+    violations.push(genderViolation);
+  }
 
   // BOTH conservation: +3 per BOTH member (same as combined-day pair logic)
   for (const m of members) {

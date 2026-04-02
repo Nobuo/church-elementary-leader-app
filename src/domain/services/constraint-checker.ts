@@ -48,22 +48,26 @@ export function checkLanguageBalanceGroup(
   return null;
 }
 
-export function checkSameGender(member1: Member, member2: Member): ConstraintViolation | null {
-  if (
-    (member1.sameGenderOnly || member2.sameGenderOnly) &&
-    member1.gender !== member2.gender
-  ) {
-    const constrained = member1.sameGenderOnly ? member1 : member2;
-    return {
-      type: ViolationType.SAME_GENDER,
-      severity: Severity.WARNING,
-      memberIds: [constrained.id],
-      message: `${constrained.name} requires same-gender pairing`,
-      messageKey: 'violations.sameGender',
-      messageParams: { name: constrained.name },
-    };
+export function checkSameGenderGroup(members: Member[]): ConstraintViolation | null {
+  for (const m of members) {
+    if (!m.sameGenderOnly) continue;
+    const sameGenderCount = members.filter((other) => other.gender === m.gender).length;
+    if (!(sameGenderCount > members.length / 2)) {
+      return {
+        type: ViolationType.SAME_GENDER,
+        severity: Severity.WARNING,
+        memberIds: [m.id],
+        message: `${m.name} requires same-gender pairing`,
+        messageKey: 'violations.sameGender',
+        messageParams: { name: m.name },
+      };
+    }
   }
   return null;
+}
+
+export function checkSameGender(member1: Member, member2: Member): ConstraintViolation | null {
+  return checkSameGenderGroup([member1, member2]);
 }
 
 export function checkMonthlyDuplicate(

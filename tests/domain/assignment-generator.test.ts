@@ -305,8 +305,8 @@ describe('generateAssignments', () => {
       }
     });
 
-    it('does NOT apply same-gender constraint on combined day (3 members)', () => {
-      // sameGenderOnly member should still be placed with mixed genders in 3-member group
+    it('合同日: sameGenderOnly女性が女性多数派グループに配置される', () => {
+      // Female(SGO) + Male + Female = 2F:1M → female is majority → OK
       const members = [
         makeMember('M1-F-SGO', { gradeGroup: GradeGroup.UPPER, language: Language.BOTH, gender: Gender.FEMALE, sameGenderOnly: true }),
         makeMember('M2-M', { gradeGroup: GradeGroup.UPPER, language: Language.JAPANESE, gender: Gender.MALE }),
@@ -320,6 +320,34 @@ describe('generateAssignments', () => {
       const { assignments } = generateAssignments([schedule], members, [], counts);
       expect(assignments.length).toBe(1);
       expect(assignments[0].memberIds.length).toBe(3);
+    });
+
+    it('合同日: sameGenderOnly女性が男性多数派グループに配置されない', () => {
+      // 4 members: Female(SGO), Male, Male, Female(BOTH)
+      // Best trio should avoid putting Female(SGO) with 2 Males
+      const members = [
+        makeMember('F-SGO', { gradeGroup: GradeGroup.UPPER, language: Language.BOTH, gender: Gender.FEMALE, sameGenderOnly: true }),
+        makeMember('M1', { gradeGroup: GradeGroup.UPPER, language: Language.JAPANESE, gender: Gender.MALE }),
+        makeMember('M2', { gradeGroup: GradeGroup.LOWER, language: Language.ENGLISH, gender: Gender.MALE }),
+        makeMember('F2', { gradeGroup: GradeGroup.LOWER, language: Language.BOTH, gender: Gender.FEMALE }),
+      ];
+
+      const schedule = makeSchedule('2026-04-05');
+      const counts = new Map<MemberId, number>();
+      members.forEach((m) => counts.set(m.id, 0));
+
+      const { assignments } = generateAssignments([schedule], members, [], counts);
+      expect(assignments.length).toBe(1);
+
+      const fSgo = members.find((m) => m.name === 'F-SGO')!;
+      const assigned = assignments[0].memberIds;
+      if (assigned.includes(fSgo.id)) {
+        // If F-SGO is assigned, she must be with at least one other female (majority)
+        const femaleCount = assigned.filter((id) =>
+          members.find((m) => m.id === id)?.gender === Gender.FEMALE,
+        ).length;
+        expect(femaleCount).toBeGreaterThan(assigned.length / 2);
+      }
     });
 
     it('avoids spouses in the same combined group', () => {

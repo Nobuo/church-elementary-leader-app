@@ -8,6 +8,7 @@ import { createMemberId } from '@shared/types';
 import {
   checkLanguageBalance,
   checkSameGender,
+  checkSameGenderGroup,
   checkSpouseSameGroup,
   checkExcessiveCount,
 } from '@domain/services/constraint-checker';
@@ -81,6 +82,93 @@ describe('constraint-checker', () => {
       const m1 = makeMember({ gender: Gender.FEMALE, sameGenderOnly: true });
       const m2 = makeMember({ gender: Gender.MALE, sameGenderOnly: false });
       expect(checkSameGender(m1, m2)).not.toBeNull();
+    });
+  });
+
+  describe('checkSameGenderGroup (majority rule)', () => {
+    it('2人: 異性ペアでsameGenderOnly → 違反', () => {
+      const f = makeMember({ gender: Gender.FEMALE, sameGenderOnly: true });
+      const m = makeMember({ gender: Gender.MALE });
+      expect(checkSameGenderGroup([f, m])).not.toBeNull();
+    });
+
+    it('2人: 同性ペアでsameGenderOnly → OK', () => {
+      const f1 = makeMember({ gender: Gender.FEMALE, sameGenderOnly: true });
+      const f2 = makeMember({ gender: Gender.FEMALE });
+      expect(checkSameGenderGroup([f1, f2])).toBeNull();
+    });
+
+    it('3人: 女2+男1でsameGenderOnly女性 → OK（過半数）', () => {
+      const f1 = makeMember({ gender: Gender.FEMALE, sameGenderOnly: true });
+      const f2 = makeMember({ gender: Gender.FEMALE });
+      const m = makeMember({ gender: Gender.MALE });
+      expect(checkSameGenderGroup([f1, f2, m])).toBeNull();
+    });
+
+    it('3人: 女1+男2でsameGenderOnly女性 → 違反（少数派）', () => {
+      const f = makeMember({ gender: Gender.FEMALE, sameGenderOnly: true });
+      const m1 = makeMember({ gender: Gender.MALE });
+      const m2 = makeMember({ gender: Gender.MALE });
+      expect(checkSameGenderGroup([f, m1, m2])).not.toBeNull();
+    });
+
+    it('3人: 男1+女2でsameGenderOnly男性 → 違反（少数派）', () => {
+      const m = makeMember({ gender: Gender.MALE, sameGenderOnly: true });
+      const f1 = makeMember({ gender: Gender.FEMALE });
+      const f2 = makeMember({ gender: Gender.FEMALE });
+      expect(checkSameGenderGroup([m, f1, f2])).not.toBeNull();
+    });
+
+    it('3人: 男2+女1でsameGenderOnly男性 → OK（過半数）', () => {
+      const m1 = makeMember({ gender: Gender.MALE, sameGenderOnly: true });
+      const m2 = makeMember({ gender: Gender.MALE });
+      const f = makeMember({ gender: Gender.FEMALE });
+      expect(checkSameGenderGroup([m1, m2, f])).toBeNull();
+    });
+
+    it('3人: 全員同性でsameGenderOnly → OK', () => {
+      const f1 = makeMember({ gender: Gender.FEMALE, sameGenderOnly: true });
+      const f2 = makeMember({ gender: Gender.FEMALE });
+      const f3 = makeMember({ gender: Gender.FEMALE });
+      expect(checkSameGenderGroup([f1, f2, f3])).toBeNull();
+    });
+
+    it('4人: 女2+男2でsameGenderOnly女性 → 違反（同数=過半数でない）', () => {
+      const f1 = makeMember({ gender: Gender.FEMALE, sameGenderOnly: true });
+      const f2 = makeMember({ gender: Gender.FEMALE });
+      const m1 = makeMember({ gender: Gender.MALE });
+      const m2 = makeMember({ gender: Gender.MALE });
+      expect(checkSameGenderGroup([f1, f2, m1, m2])).not.toBeNull();
+    });
+
+    it('4人: 女3+男1でsameGenderOnly女性 → OK（過半数）', () => {
+      const f1 = makeMember({ gender: Gender.FEMALE, sameGenderOnly: true });
+      const f2 = makeMember({ gender: Gender.FEMALE });
+      const f3 = makeMember({ gender: Gender.FEMALE });
+      const m = makeMember({ gender: Gender.MALE });
+      expect(checkSameGenderGroup([f1, f2, f3, m])).toBeNull();
+    });
+
+    it('sameGenderOnly=falseのみ → 常にOK', () => {
+      const m = makeMember({ gender: Gender.MALE });
+      const f = makeMember({ gender: Gender.FEMALE });
+      expect(checkSameGenderGroup([m, f])).toBeNull();
+      expect(checkSameGenderGroup([m, f, f])).toBeNull();
+    });
+
+    it('複数sameGenderOnly（同性）→ OK', () => {
+      const f1 = makeMember({ gender: Gender.FEMALE, sameGenderOnly: true });
+      const f2 = makeMember({ gender: Gender.FEMALE, sameGenderOnly: true });
+      const m = makeMember({ gender: Gender.MALE });
+      expect(checkSameGenderGroup([f1, f2, m])).toBeNull();
+    });
+
+    it('複数sameGenderOnly（異性、3人）→ 少なくとも1人が違反', () => {
+      const f = makeMember({ gender: Gender.FEMALE, sameGenderOnly: true });
+      const m1 = makeMember({ gender: Gender.MALE, sameGenderOnly: true });
+      const m2 = makeMember({ gender: Gender.MALE });
+      const result = checkSameGenderGroup([f, m1, m2]);
+      expect(result).not.toBeNull();
     });
   });
 
