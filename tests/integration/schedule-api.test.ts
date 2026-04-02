@@ -151,4 +151,83 @@ describe('Schedule API', () => {
       await t.request.post('/api/schedules/non-existent/toggle-split-class').expect(400);
     });
   });
+
+  describe('PUT /api/schedules/:id/event-name', () => {
+    it('saves both eventNameJa and eventNameEn', async () => {
+      const schedules = await t.request.post('/api/schedules/generate').send({ year: testYear, month: 4 }).expect(200);
+      const id = schedules.body[0].id;
+
+      const res = await t.request
+        .put(`/api/schedules/${id}/event-name`)
+        .send({ eventNameJa: 'クリスマス会', eventNameEn: 'Christmas Party' })
+        .expect(200);
+      expect(res.body.eventNameJa).toBe('クリスマス会');
+      expect(res.body.eventNameEn).toBe('Christmas Party');
+    });
+
+    it('saves only one language, other is null', async () => {
+      const schedules = await t.request.post('/api/schedules/generate').send({ year: testYear, month: 4 }).expect(200);
+      const id = schedules.body[0].id;
+
+      const res = await t.request
+        .put(`/api/schedules/${id}/event-name`)
+        .send({ eventNameJa: 'テスト' })
+        .expect(200);
+      expect(res.body.eventNameJa).toBe('テスト');
+      expect(res.body.eventNameEn).toBeNull();
+    });
+
+    it('converts empty string to null', async () => {
+      const schedules = await t.request.post('/api/schedules/generate').send({ year: testYear, month: 4 }).expect(200);
+      const id = schedules.body[0].id;
+
+      const res = await t.request
+        .put(`/api/schedules/${id}/event-name`)
+        .send({ eventNameJa: '', eventNameEn: '  ' })
+        .expect(200);
+      expect(res.body.eventNameJa).toBeNull();
+      expect(res.body.eventNameEn).toBeNull();
+    });
+
+    it('eventName appears in GET response', async () => {
+      const schedules = await t.request.post('/api/schedules/generate').send({ year: testYear, month: 4 }).expect(200);
+      const id = schedules.body[0].id;
+      await t.request
+        .put(`/api/schedules/${id}/event-name`)
+        .send({ eventNameJa: 'テスト', eventNameEn: 'Test' })
+        .expect(200);
+
+      const res = await t.request.get(`/api/schedules?year=${testYear}&month=4`).expect(200);
+      const updated = res.body.find((s: { id: string }) => s.id === id);
+      expect(updated.eventNameJa).toBe('テスト');
+      expect(updated.eventNameEn).toBe('Test');
+    });
+
+    it('returns 400 for non-existent ID', async () => {
+      await t.request
+        .put('/api/schedules/non-existent/event-name')
+        .send({ eventNameJa: 'テスト' })
+        .expect(400);
+    });
+
+    it('returns 400 when eventNameJa exceeds 100 characters', async () => {
+      const schedules = await t.request.post('/api/schedules/generate').send({ year: testYear, month: 4 }).expect(200);
+      const id = schedules.body[0].id;
+
+      await t.request
+        .put(`/api/schedules/${id}/event-name`)
+        .send({ eventNameJa: 'あ'.repeat(101) })
+        .expect(400);
+    });
+
+    it('returns 400 when eventNameEn exceeds 100 characters', async () => {
+      const schedules = await t.request.post('/api/schedules/generate').send({ year: testYear, month: 4 }).expect(200);
+      const id = schedules.body[0].id;
+
+      await t.request
+        .put(`/api/schedules/${id}/event-name`)
+        .send({ eventNameEn: 'a'.repeat(101) })
+        .expect(400);
+    });
+  });
 });

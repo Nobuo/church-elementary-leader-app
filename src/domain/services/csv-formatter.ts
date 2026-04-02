@@ -42,9 +42,16 @@ export function formatCsv(
     const schedule = scheduleMap.get(assignment.scheduleId);
     const date = schedule?.date ?? '';
 
+    let eventValue = 'FALSE';
+    if (schedule?.isEvent) {
+      const primaryName = lang === 'ja' ? schedule.eventNameJa : schedule.eventNameEn;
+      const fallbackName = lang === 'ja' ? schedule.eventNameEn : schedule.eventNameJa;
+      eventValue = primaryName ?? fallbackName ?? 'TRUE';
+    }
+
     const fields: string[] = [
       escapeCsvField(date),
-      schedule?.isEvent ? 'TRUE' : 'FALSE',
+      escapeCsvField(eventValue),
       schedule?.isSplitClass ? 'TRUE' : 'FALSE',
       String(assignment.groupNumber),
     ];

@@ -31,6 +31,12 @@ function renderSchedules(schedules) {
           <option value="senior_discussion" ${s.splitType === 'senior_discussion' ? 'selected' : ''}>${t('splitTypeSeniorDiscussion')}</option>
         </select>`
       : '';
+    const eventNameInputs = s.isEvent && !s.isExcluded
+      ? `<div class="event-name-inputs" data-schedule-id="${escapeHtml(s.id)}">
+          <input type="text" class="event-name-input" data-field="ja" data-original="${escapeHtml(s.eventNameJa || '')}" placeholder="${t('eventNamePlaceholderJa')}" value="${escapeHtml(s.eventNameJa || '')}" maxlength="100">
+          <input type="text" class="event-name-input" data-field="en" data-original="${escapeHtml(s.eventNameEn || '')}" placeholder="${t('eventNamePlaceholderEn')}" value="${escapeHtml(s.eventNameEn || '')}" maxlength="100">
+        </div>`
+      : '';
     return `<div class="schedule-card ${s.isExcluded ? 'excluded' : ''} ${s.isEvent ? 'event-day' : ''} ${s.isEbt ? 'ebt-day' : ''} ${s.isSplitClass ? 'split-class' : ''}">
       <div class="date">${label}</div>
       <div>${tags}</div>
@@ -49,6 +55,7 @@ function renderSchedules(schedules) {
         </button>
         ${splitTypeSelect}
       </div>
+      ${eventNameInputs}
     </div>`;
   }).join('');
 }
@@ -69,6 +76,20 @@ document.getElementById('schedule-list')?.addEventListener('change', (e) => {
   const select = e.target.closest('select[data-action="set-split-type"]');
   if (!select) return;
   setSplitType(select.dataset.id, select.value);
+});
+
+document.getElementById('schedule-list')?.addEventListener('focusout', (e) => {
+  const input = e.target.closest('.event-name-input');
+  if (!input) return;
+  const container = input.closest('.event-name-inputs');
+  if (container) saveEventName(container.dataset.scheduleId, container);
+});
+
+document.getElementById('schedule-list')?.addEventListener('keydown', (e) => {
+  if (e.key !== 'Enter') return;
+  const input = e.target.closest('.event-name-input');
+  if (!input) return;
+  input.blur();
 });
 
 async function generateSchedules() {
@@ -114,6 +135,22 @@ async function toggleScheduleSplitClass(id) {
   try {
     await API.post(`/api/schedules/${id}/toggle-split-class`);
     loadSchedules();
+  } catch (e) {
+    alert(e.message);
+  }
+}
+
+async function saveEventName(id, container) {
+  const jaInput = container.querySelector('[data-field="ja"]');
+  const enInput = container.querySelector('[data-field="en"]');
+  if (jaInput.value === jaInput.dataset.original && enInput.value === enInput.dataset.original) return;
+  try {
+    await API.put(`/api/schedules/${id}/event-name`, {
+      eventNameJa: jaInput.value,
+      eventNameEn: enInput.value,
+    });
+    jaInput.dataset.original = jaInput.value;
+    enInput.dataset.original = enInput.value;
   } catch (e) {
     alert(e.message);
   }

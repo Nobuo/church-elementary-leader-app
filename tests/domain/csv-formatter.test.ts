@@ -30,7 +30,7 @@ function makeMember(
 
 function makeSchedule(
   date: string,
-  opts: { isEvent?: boolean; isSplitClass?: boolean } = {},
+  opts: { isEvent?: boolean; isSplitClass?: boolean; eventNameJa?: string | null; eventNameEn?: string | null } = {},
 ): Schedule {
   return Schedule.reconstruct({
     id: createScheduleId(),
@@ -40,6 +40,8 @@ function makeSchedule(
     isEbt: false,
     isSplitClass: opts.isSplitClass ?? false,
     splitType: null,
+    eventNameJa: opts.eventNameJa ?? null,
+    eventNameEn: opts.eventNameEn ?? null,
     year: 2025,
   });
 }
@@ -56,7 +58,7 @@ describe('formatCsv', () => {
     expect(csv).toContain('Date,Event Day,Split Class,Group,Member 1,Member 1 Language,Member 2,Member 2 Language,Member 3,Member 3 Language');
   });
 
-  it('outputs TRUE for event day', () => {
+  it('outputs TRUE for event day with no name', () => {
     const m1 = makeMember('Alice');
     const m2 = makeMember('Bob');
     const schedule = makeSchedule('2026-03-01', { isEvent: true });
@@ -66,6 +68,30 @@ describe('formatCsv', () => {
     const csv = formatCsv([assignment], [schedule], members, 'en');
     const dataLine = csv.split('\n')[1];
     expect(dataLine).toContain('TRUE,FALSE'); // isEvent=TRUE, isSplitClass=FALSE
+  });
+
+  it('outputs event name in ja for event day', () => {
+    const m1 = makeMember('Alice');
+    const m2 = makeMember('Bob');
+    const schedule = makeSchedule('2026-03-01', { isEvent: true, eventNameJa: 'クリスマス会' });
+    const assignment = Assignment.create(schedule.id, 1, [m1.id, m2.id]);
+    const members = new Map<MemberId, Member>([[m1.id, m1], [m2.id, m2]]);
+
+    const csv = formatCsv([assignment], [schedule], members, 'ja');
+    const dataLine = csv.split('\n')[1];
+    expect(dataLine).toContain('クリスマス会');
+  });
+
+  it('outputs event name in en for event day', () => {
+    const m1 = makeMember('Alice');
+    const m2 = makeMember('Bob');
+    const schedule = makeSchedule('2026-03-01', { isEvent: true, eventNameEn: 'Christmas' });
+    const assignment = Assignment.create(schedule.id, 1, [m1.id, m2.id]);
+    const members = new Map<MemberId, Member>([[m1.id, m1], [m2.id, m2]]);
+
+    const csv = formatCsv([assignment], [schedule], members, 'en');
+    const dataLine = csv.split('\n')[1];
+    expect(dataLine).toContain('Christmas');
   });
 
   it('outputs TRUE for split-class day', () => {

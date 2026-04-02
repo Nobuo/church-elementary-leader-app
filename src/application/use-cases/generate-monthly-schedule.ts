@@ -11,11 +11,13 @@ export interface ScheduleDto {
   isEbt: boolean;
   isSplitClass: boolean;
   splitType: SplitType | null;
+  eventNameJa: string | null;
+  eventNameEn: string | null;
   year: number;
 }
 
 function toScheduleDto(s: Schedule): ScheduleDto {
-  return { id: s.id, date: s.date, isExcluded: s.isExcluded, isEvent: s.isEvent, isEbt: s.isEbt, isSplitClass: s.isSplitClass, splitType: s.splitType, year: s.year };
+  return { id: s.id, date: s.date, isExcluded: s.isExcluded, isEvent: s.isEvent, isEbt: s.isEbt, isSplitClass: s.isSplitClass, splitType: s.splitType, eventNameJa: s.eventNameJa, eventNameEn: s.eventNameEn, year: s.year };
 }
 
 export function generateMonthlySchedule(
@@ -101,6 +103,28 @@ export function updateSplitType(
   if (!schedule.isSplitClass) return { ok: false, error: 'Schedule is not a split class day' };
 
   const updated = schedule.setSplitType(splitType);
+  scheduleRepo.save(updated);
+  return ok(toScheduleDto(updated));
+}
+
+export function setEventName(
+  scheduleId: string,
+  eventNameJa: string | null,
+  eventNameEn: string | null,
+  scheduleRepo: ScheduleRepository,
+): Result<ScheduleDto> {
+  const schedule = scheduleRepo.findById(asScheduleId(scheduleId));
+  if (!schedule) return { ok: false, error: 'Schedule not found' };
+
+  const MAX_LENGTH = 100;
+  if (eventNameJa && eventNameJa.length > MAX_LENGTH) {
+    return { ok: false, error: 'eventNameJa must be 100 characters or less' };
+  }
+  if (eventNameEn && eventNameEn.length > MAX_LENGTH) {
+    return { ok: false, error: 'eventNameEn must be 100 characters or less' };
+  }
+
+  const updated = schedule.setEventName(eventNameJa, eventNameEn);
   scheduleRepo.save(updated);
   return ok(toScheduleDto(updated));
 }

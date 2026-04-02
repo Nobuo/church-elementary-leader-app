@@ -70,14 +70,23 @@ export function formatLineMessage(
     const dayOfMonth = d.getDate();
     const dayName = dayNames[lang][d.getDay()];
 
+    // Event tag
+    let eventTag = '';
+    if (schedule.isEvent) {
+      const primaryName = lang === 'ja' ? schedule.eventNameJa : schedule.eventNameEn;
+      const fallbackName = lang === 'ja' ? schedule.eventNameEn : schedule.eventNameJa;
+      const defaultLabel = lang === 'ja' ? 'イベント日' : 'Event Day';
+      eventTag = ` 🎉 ${primaryName ?? fallbackName ?? defaultLabel}`;
+    }
+
     // Split class tag
     const splitType = schedule.effectiveSplitType;
-    const tagStr = schedule.isSplitClass ? ` ${splitTagLabels[lang][splitType]}` : '';
+    const splitTag = schedule.isSplitClass ? ` ${splitTagLabels[lang][splitType]}` : '';
 
     const dateLabel =
       lang === 'ja'
-        ? `${month}/${dayOfMonth}（${dayName}）${tagStr}`
-        : `${month}/${dayOfMonth} (${dayName})${tagStr}`;
+        ? `${month}/${dayOfMonth}（${dayName}）${eventTag}${splitTag}`
+        : `${month}/${dayOfMonth} (${dayName})${eventTag}${splitTag}`;
 
     lines.push(dateLabel);
 

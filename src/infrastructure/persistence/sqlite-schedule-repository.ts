@@ -11,6 +11,8 @@ interface ScheduleRow {
   is_ebt: number;
   is_split_class: number;
   split_type: string | null;
+  event_name_ja: string | null;
+  event_name_en: string | null;
   year: number;
 }
 
@@ -23,6 +25,8 @@ function rowToSchedule(row: ScheduleRow): Schedule {
     isEbt: row.is_ebt === 1,
     isSplitClass: row.is_split_class === 1,
     splitType: (row.split_type as 'standard' | 'senior_discussion') ?? null,
+    eventNameJa: row.event_name_ja,
+    eventNameEn: row.event_name_en,
     year: row.year,
   });
 }
@@ -33,10 +37,10 @@ export class SqliteScheduleRepository implements ScheduleRepository {
   save(schedule: Schedule): void {
     this.db
       .prepare(
-        `INSERT OR REPLACE INTO schedules (id, date, is_excluded, is_event, is_ebt, is_split_class, split_type, year)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+        `INSERT OR REPLACE INTO schedules (id, date, is_excluded, is_event, is_ebt, is_split_class, split_type, event_name_ja, event_name_en, year)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       )
-      .run(schedule.id, schedule.date, schedule.isExcluded ? 1 : 0, schedule.isEvent ? 1 : 0, schedule.isEbt ? 1 : 0, schedule.isSplitClass ? 1 : 0, schedule.splitType, schedule.year);
+      .run(schedule.id, schedule.date, schedule.isExcluded ? 1 : 0, schedule.isEvent ? 1 : 0, schedule.isEbt ? 1 : 0, schedule.isSplitClass ? 1 : 0, schedule.splitType, schedule.eventNameJa, schedule.eventNameEn, schedule.year);
   }
 
   findById(id: ScheduleId): Schedule | null {

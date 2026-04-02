@@ -139,6 +139,21 @@ describe('Migration up/down roundtrip', () => {
     expect(getColumnNames(db, 'schedules')).toContain('is_ebt');
   });
 
+  it('010: event_name_ja/en カラムを追加・除去・再追加できる', () => {
+    db = createTestDb();
+    runMigrations(db);
+    expect(getColumnNames(db, 'schedules')).toContain('event_name_ja');
+    expect(getColumnNames(db, 'schedules')).toContain('event_name_en');
+
+    rollbackMigrations(db, 9);
+    expect(getColumnNames(db, 'schedules')).not.toContain('event_name_ja');
+    expect(getColumnNames(db, 'schedules')).not.toContain('event_name_en');
+
+    runMigrations(db);
+    expect(getColumnNames(db, 'schedules')).toContain('event_name_ja');
+    expect(getColumnNames(db, 'schedules')).toContain('event_name_en');
+  });
+
   it('004/005: データが入っている状態でもロールバック・復元できる', () => {
     db = createTestDb();
     runMigrations(db);
@@ -183,7 +198,7 @@ describe('rollbackMigrations', () => {
   it('指定バージョンまでロールバックする', () => {
     db = createTestDb();
     runMigrations(db);
-    expect(getAppliedVersions(db)).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9]);
+    expect(getAppliedVersions(db)).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
 
     rollbackMigrations(db, 3);
     expect(getAppliedVersions(db)).toEqual([1, 2, 3]);
@@ -209,7 +224,7 @@ describe('rollbackMigrations', () => {
     expect(getAppliedVersions(db)).toEqual([]);
 
     runMigrations(db);
-    expect(getAppliedVersions(db)).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9]);
+    expect(getAppliedVersions(db)).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
     expect(getTableNames(db)).toContain('members');
     expect(getTableNames(db)).toContain('schedules');
     expect(getTableNames(db)).toContain('assignments');
@@ -219,11 +234,11 @@ describe('rollbackMigrations', () => {
     db = createTestDb();
     runMigrations(db);
 
-    rollbackMigrations(db, 9);
-    expect(getAppliedVersions(db)).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9]);
-
     rollbackMigrations(db, 10);
-    expect(getAppliedVersions(db)).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9]);
+    expect(getAppliedVersions(db)).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
+
+    rollbackMigrations(db, 11);
+    expect(getAppliedVersions(db)).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
   });
 });
 
@@ -251,7 +266,7 @@ describe('handleMigrateTarget', () => {
     delete process.env.DB_MIGRATE_TARGET;
 
     handleMigrateTarget(db);
-    expect(getAppliedVersions(db)).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9]);
+    expect(getAppliedVersions(db)).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
   });
 
   it('無効な値でエラーをthrow', () => {

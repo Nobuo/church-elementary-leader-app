@@ -114,6 +114,8 @@ const I18N = {
     'violations.tooFew': '少なすぎ',
     upperShort: '高',
     lowerShort: '低',
+    eventNamePlaceholderJa: 'イベント名(日)',
+    eventNamePlaceholderEn: 'Event Name(EN)',
   },
   en: {
     appTitle: 'Leader Management',
@@ -230,6 +232,8 @@ const I18N = {
     'violations.tooFew': 'too few',
     upperShort: 'U',
     lowerShort: 'L',
+    eventNamePlaceholderJa: 'Event Name (JA)',
+    eventNamePlaceholderEn: 'Event Name (EN)',
   },
 };
 

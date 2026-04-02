@@ -59,7 +59,15 @@ function renderAssignments(assignments, scheduleMap = {}) {
     const isEvent = scheduleMap[date]?.isEvent ?? false;
     const isEbt = scheduleMap[date]?.isEbt ?? false;
     const isSplitClass = scheduleMap[date]?.isSplitClass ?? false;
-    const eventTag = isEvent ? ` <span class="event-tag">${t('eventDay')}</span>` : '';
+    const schedule = scheduleMap[date];
+    let eventLabel = t('eventDay');
+    if (isEvent && schedule) {
+      const primaryName = currentLang === 'ja' ? schedule.eventNameJa : schedule.eventNameEn;
+      const fallbackName = currentLang === 'ja' ? schedule.eventNameEn : schedule.eventNameJa;
+      if (primaryName) eventLabel = primaryName;
+      else if (fallbackName) eventLabel = fallbackName;
+    }
+    const eventTag = isEvent ? ` <span class="event-tag">${escapeHtml(eventLabel)}</span>` : '';
     const ebtTag = isEbt ? ` <span class="ebt-tag">${t('ebtDay')}</span>` : '';
     const splitTag = isSplitClass ? ` <span class="split-tag">${t('splitClassDay')}</span>` : '';
     const dateLabel = `${d.getMonth()+1}/${d.getDate()} (${dayNames[d.getDay()]})${eventTag}${ebtTag}${splitTag}`;

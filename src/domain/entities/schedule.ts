@@ -12,6 +12,8 @@ export interface ScheduleProps {
   readonly isEbt: boolean;
   readonly isSplitClass: boolean;
   readonly splitType: SplitType | null;
+  readonly eventNameJa: string | null;
+  readonly eventNameEn: string | null;
   readonly year: number; // fiscal year
 }
 
@@ -23,6 +25,8 @@ export class Schedule {
   readonly isEbt: boolean;
   readonly isSplitClass: boolean;
   readonly splitType: SplitType | null;
+  readonly eventNameJa: string | null;
+  readonly eventNameEn: string | null;
   readonly year: number;
 
   private constructor(props: ScheduleProps) {
@@ -33,6 +37,8 @@ export class Schedule {
     this.isEbt = props.isEbt;
     this.isSplitClass = props.isSplitClass;
     this.splitType = props.splitType;
+    this.eventNameJa = props.eventNameJa;
+    this.eventNameEn = props.eventNameEn;
     this.year = props.year;
   }
 
@@ -55,6 +61,8 @@ export class Schedule {
         isEbt: false,
         isSplitClass: false,
         splitType: null,
+        eventNameJa: null,
+        eventNameEn: null,
         year: getFiscalYear(d),
       }),
     );
@@ -89,6 +97,14 @@ export class Schedule {
     return new Schedule({
       ...this,
       isEbt: !this.isEbt,
+    });
+  }
+
+  setEventName(nameJa: string | null, nameEn: string | null): Schedule {
+    return new Schedule({
+      ...this,
+      eventNameJa: nameJa,
+      eventNameEn: nameEn,
     });
   }
 

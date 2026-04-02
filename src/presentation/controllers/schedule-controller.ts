@@ -7,6 +7,7 @@ import {
   toggleEbt,
   toggleSplitClass,
   updateSplitType,
+  setEventName,
   listSchedules,
 } from '@application/use-cases/generate-monthly-schedule';
 import { isValidYear, isValidMonth } from '@shared/validators';
@@ -71,6 +72,20 @@ export function createScheduleController(scheduleRepo: ScheduleRepository): Rout
 
   router.post('/:id/toggle-split-class', (req: Request, res: Response) => {
     const result = toggleSplitClass(String(req.params.id), scheduleRepo);
+    if (!result.ok) {
+      res.status(400).json({ error: result.error });
+      return;
+    }
+    res.json(result.value);
+  });
+
+  router.put('/:id/event-name', (req: Request, res: Response) => {
+    const nameJa = req.body.eventNameJa;
+    const nameEn = req.body.eventNameEn;
+    const normalizedJa = typeof nameJa === 'string' && nameJa.trim() !== '' ? nameJa.trim() : null;
+    const normalizedEn = typeof nameEn === 'string' && nameEn.trim() !== '' ? nameEn.trim() : null;
+
+    const result = setEventName(String(req.params.id), normalizedJa, normalizedEn, scheduleRepo);
     if (!result.ok) {
       res.status(400).json({ error: result.error });
       return;

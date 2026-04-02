@@ -43,6 +43,8 @@ describe('Schedule', () => {
       isEbt: false,
       isSplitClass: false,
       splitType: null,
+      eventNameJa: null,
+      eventNameEn: null,
       year: original.value.year,
     });
     expect(reconstructed.isEvent).toBe(true);
@@ -106,9 +108,73 @@ describe('Schedule', () => {
       isEbt: true,
       isSplitClass: false,
       splitType: null,
+      eventNameJa: null,
+      eventNameEn: null,
       year: original.value.year,
     });
     expect(reconstructed.isEbt).toBe(true);
+  });
+
+  it('creates with eventNameJa and eventNameEn defaulting to null', () => {
+    const result = Schedule.create('2026-04-05');
+    if (!result.ok) throw new Error('should succeed');
+    expect(result.value.eventNameJa).toBeNull();
+    expect(result.value.eventNameEn).toBeNull();
+  });
+
+  it('setEventName sets both names', () => {
+    const result = Schedule.create('2026-04-05');
+    if (!result.ok) throw new Error('should succeed');
+    const updated = result.value.setEventName('クリスマス会', 'Christmas Party');
+    expect(updated.eventNameJa).toBe('クリスマス会');
+    expect(updated.eventNameEn).toBe('Christmas Party');
+    expect(updated).not.toBe(result.value);
+  });
+
+  it('setEventName sets only Japanese name', () => {
+    const result = Schedule.create('2026-04-05');
+    if (!result.ok) throw new Error('should succeed');
+    const updated = result.value.setEventName('クリスマス会', null);
+    expect(updated.eventNameJa).toBe('クリスマス会');
+    expect(updated.eventNameEn).toBeNull();
+  });
+
+  it('setEventName clears both names with null', () => {
+    const result = Schedule.create('2026-04-05');
+    if (!result.ok) throw new Error('should succeed');
+    const withName = result.value.setEventName('名前', 'Name');
+    const cleared = withName.setEventName(null, null);
+    expect(cleared.eventNameJa).toBeNull();
+    expect(cleared.eventNameEn).toBeNull();
+  });
+
+  it('toggleEvent preserves eventName', () => {
+    const result = Schedule.create('2026-04-05');
+    if (!result.ok) throw new Error('should succeed');
+    const withName = result.value.toggleEvent().setEventName('テスト', 'Test');
+    const toggledOff = withName.toggleEvent();
+    expect(toggledOff.isEvent).toBe(false);
+    expect(toggledOff.eventNameJa).toBe('テスト');
+    expect(toggledOff.eventNameEn).toBe('Test');
+  });
+
+  it('reconstructs with eventName', () => {
+    const original = Schedule.create('2026-04-05');
+    if (!original.ok) throw new Error('should succeed');
+    const reconstructed = Schedule.reconstruct({
+      id: original.value.id,
+      date: original.value.date,
+      isExcluded: false,
+      isEvent: true,
+      isEbt: false,
+      isSplitClass: false,
+      splitType: null,
+      eventNameJa: 'クリスマス会',
+      eventNameEn: 'Christmas Party',
+      year: original.value.year,
+    });
+    expect(reconstructed.eventNameJa).toBe('クリスマス会');
+    expect(reconstructed.eventNameEn).toBe('Christmas Party');
   });
 });
 

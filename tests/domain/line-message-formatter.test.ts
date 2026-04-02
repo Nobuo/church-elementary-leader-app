@@ -30,7 +30,7 @@ function makeMember(
 
 function makeSchedule(
   date: string,
-  opts: { isEvent?: boolean; isSplitClass?: boolean; splitType?: SplitType | null } = {},
+  opts: { isEvent?: boolean; isSplitClass?: boolean; splitType?: SplitType | null; eventNameJa?: string | null; eventNameEn?: string | null } = {},
 ): Schedule {
   return Schedule.reconstruct({
     id: createScheduleId(),
@@ -40,6 +40,8 @@ function makeSchedule(
     isEbt: false,
     isSplitClass: opts.isSplitClass ?? false,
     splitType: opts.splitType ?? null,
+    eventNameJa: opts.eventNameJa ?? null,
+    eventNameEn: opts.eventNameEn ?? null,
     year: 2025,
   });
 }
@@ -80,38 +82,88 @@ describe('formatLineMessage', () => {
       expect(result).not.toContain('Group');
     });
 
-    it('does not show event tag even on event days (ja)', () => {
+    it('shows event name in ja when eventNameJa is set', () => {
       const m1 = makeMember('Alice');
       const m2 = makeMember('Bob');
-      const m3 = makeMember('Charlie');
-      const schedule = makeSchedule('2026-03-01', { isEvent: true });
-      const assignment = Assignment.create(schedule.id, 1, [m1.id, m2.id, m3.id]);
+      const schedule = makeSchedule('2026-03-01', { isEvent: true, eventNameJa: 'クリスマス会' });
+      const assignment = Assignment.create(schedule.id, 1, [m1.id, m2.id]);
 
       const members = new Map<MemberId, Member>();
       members.set(m1.id, m1);
       members.set(m2.id, m2);
-      members.set(m3.id, m3);
 
       const result = formatLineMessage([assignment], [schedule], members, 2026, 3, 'ja');
-      expect(result).not.toContain('🎉');
-      expect(result).not.toContain('イベント');
+      expect(result).toContain('🎉 クリスマス会');
     });
 
-    it('does not show event tag even on event days (en)', () => {
+    it('shows event name in en when eventNameEn is set', () => {
       const m1 = makeMember('Alice');
       const m2 = makeMember('Bob');
-      const m3 = makeMember('Charlie');
-      const schedule = makeSchedule('2026-03-01', { isEvent: true });
-      const assignment = Assignment.create(schedule.id, 1, [m1.id, m2.id, m3.id]);
+      const schedule = makeSchedule('2026-03-01', { isEvent: true, eventNameEn: 'Christmas' });
+      const assignment = Assignment.create(schedule.id, 1, [m1.id, m2.id]);
 
       const members = new Map<MemberId, Member>();
       members.set(m1.id, m1);
       members.set(m2.id, m2);
-      members.set(m3.id, m3);
 
       const result = formatLineMessage([assignment], [schedule], members, 2026, 3, 'en');
-      expect(result).not.toContain('🎉');
-      expect(result).not.toContain('Event');
+      expect(result).toContain('🎉 Christmas');
+    });
+
+    it('falls back to other language name (ja -> en)', () => {
+      const m1 = makeMember('Alice');
+      const m2 = makeMember('Bob');
+      const schedule = makeSchedule('2026-03-01', { isEvent: true, eventNameEn: 'Christmas' });
+      const assignment = Assignment.create(schedule.id, 1, [m1.id, m2.id]);
+
+      const members = new Map<MemberId, Member>();
+      members.set(m1.id, m1);
+      members.set(m2.id, m2);
+
+      const result = formatLineMessage([assignment], [schedule], members, 2026, 3, 'ja');
+      expect(result).toContain('🎉 Christmas');
+    });
+
+    it('falls back to other language name (en -> ja)', () => {
+      const m1 = makeMember('Alice');
+      const m2 = makeMember('Bob');
+      const schedule = makeSchedule('2026-03-01', { isEvent: true, eventNameJa: 'クリスマス会' });
+      const assignment = Assignment.create(schedule.id, 1, [m1.id, m2.id]);
+
+      const members = new Map<MemberId, Member>();
+      members.set(m1.id, m1);
+      members.set(m2.id, m2);
+
+      const result = formatLineMessage([assignment], [schedule], members, 2026, 3, 'en');
+      expect(result).toContain('🎉 クリスマス会');
+    });
+
+    it('shows default label when both names are null (ja)', () => {
+      const m1 = makeMember('Alice');
+      const m2 = makeMember('Bob');
+      const schedule = makeSchedule('2026-03-01', { isEvent: true });
+      const assignment = Assignment.create(schedule.id, 1, [m1.id, m2.id]);
+
+      const members = new Map<MemberId, Member>();
+      members.set(m1.id, m1);
+      members.set(m2.id, m2);
+
+      const result = formatLineMessage([assignment], [schedule], members, 2026, 3, 'ja');
+      expect(result).toContain('🎉 イベント日');
+    });
+
+    it('shows default label when both names are null (en)', () => {
+      const m1 = makeMember('Alice');
+      const m2 = makeMember('Bob');
+      const schedule = makeSchedule('2026-03-01', { isEvent: true });
+      const assignment = Assignment.create(schedule.id, 1, [m1.id, m2.id]);
+
+      const members = new Map<MemberId, Member>();
+      members.set(m1.id, m1);
+      members.set(m2.id, m2);
+
+      const result = formatLineMessage([assignment], [schedule], members, 2026, 3, 'en');
+      expect(result).toContain('🎉 Event Day');
     });
 
     it('does not include any tags on normal days', () => {
