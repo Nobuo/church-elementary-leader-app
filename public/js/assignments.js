@@ -90,10 +90,8 @@ function renderAssignments(assignments, scheduleMap = {}) {
       ${groups.map(g => {
         const isMixed = g.gradeGroup === 'MIXED';
         const groupLabelText = isMixed ? `${t('leaders')}:` : `${t('group')} ${g.groupNumber}:`;
-        return `
-        <div class="assignment-group">
-          <span class="group-label">${groupLabelText}</span>
-          <span>${g.members.map((m, idx) => {
+        const sep = currentLang === 'ja' ? ' ・ ' : ' & ';
+        const memberSlots = g.members.map((m, idx) => {
             const count = memberCountMap[m.id];
             const countStr = count != null ? `(${count})` : '';
             const otherMembers = g.members.filter((_, i) => i !== idx);
@@ -103,8 +101,21 @@ function renderAssignments(assignments, scheduleMap = {}) {
             const crossoverClass = isCrossover ? ' crossover' : '';
             return `<span class="grade-label${crossoverClass}">[${shortLabel}]</span>` +
               `<span class="member-name" data-member-id="${escapeHtml(m.id)}">${escapeHtml(m.name)}</span>${countStr}` +
-              ` <button class="replace-btn" data-action="start-replace" data-assignment-id="${escapeHtml(g.id)}" data-member-id="${escapeHtml(m.id)}" data-assigned='${escapeHtml(JSON.stringify([...assignedOnDate]))}' data-date="${escapeHtml(date)}" data-partner-id="${escapeHtml(partnerId)}" data-role="${g.gradeGroup || ''}">${t('replace')}</button>`;
-          }).join(currentLang === 'ja' ? ' ・ ' : ' & ')}</span>
+              ` <button class="replace-btn" data-action="start-replace" data-assignment-id="${escapeHtml(g.id)}" data-member-id="${escapeHtml(m.id)}" data-assigned='${escapeHtml(JSON.stringify([...assignedOnDate]))}' data-date="${escapeHtml(date)}" data-partner-id="${escapeHtml(partnerId)}" data-role="${g.gradeGroup || ''}">${t('replace')}</button>` +
+              ` <button class="unassign-btn" data-action="unassign" data-assignment-id="${escapeHtml(g.id)}" data-member-id="${escapeHtml(m.id)}" data-date="${escapeHtml(date)}">${t('unassign')}</button>`;
+        });
+        const vacantCount = g.vacantSlots || 0;
+        for (let vi = 0; vi < vacantCount; vi++) {
+          memberSlots.push(
+            `<span class="vacant-slot">${t('vacant')}` +
+            ` <button class="assign-btn" data-action="start-assign" data-assignment-id="${escapeHtml(g.id)}" data-date="${escapeHtml(date)}" data-assigned='${escapeHtml(JSON.stringify([...assignedOnDate]))}' data-partner-id="${g.members.map(om => om.id).join(',')}" data-role="${g.gradeGroup || ''}">${t('assign')}</button>` +
+            `</span>`
+          );
+        }
+        return `
+        <div class="assignment-group">
+          <span class="group-label">${groupLabelText}</span>
+          <span>${memberSlots.join(sep)}</span>
         </div>
       `}).join('')}
     </div>`;
@@ -120,6 +131,8 @@ document.getElementById('assignments-list')?.addEventListener('click', (e) => {
   const action = btn.dataset.action;
   if (action === 'clear-day') clearDayAssignments(btn.dataset.date);
   if (action === 'start-replace') startReplace(btn.dataset.assignmentId, btn.dataset.memberId, btn);
+  if (action === 'unassign') doUnassign(btn.dataset.assignmentId, btn.dataset.memberId, btn.dataset.date);
+  if (action === 'start-assign') startAssign(btn.dataset.assignmentId, btn);
 });
 
 async function generateAssignmentsAction() {
@@ -345,6 +358,82 @@ async function clearMonthAssignments() {
   const calYear = getCalendarYear();
   try {
     await API.del(`/api/assignments?year=${calYear}&month=${month}`);
+    loadAssignments();
+  } catch (e) {
+    alert(e.message);
+  }
+}
+
+async function doUnassign(assignmentId, memberId, date) {
+  const today = new Date().toISOString().slice(0, 10);
+  if (date < today) {
+    if (!confirm(t('pastAssignmentWarning'))) return;
+  }
+  if (!confirm(t('unassignConfirm'))) return;
+  try {
+    await API.put(`/api/assignments/${assignmentId}/unassign`, { memberId });
+    loadAssignments();
+  } catch (e) {
+    alert(e.message);
+  }
+}
+
+async function startAssign(assignmentId, btnEl) {
+  const existing = btnEl.parentElement.querySelector('.replace-inline');
+  if (existing) { existing.remove(); return; }
+
+  const assignedIds = JSON.parse(btnEl.dataset.assigned);
+  const date = btnEl.dataset.date;
+  const partnerId = btnEl.dataset.partnerId || '';
+  const role = btnEl.dataset.role || '';
+
+  let candidates;
+  try {
+    candidates = await API.get(`/api/assignments/candidates?date=${date}&excludeIds=${assignedIds.join(',')}&partnerId=${partnerId}&role=${role}`);
+  } catch (_) {
+    candidates = [];
+  }
+
+  const wrapper = document.createElement('span');
+  wrapper.className = 'replace-inline';
+
+  const sel = document.createElement('select');
+  sel.className = 'replace-select';
+  const timesLabel = currentLang === 'ja' ? '回' : 'x';
+  const defaultOpt = document.createElement('option');
+  defaultOpt.value = '';
+  defaultOpt.textContent = '--';
+  sel.appendChild(defaultOpt);
+  for (const m of candidates) {
+    const opt = document.createElement('option');
+    opt.value = m.id;
+    const prefix = m.recommended ? '★ ' : (m.warnings && m.warnings.length > 0 ? '⚠ ' : '');
+    const countLabel = m.count != null ? ` (${m.count}${timesLabel})` : '';
+    opt.textContent = `${prefix}${m.name}${countLabel}`;
+    sel.appendChild(opt);
+  }
+
+  const confirmBtn = document.createElement('button');
+  confirmBtn.className = 'replace-btn';
+  confirmBtn.textContent = t('confirm');
+  confirmBtn.addEventListener('click', () => doAssign(assignmentId, sel.value, wrapper));
+
+  const cancelBtn = document.createElement('button');
+  cancelBtn.className = 'replace-btn';
+  cancelBtn.textContent = t('cancel');
+  cancelBtn.addEventListener('click', () => wrapper.remove());
+
+  wrapper.appendChild(sel);
+  wrapper.appendChild(confirmBtn);
+  wrapper.appendChild(cancelBtn);
+  btnEl.after(wrapper);
+}
+
+async function doAssign(assignmentId, memberId, wrapperEl) {
+  if (!memberId) return;
+  try {
+    const result = await API.put(`/api/assignments/${assignmentId}/assign`, { memberId });
+    showViolations(result.violations || []);
     loadAssignments();
   } catch (e) {
     alert(e.message);

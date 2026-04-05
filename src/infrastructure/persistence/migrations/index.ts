@@ -10,6 +10,7 @@ import { migration007 } from './007-assignment-member-id-3.js';
 import { migration008 } from './008-schedule-split-type.js';
 import { migration009 } from './009-schedule-ebt.js';
 import { migration010 } from './010-event-name.js';
+import { migration011 } from './011-nullable-member-slots.js';
 
 export type { Migration } from './migration.js';
 
@@ -24,6 +25,7 @@ export const migrations: Migration[] = [
   migration008,
   migration009,
   migration010,
+  migration011,
 ];
 
 export function runMigrations(db: AppDatabase): void {

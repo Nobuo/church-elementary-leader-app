@@ -56,9 +56,11 @@ export function formatCsv(
       String(assignment.groupNumber),
     ];
 
+    const maxMembers = schedule?.isSplitClass ? 2 : 3;
     for (let i = 0; i < 3; i++) {
       const m = i < assignment.memberIds.length ? members.get(assignment.memberIds[i]) : undefined;
-      fields.push(escapeCsvField(m?.name ?? ''));
+      const isVacant = !m && i < maxMembers;
+      fields.push(escapeCsvField(m?.name ?? (isVacant ? (lang === 'ja' ? '(未定)' : '(TBD)') : '')));
       fields.push(escapeCsvField(m?.language ?? ''));
     }
 

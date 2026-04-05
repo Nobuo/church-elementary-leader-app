@@ -40,6 +40,35 @@ export class Assignment {
     return new Assignment(props);
   }
 
+  removeMember(memberId: MemberId): Assignment | null {
+    if (!this.memberIds.includes(memberId)) {
+      throw new Error(`Member ${memberId} is not in this assignment`);
+    }
+    const newMemberIds = this.memberIds.filter((id) => id !== memberId);
+    if (newMemberIds.length === 0) return null;
+    return new Assignment({
+      id: this.id,
+      scheduleId: this.scheduleId,
+      groupNumber: this.groupNumber,
+      memberIds: newMemberIds,
+    });
+  }
+
+  addMember(memberId: MemberId, maxMembers: number): Assignment {
+    if (this.memberIds.length >= maxMembers) {
+      throw new Error('Assignment is full');
+    }
+    if (this.memberIds.includes(memberId)) {
+      throw new Error(`Member ${memberId} is already in this assignment`);
+    }
+    return new Assignment({
+      id: this.id,
+      scheduleId: this.scheduleId,
+      groupNumber: this.groupNumber,
+      memberIds: [...this.memberIds, memberId],
+    });
+  }
+
   replaceMember(oldMemberId: MemberId, newMemberId: MemberId): Assignment {
     if (!this.memberIds.includes(oldMemberId)) {
       throw new Error(`Member ${oldMemberId} is not in this assignment`);

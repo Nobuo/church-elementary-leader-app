@@ -9,6 +9,7 @@ export interface AssignmentRepository {
   findByMemberAndFiscalYear(memberId: MemberId, fiscalYear: number): Assignment[];
   countByMember(memberId: MemberId, fiscalYear: number): number;
   countAllByFiscalYear(fiscalYear: number): Map<MemberId, number>;
+  deleteById(id: AssignmentId): void;
   deleteByScheduleId(scheduleId: ScheduleId): void;
   deleteByScheduleIds(scheduleIds: ScheduleId[]): void;
 }

@@ -82,6 +82,107 @@ describe('Assignment', () => {
     });
   });
 
+  describe('removeMember', () => {
+    it('removes a member from a 2-member assignment, leaving 1', () => {
+      const scheduleId = createScheduleId();
+      const m1 = asMemberId('member-1');
+      const m2 = asMemberId('member-2');
+
+      const assignment = Assignment.create(scheduleId, 1, [m1, m2]);
+      const result = assignment.removeMember(m1);
+
+      expect(result).not.toBeNull();
+      expect(result!.memberIds).toEqual([m2]);
+      expect(result!.id).toBe(assignment.id);
+    });
+
+    it('removes a member from a 3-member assignment, leaving 2', () => {
+      const scheduleId = createScheduleId();
+      const m1 = asMemberId('member-1');
+      const m2 = asMemberId('member-2');
+      const m3 = asMemberId('member-3');
+
+      const assignment = Assignment.create(scheduleId, 1, [m1, m2, m3]);
+      const result = assignment.removeMember(m2);
+
+      expect(result).not.toBeNull();
+      expect(result!.memberIds).toEqual([m1, m3]);
+    });
+
+    it('returns null when removing the last member', () => {
+      const scheduleId = createScheduleId();
+      const m1 = asMemberId('member-1');
+      const m2 = asMemberId('member-2');
+
+      const assignment = Assignment.create(scheduleId, 1, [m1, m2]);
+      const oneLeft = assignment.removeMember(m1)!;
+      const result = oneLeft.removeMember(m2);
+
+      expect(result).toBeNull();
+    });
+
+    it('throws when member is not in the assignment', () => {
+      const scheduleId = createScheduleId();
+      const m1 = asMemberId('member-1');
+      const m2 = asMemberId('member-2');
+
+      const assignment = Assignment.create(scheduleId, 1, [m1, m2]);
+      expect(() => assignment.removeMember(asMemberId('member-3'))).toThrow(
+        'Member member-3 is not in this assignment',
+      );
+    });
+  });
+
+  describe('addMember', () => {
+    it('adds a member to a 1-member assignment', () => {
+      const scheduleId = createScheduleId();
+      const m1 = asMemberId('member-1');
+      const m2 = asMemberId('member-2');
+
+      const assignment = Assignment.create(scheduleId, 1, [m1, m2]);
+      const oneLeft = assignment.removeMember(m1)!;
+      const result = oneLeft.addMember(asMemberId('member-3'), 2);
+
+      expect(result.memberIds).toEqual([m2, asMemberId('member-3')]);
+      expect(result.id).toBe(assignment.id);
+    });
+
+    it('adds a member to a 2-member assignment (max 3)', () => {
+      const scheduleId = createScheduleId();
+      const m1 = asMemberId('member-1');
+      const m2 = asMemberId('member-2');
+      const m3 = asMemberId('member-3');
+
+      const assignment = Assignment.create(scheduleId, 1, [m1, m2]);
+      const result = assignment.addMember(m3, 3);
+
+      expect(result.memberIds).toEqual([m1, m2, m3]);
+    });
+
+    it('throws when assignment is full', () => {
+      const scheduleId = createScheduleId();
+      const m1 = asMemberId('member-1');
+      const m2 = asMemberId('member-2');
+
+      const assignment = Assignment.create(scheduleId, 1, [m1, m2]);
+      expect(() => assignment.addMember(asMemberId('member-3'), 2)).toThrow(
+        'Assignment is full',
+      );
+    });
+
+    it('throws when adding a duplicate member', () => {
+      const scheduleId = createScheduleId();
+      const m1 = asMemberId('member-1');
+      const m2 = asMemberId('member-2');
+
+      const assignment = Assignment.create(scheduleId, 1, [m1, m2]);
+      const oneLeft = assignment.removeMember(m1)!;
+      expect(() => oneLeft.addMember(m2, 2)).toThrow(
+        'Member member-2 is already in this assignment',
+      );
+    });
+  });
+
   describe('containsMember', () => {
     it('returns true for assigned members in 2-member assignment', () => {
       const scheduleId = createScheduleId();

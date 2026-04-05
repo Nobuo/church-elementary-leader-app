@@ -7,16 +7,16 @@ interface AssignmentRow {
   id: string;
   schedule_id: string;
   group_number: number;
-  member_id_1: string;
-  member_id_2: string;
+  member_id_1: string | null;
+  member_id_2: string | null;
   member_id_3: string | null;
 }
 
 function rowToAssignment(row: AssignmentRow): Assignment {
-  const memberIds: MemberId[] = [asMemberId(row.member_id_1), asMemberId(row.member_id_2)];
-  if (row.member_id_3) {
-    memberIds.push(asMemberId(row.member_id_3));
-  }
+  const memberIds: MemberId[] = [];
+  if (row.member_id_1) memberIds.push(asMemberId(row.member_id_1));
+  if (row.member_id_2) memberIds.push(asMemberId(row.member_id_2));
+  if (row.member_id_3) memberIds.push(asMemberId(row.member_id_3));
   return Assignment.reconstruct({
     id: asAssignmentId(row.id),
     scheduleId: asScheduleId(row.schedule_id),
@@ -38,8 +38,8 @@ export class SqliteAssignmentRepository implements AssignmentRepository {
         assignment.id,
         assignment.scheduleId,
         assignment.groupNumber,
-        assignment.memberIds[0],
-        assignment.memberIds[1],
+        assignment.memberIds[0] ?? null,
+        assignment.memberIds[1] ?? null,
         assignment.memberIds[2] ?? null,
       );
   }
@@ -97,10 +97,10 @@ export class SqliteAssignmentRepository implements AssignmentRepository {
       .prepare(
         `SELECT member_id, COUNT(*) as count FROM (
           SELECT a.member_id_1 as member_id FROM assignments a
-          JOIN schedules s ON a.schedule_id = s.id WHERE s.year = ?
+          JOIN schedules s ON a.schedule_id = s.id WHERE s.year = ? AND a.member_id_1 IS NOT NULL
           UNION ALL
           SELECT a.member_id_2 as member_id FROM assignments a
-          JOIN schedules s ON a.schedule_id = s.id WHERE s.year = ?
+          JOIN schedules s ON a.schedule_id = s.id WHERE s.year = ? AND a.member_id_2 IS NOT NULL
           UNION ALL
           SELECT a.member_id_3 as member_id FROM assignments a
           JOIN schedules s ON a.schedule_id = s.id WHERE s.year = ? AND a.member_id_3 IS NOT NULL
@@ -112,6 +112,10 @@ export class SqliteAssignmentRepository implements AssignmentRepository {
       map.set(asMemberId(row.member_id), row.count);
     }
     return map;
+  }
+
+  deleteById(id: AssignmentId): void {
+    this.db.prepare('DELETE FROM assignments WHERE id = ?').run(id);
   }
 
   deleteByScheduleId(scheduleId: ScheduleId): void {

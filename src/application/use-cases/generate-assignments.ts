@@ -37,6 +37,7 @@ export interface AssignmentDto {
   groupNumber: number;
   gradeGroup: string;
   members: AssignmentMemberDto[];
+  vacantSlots: number;
 }
 
 export interface GenerateAssignmentsResult {
@@ -48,6 +49,10 @@ export interface GenerateAssignmentsResult {
 /** Combined day = 3 slots, split day = 4 slots */
 function slotsForSchedule(schedule: Schedule): number {
   return schedule.isSplitClass ? 4 : 3;
+}
+
+function maxMembersForSchedule(schedule: Schedule | null | undefined): number {
+  return schedule?.isSplitClass ? 2 : 3;
 }
 
 function assignmentGradeGroup(memberCount: number, groupNumber: number): string {
@@ -161,18 +166,22 @@ export function generateMonthlyAssignments(
     scheduleDateMap.set(s.id, s.date);
   }
 
-  const dtos: AssignmentDto[] = assignments.map((a) => ({
-    id: a.id,
-    scheduleId: a.scheduleId,
-    date: scheduleDateMap.get(a.scheduleId) ?? '',
-    groupNumber: a.groupNumber,
-    gradeGroup: assignmentGradeGroup(a.memberIds.length, a.groupNumber),
-    members: a.memberIds.map((mid) => ({
-      id: mid,
-      name: memberMap.get(mid)?.name ?? 'Unknown',
-      gradeGroup: memberMap.get(mid)?.gradeGroup ?? GradeGroup.LOWER,
-    })),
-  }));
+  const dtos: AssignmentDto[] = assignments.map((a) => {
+    const max = maxMembersForSchedule(scheduleMap.get(a.scheduleId));
+    return {
+      id: a.id,
+      scheduleId: a.scheduleId,
+      date: scheduleDateMap.get(a.scheduleId) ?? '',
+      groupNumber: a.groupNumber,
+      gradeGroup: assignmentGradeGroup(a.memberIds.length, a.groupNumber),
+      members: a.memberIds.map((mid) => ({
+        id: mid,
+        name: memberMap.get(mid)?.name ?? 'Unknown',
+        gradeGroup: memberMap.get(mid)?.gradeGroup ?? GradeGroup.LOWER,
+      })),
+      vacantSlots: Math.max(0, max - a.memberIds.length),
+    };
+  });
 
   return ok({ assignments: dtos, violations });
 }
@@ -305,6 +314,7 @@ export function adjustAssignment(
       name: memberLookup.get(mid)?.name ?? 'Unknown',
       gradeGroup: memberLookup.get(mid)?.gradeGroup ?? GradeGroup.LOWER,
     })),
+    vacantSlots: Math.max(0, maxMembersForSchedule(schedule) - updated.memberIds.length),
   };
 
   return ok({ assignment: dto, violations });
@@ -343,16 +353,203 @@ export function getAssignmentsForMonth(
     scheduleDateMap.set(s.id, s.date);
   }
 
-  return assignments.map((a) => ({
-    id: a.id,
-    scheduleId: a.scheduleId,
-    date: scheduleDateMap.get(a.scheduleId) ?? '',
-    groupNumber: a.groupNumber,
-    gradeGroup: assignmentGradeGroup(a.memberIds.length, a.groupNumber),
-    members: a.memberIds.map((mid) => ({
+  const scheduleById = new Map<ScheduleId, Schedule>();
+  for (const s of schedules) {
+    scheduleById.set(s.id, s);
+  }
+
+  return assignments.map((a) => {
+    const max = maxMembersForSchedule(scheduleById.get(a.scheduleId));
+    return {
+      id: a.id,
+      scheduleId: a.scheduleId,
+      date: scheduleDateMap.get(a.scheduleId) ?? '',
+      groupNumber: a.groupNumber,
+      gradeGroup: assignmentGradeGroup(a.memberIds.length, a.groupNumber),
+      members: a.memberIds.map((mid) => ({
+        id: mid,
+        name: memberMap.get(mid)?.name ?? 'Unknown',
+        gradeGroup: memberMap.get(mid)?.gradeGroup ?? GradeGroup.LOWER,
+      })),
+      vacantSlots: Math.max(0, max - a.memberIds.length),
+    };
+  });
+}
+
+export interface UnassignMemberResult {
+  assignment: AssignmentDto | null;
+  deleted: boolean;
+}
+
+export function unassignMember(
+  assignmentId: string,
+  memberId: string,
+  assignmentRepo: AssignmentRepository,
+  memberRepo: MemberRepository,
+  scheduleRepo: ScheduleRepository,
+): Result<UnassignMemberResult> {
+  const assignment = assignmentRepo.findById(asAssignmentId(assignmentId));
+  if (!assignment) return err('Assignment not found');
+
+  if (!assignment.containsMember(asMemberId(memberId))) {
+    return err('Member not in this assignment');
+  }
+
+  const updated = assignment.removeMember(asMemberId(memberId));
+
+  if (updated === null) {
+    assignmentRepo.deleteById(assignment.id);
+    return ok({ assignment: null, deleted: true });
+  }
+
+  assignmentRepo.save(updated);
+
+  const schedule = scheduleRepo.findById(updated.scheduleId);
+  const date = schedule?.date ?? '';
+  const max = maxMembersForSchedule(schedule);
+
+  const dto: AssignmentDto = {
+    id: updated.id,
+    scheduleId: updated.scheduleId,
+    date,
+    groupNumber: updated.groupNumber,
+    gradeGroup: assignmentGradeGroup(updated.memberIds.length, updated.groupNumber),
+    members: updated.memberIds.map((mid) => {
+      const m = memberRepo.findById(mid);
+      return {
+        id: mid,
+        name: m?.name ?? 'Unknown',
+        gradeGroup: m?.gradeGroup ?? GradeGroup.LOWER,
+      };
+    }),
+    vacantSlots: Math.max(0, max - updated.memberIds.length),
+  };
+
+  return ok({ assignment: dto, deleted: false });
+}
+
+export function assignToVacantSlot(
+  assignmentId: string,
+  memberId: string,
+  assignmentRepo: AssignmentRepository,
+  memberRepo: MemberRepository,
+  scheduleRepo: ScheduleRepository,
+): Result<AdjustAssignmentResult> {
+  const assignment = assignmentRepo.findById(asAssignmentId(assignmentId));
+  if (!assignment) return err('Assignment not found');
+
+  const schedule = scheduleRepo.findById(assignment.scheduleId);
+  const max = maxMembersForSchedule(schedule);
+
+  if (assignment.memberIds.length >= max) {
+    return err('Assignment is full');
+  }
+
+  const newMember = memberRepo.findById(asMemberId(memberId));
+  if (!newMember) return err('Member not found');
+
+  // Reject HELPER on event days
+  if (schedule?.isEvent && newMember.memberType === MemberType.HELPER) {
+    return err('HELPER members cannot be assigned on event days');
+  }
+
+  const updated = assignment.addMember(asMemberId(memberId), max);
+  assignmentRepo.save(updated);
+
+  const date = schedule?.date ?? '';
+  const isCombinedDay = schedule ? !schedule.isSplitClass : false;
+
+  // Check constraints on the updated group
+  const violations: ConstraintViolation[] = [];
+  const memberLookup = new Map(
+    updated.memberIds.map((mid) => [mid, memberRepo.findById(mid)] as const),
+  );
+  const groupMembers = updated.memberIds
+    .map((mid) => memberLookup.get(mid) ?? null)
+    .filter((m): m is Member => m !== null);
+
+  if (groupMembers.length >= 2) {
+    const langViolation = checkLanguageBalanceGroup(groupMembers);
+    if (langViolation) violations.push(langViolation);
+
+    if (!isCombinedDay && groupMembers.length === 2) {
+      const genderViolation = checkSameGender(groupMembers[0], groupMembers[1]);
+      if (genderViolation) violations.push(genderViolation);
+    }
+
+    const spouseViolation = checkSpouseSameGroupMulti(groupMembers);
+    if (spouseViolation) violations.push(spouseViolation);
+
+    if (schedule?.isSplitClass) {
+      const sameDateAssignments = assignmentRepo.findByScheduleIds([updated.scheduleId]);
+      const otherGroup = sameDateAssignments.find((a) => a.id !== updated.id);
+      if (otherGroup) {
+        const otherMembers = otherGroup.memberIds
+          .map((mid) => memberRepo.findById(mid))
+          .filter((m): m is Member => m !== null);
+        const allMembers = [...groupMembers, ...otherMembers];
+        const classViolations = checkClassLanguageCoverage(allMembers);
+        violations.push(...classViolations);
+      }
+    }
+
+    if (!isCombinedDay) {
+      const expectedGrade = updated.groupNumber === 1 ? GradeGroup.UPPER : GradeGroup.LOWER;
+      if (newMember.gradeGroup !== GradeGroup.ANY && newMember.gradeGroup !== expectedGrade) {
+        violations.push({
+          type: ViolationType.GRADE_GROUP_MISMATCH,
+          severity: Severity.WARNING,
+          memberIds: [asMemberId(memberId)],
+          message: `${newMember.name} is ${newMember.gradeGroup} but assigned to ${expectedGrade} slot`,
+          messageKey: 'violations.gradeGroupMismatch',
+          messageParams: {
+            name: newMember.name,
+            registered: newMember.gradeGroup,
+            assigned: expectedGrade,
+          },
+        });
+      }
+    }
+  }
+
+  // Check monthly duplicate and min interval
+  if (date) {
+    const fiscalYear = getFiscalYear(new Date(date));
+    const allFiscalYearSchedules = scheduleRepo.findByFiscalYear(fiscalYear);
+    const scheduleMonth = new Date(date).getMonth() + 1;
+    const scheduleYear = new Date(date).getFullYear();
+    const monthSchedules = scheduleRepo.findByMonth(scheduleYear, scheduleMonth);
+    const monthScheduleIds = monthSchedules.map((s) => s.id);
+    const monthAssignments = assignmentRepo.findByScheduleIds(monthScheduleIds);
+    const otherMonthAssignments = monthAssignments.filter((a) => a.id !== updated.id);
+
+    const newMembIdBranded = asMemberId(memberId);
+    const dupViolation = checkMonthlyDuplicate(newMembIdBranded, otherMonthAssignments);
+    if (dupViolation) violations.push(dupViolation);
+
+    const scheduleDateMap = new Map<string, string>();
+    for (const s of allFiscalYearSchedules) {
+      scheduleDateMap.set(s.id, s.date);
+    }
+    const allAssignments = assignmentRepo.findByScheduleIds(allFiscalYearSchedules.map((s) => s.id));
+    const otherAssignments = allAssignments.filter((a) => a.id !== updated.id);
+    const intervalViolation = checkMinInterval(newMembIdBranded, date, otherAssignments, scheduleDateMap);
+    if (intervalViolation) violations.push(intervalViolation);
+  }
+
+  const dto: AssignmentDto = {
+    id: updated.id,
+    scheduleId: updated.scheduleId,
+    date,
+    groupNumber: updated.groupNumber,
+    gradeGroup: assignmentGradeGroup(updated.memberIds.length, updated.groupNumber),
+    members: updated.memberIds.map((mid) => ({
       id: mid,
-      name: memberMap.get(mid)?.name ?? 'Unknown',
-      gradeGroup: memberMap.get(mid)?.gradeGroup ?? GradeGroup.LOWER,
+      name: memberLookup.get(mid)?.name ?? 'Unknown',
+      gradeGroup: memberLookup.get(mid)?.gradeGroup ?? GradeGroup.LOWER,
     })),
-  }));
+    vacantSlots: Math.max(0, max - updated.memberIds.length),
+  };
+
+  return ok({ assignment: dto, violations });
 }

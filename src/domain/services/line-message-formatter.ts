@@ -95,23 +95,27 @@ export function formatLineMessage(
     if (schedule.isSplitClass) {
       // Split class: show grade-based labels, lower (group 2) first
       const labels = splitGroupLabels[lang][splitType];
+      const maxPerGroup = 2;
       const sorted = [...dayAssignments].sort((a, b) => b.groupNumber - a.groupNumber);
       for (const assignment of sorted) {
         const sep = lang === 'ja' ? '・' : ' & ';
-        const names = assignment.memberIds
-          .map((mid) => members.get(mid)?.name ?? '?')
-          .join(sep);
+        const nameList = assignment.memberIds.map((mid) => members.get(mid)?.name ?? '?');
+        const vacant = maxPerGroup - assignment.memberIds.length;
+        const tbdLabel = lang === 'ja' ? '(未定)' : '(TBD)';
+        for (let i = 0; i < vacant; i++) nameList.push(tbdLabel);
         const label = assignment.groupNumber === 1 ? labels.upper : labels.lower;
-        lines.push(`  ${label}: ${names}`);
+        lines.push(`  ${label}: ${nameList.join(sep)}`);
       }
     } else {
       // Combined day: no group label, just member names
+      const maxPerGroup = 3;
       for (const assignment of dayAssignments) {
         const sep = lang === 'ja' ? '・' : ' & ';
-        const names = assignment.memberIds
-          .map((mid) => members.get(mid)?.name ?? '?')
-          .join(sep);
-        lines.push(`  ${names}`);
+        const nameList = assignment.memberIds.map((mid) => members.get(mid)?.name ?? '?');
+        const vacant = maxPerGroup - assignment.memberIds.length;
+        const tbdLabel = lang === 'ja' ? '(未定)' : '(TBD)';
+        for (let i = 0; i < vacant; i++) nameList.push(tbdLabel);
+        lines.push(`  ${nameList.join(sep)}`);
       }
     }
 

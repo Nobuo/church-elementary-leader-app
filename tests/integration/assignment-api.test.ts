@@ -560,4 +560,180 @@ describe('Assignment API', () => {
       expect(res.body).toHaveProperty('violations');
     });
   });
+
+  describe('PUT /api/assignments/:id/unassign', () => {
+    it('6.1 removes a member from a 2-member group, leaving 1', async () => {
+      await setupMembersAndSchedule();
+      const gen = await t.request.post('/api/assignments/generate').send({ year: testYear, month: 4 }).expect(200);
+      const assignment = gen.body.assignments[0];
+
+      const res = await t.request
+        .put(`/api/assignments/${assignment.id}/unassign`)
+        .send({ memberId: assignment.members[0].id })
+        .expect(200);
+
+      expect(res.body.deleted).toBe(false);
+      expect(res.body.assignment.members).toHaveLength(1);
+      expect(res.body.assignment.members[0].id).toBe(assignment.members[1].id);
+      expect(res.body.assignment.vacantSlots).toBe(1);
+    });
+
+    it('6.2 removing last member deletes the assignment', async () => {
+      await setupMembersAndSchedule();
+      const gen = await t.request.post('/api/assignments/generate').send({ year: testYear, month: 4 }).expect(200);
+      const assignment = gen.body.assignments[0];
+
+      // Remove first member
+      await t.request
+        .put(`/api/assignments/${assignment.id}/unassign`)
+        .send({ memberId: assignment.members[0].id })
+        .expect(200);
+
+      // Remove second (last) member
+      const res = await t.request
+        .put(`/api/assignments/${assignment.id}/unassign`)
+        .send({ memberId: assignment.members[1].id })
+        .expect(200);
+
+      expect(res.body.deleted).toBe(true);
+      expect(res.body.assignment).toBeNull();
+    });
+
+    it('6.3 returns 400 for non-existent member', async () => {
+      await setupMembersAndSchedule();
+      const gen = await t.request.post('/api/assignments/generate').send({ year: testYear, month: 4 }).expect(200);
+      const assignment = gen.body.assignments[0];
+
+      await t.request
+        .put(`/api/assignments/${assignment.id}/unassign`)
+        .send({ memberId: 'non-existent-id' })
+        .expect(400);
+    });
+
+    it('6.4 returns 400 for non-existent assignment', async () => {
+      await t.request
+        .put('/api/assignments/non-existent/unassign')
+        .send({ memberId: 'some-id' })
+        .expect(400);
+    });
+
+    it('6.5 unassigned member count decreases', async () => {
+      await setupMembersAndSchedule();
+      const gen = await t.request.post('/api/assignments/generate').send({ year: testYear, month: 4 }).expect(200);
+      const assignment = gen.body.assignments[0];
+      const removedMemberId = assignment.members[0].id;
+
+      // Get count before
+      const countsBefore = await t.request.get(`/api/assignments/counts?fiscalYear=${testYear}`).expect(200);
+      const beforeCount = countsBefore.body.members.find((m: { id: string }) => m.id === removedMemberId)?.count ?? 0;
+
+      // Unassign
+      await t.request
+        .put(`/api/assignments/${assignment.id}/unassign`)
+        .send({ memberId: removedMemberId })
+        .expect(200);
+
+      // Get count after
+      const countsAfter = await t.request.get(`/api/assignments/counts?fiscalYear=${testYear}`).expect(200);
+      const afterCount = countsAfter.body.members.find((m: { id: string }) => m.id === removedMemberId)?.count ?? 0;
+
+      expect(afterCount).toBe(beforeCount - 1);
+    });
+  });
+
+  describe('PUT /api/assignments/:id/assign', () => {
+    it('6.6 assigns a member to a vacant slot', async () => {
+      const { members } = await setupMembersAndSchedule();
+      const gen = await t.request.post('/api/assignments/generate').send({ year: testYear, month: 4 }).expect(200);
+      const assignment = gen.body.assignments[0];
+      const removedMemberId = assignment.members[0].id;
+
+      // Unassign first
+      await t.request
+        .put(`/api/assignments/${assignment.id}/unassign`)
+        .send({ memberId: removedMemberId })
+        .expect(200);
+
+      // Find a member not assigned on this date
+      const sameDateAssignments = gen.body.assignments.filter(
+        (a: { date: string }) => a.date === assignment.date,
+      );
+      const allAssignedIds = new Set<string>();
+      for (const a of sameDateAssignments) {
+        for (const m of a.members) allAssignedIds.add(m.id);
+      }
+      allAssignedIds.delete(removedMemberId); // removed already
+      const candidate = members.find(m => !allAssignedIds.has(m.id));
+      if (!candidate) return; // skip if no candidates
+
+      const res = await t.request
+        .put(`/api/assignments/${assignment.id}/assign`)
+        .send({ memberId: candidate.id })
+        .expect(200);
+
+      expect(res.body.assignment.members).toHaveLength(2);
+      expect(res.body.assignment.members.some((m: { id: string }) => m.id === candidate.id)).toBe(true);
+      expect(res.body.assignment.vacantSlots).toBe(0);
+    });
+
+    it('6.7 returns 400 when assignment is full', async () => {
+      await setupMembersAndSchedule();
+      const gen = await t.request.post('/api/assignments/generate').send({ year: testYear, month: 4 }).expect(200);
+      const assignment = gen.body.assignments[0];
+
+      await t.request
+        .put(`/api/assignments/${assignment.id}/assign`)
+        .send({ memberId: assignment.members[0].id })
+        .expect(400);
+    });
+
+    it('6.8 returns 400 for non-existent assignment', async () => {
+      await t.request
+        .put('/api/assignments/non-existent/assign')
+        .send({ memberId: 'some-id' })
+        .expect(400);
+    });
+  });
+
+  describe('vacantSlots in DTO', () => {
+    it('6.9 generated assignments have vacantSlots: 0', async () => {
+      await setupMembersAndSchedule();
+      const gen = await t.request.post('/api/assignments/generate').send({ year: testYear, month: 4 }).expect(200);
+
+      for (const a of gen.body.assignments) {
+        expect(a.vacantSlots).toBe(0);
+      }
+    });
+
+    it('6.10 GET assignments include vacantSlots field', async () => {
+      await setupMembersAndSchedule();
+      await t.request.post('/api/assignments/generate').send({ year: testYear, month: 4 }).expect(200);
+
+      const res = await t.request.get(`/api/assignments?year=${testYear}&month=4`).expect(200);
+      for (const a of res.body) {
+        expect(a).toHaveProperty('vacantSlots');
+        expect(a.vacantSlots).toBe(0);
+      }
+    });
+  });
+
+  describe('LINE export with vacant slots', () => {
+    it('6.11 LINE export shows TBD for vacant slots', async () => {
+      await setupMembersAndSchedule();
+      const gen = await t.request.post('/api/assignments/generate').send({ year: testYear, month: 4 }).expect(200);
+      const assignment = gen.body.assignments[0];
+
+      // Unassign one member
+      await t.request
+        .put(`/api/assignments/${assignment.id}/unassign`)
+        .send({ memberId: assignment.members[0].id })
+        .expect(200);
+
+      const res = await t.request
+        .get(`/api/assignments/export/line?year=${testYear}&month=4&lang=ja`)
+        .expect(200);
+
+      expect(res.body.text).toContain('(未定)');
+    });
+  });
 });

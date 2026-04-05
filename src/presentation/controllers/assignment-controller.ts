@@ -8,6 +8,8 @@ import { AssignmentRepository } from '@domain/repositories/assignment-repository
 import {
   generateMonthlyAssignments,
   adjustAssignment,
+  unassignMember,
+  assignToVacantSlot,
   deleteAssignments,
   getAssignmentsForMonth,
 } from '@application/use-cases/generate-assignments';
@@ -64,6 +66,34 @@ export function createAssignmentController(
   router.put('/:id/adjust', (req: Request, res: Response) => {
     const { oldMemberId, newMemberId } = req.body;
     const result = adjustAssignment(String(req.params.id), oldMemberId, newMemberId, assignmentRepo, memberRepo, scheduleRepo);
+    if (!result.ok) {
+      res.status(400).json({ error: result.error });
+      return;
+    }
+    res.json(result.value);
+  });
+
+  router.put('/:id/unassign', (req: Request, res: Response) => {
+    const { memberId } = req.body;
+    if (!memberId) {
+      res.status(400).json({ error: 'memberId is required' });
+      return;
+    }
+    const result = unassignMember(String(req.params.id), memberId, assignmentRepo, memberRepo, scheduleRepo);
+    if (!result.ok) {
+      res.status(400).json({ error: result.error });
+      return;
+    }
+    res.json(result.value);
+  });
+
+  router.put('/:id/assign', (req: Request, res: Response) => {
+    const { memberId } = req.body;
+    if (!memberId) {
+      res.status(400).json({ error: 'memberId is required' });
+      return;
+    }
+    const result = assignToVacantSlot(String(req.params.id), memberId, assignmentRepo, memberRepo, scheduleRepo);
     if (!result.ok) {
       res.status(400).json({ error: result.error });
       return;
