@@ -160,11 +160,13 @@ export function checkExcessiveCount(
   if (activeMembers.length === 0 || totalSlots === 0) return violations;
 
   const expectedCount = totalSlots / activeMembers.length;
+  const tooManyThreshold = Math.max(expectedCount * 1.5, expectedCount + 2);
+  const tooFewThreshold = Math.min(expectedCount * 0.5, expectedCount - 2);
 
   for (const member of activeMembers) {
     const count = assignmentCounts.get(member.id) ?? 0;
     const expected = String(Math.round(expectedCount * 10) / 10);
-    if (count > expectedCount * 1.5) {
+    if (count > tooManyThreshold) {
       violations.push({
         type: ViolationType.EXCESSIVE_COUNT,
         severity: Severity.WARNING,
@@ -173,7 +175,7 @@ export function checkExcessiveCount(
         messageKey: 'violations.excessiveCount',
         messageParams: { name: member.name, count: String(count), expected, direction: 'tooMany' },
       });
-    } else if (count < expectedCount * 0.5 && count > 0) {
+    } else if (count < tooFewThreshold && count > 0) {
       violations.push({
         type: ViolationType.EXCESSIVE_COUNT,
         severity: Severity.WARNING,

@@ -269,5 +269,63 @@ describe('constraint-checker', () => {
     it('returns empty for no members', () => {
       expect(checkExcessiveCount([], new Map(), 40)).toHaveLength(0);
     });
+
+    it('no warning when expected is low and count = ceil(expected)', () => {
+      // 28 totalSlots, 22 members → expected ≈ 1.27
+      // count=2 should NOT trigger (2 < max(1.91, 3.27) = 3.27)
+      const members = Array.from({ length: 22 }, (_, i) =>
+        makeMember({ name: `M${i}` }),
+      );
+      const counts = new Map<MemberId, number>();
+      for (const m of members) counts.set(m.id, 1);
+      // Give 6 members count=2 (total = 6*2 + 16*1 = 28 slots filled)
+      let i = 0;
+      for (const m of members) {
+        if (i < 6) counts.set(m.id, 2);
+        i++;
+      }
+      const violations = checkExcessiveCount(members, counts, 28);
+      expect(violations).toHaveLength(0);
+    });
+
+    it('warns when truly excessive at low expected', () => {
+      // 28 totalSlots, 22 members → expected ≈ 1.27
+      // count=4 should trigger (4 > max(1.91, 3.27) = 3.27)
+      const members = Array.from({ length: 22 }, (_, i) =>
+        makeMember({ name: `M${i}` }),
+      );
+      const counts = new Map<MemberId, number>();
+      for (const m of members) counts.set(m.id, 1);
+      counts.set(members[0].id, 4);
+      const violations = checkExcessiveCount(members, counts, 28);
+      expect(violations.some((v) => v.message.includes('too many'))).toBe(true);
+    });
+
+    it('no too-few warning when expected is low', () => {
+      // 28 totalSlots, 22 members → expected ≈ 1.27
+      // tooFewThreshold = min(0.64, -0.73) = -0.73 → never triggers
+      const members = Array.from({ length: 22 }, (_, i) =>
+        makeMember({ name: `M${i}` }),
+      );
+      const counts = new Map<MemberId, number>();
+      for (const m of members) counts.set(m.id, 2);
+      counts.set(members[0].id, 1); // below expected but should not warn
+      const violations = checkExcessiveCount(members, counts, 28);
+      const tooFew = violations.filter((v) => v.message.includes('too few'));
+      expect(tooFew).toHaveLength(0);
+    });
+
+    it('high expected still warns at 1.5x threshold', () => {
+      // 168 totalSlots, 22 members → expected ≈ 7.64
+      // tooManyThreshold = max(11.45, 9.64) = 11.45 → count 12 triggers
+      const members = Array.from({ length: 22 }, (_, i) =>
+        makeMember({ name: `M${i}` }),
+      );
+      const counts = new Map<MemberId, number>();
+      for (const m of members) counts.set(m.id, 7);
+      counts.set(members[0].id, 12);
+      const violations = checkExcessiveCount(members, counts, 168);
+      expect(violations.some((v) => v.message.includes('too many'))).toBe(true);
+    });
   });
 });
