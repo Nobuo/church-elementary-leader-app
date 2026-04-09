@@ -86,7 +86,7 @@ document.getElementById('schedule-list')?.addEventListener('focusout', (e) => {
 });
 
 document.getElementById('schedule-list')?.addEventListener('keydown', (e) => {
-  if (e.key !== 'Enter') return;
+  if (e.key !== 'Enter' || e.isComposing) return;
   const input = e.target.closest('.event-name-input');
   if (!input) return;
   input.blur();
