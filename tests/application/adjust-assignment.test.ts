@@ -108,6 +108,7 @@ describe('adjustAssignment', () => {
     const m1 = Member.reconstruct({
       id: createMemberId(),
       name: 'Husband',
+      notes: '',
       gender: Gender.MALE,
       language: Language.BOTH,
       gradeGroup: GradeGroup.UPPER,
@@ -121,6 +122,7 @@ describe('adjustAssignment', () => {
     const m3 = Member.reconstruct({
       id: spouseId,
       name: 'Wife',
+      notes: '',
       gender: Gender.FEMALE,
       language: Language.BOTH,
       gradeGroup: GradeGroup.UPPER,

@@ -69,6 +69,7 @@ describe('formatMemberCsv', () => {
     const m2 = Member.reconstruct({
       id: spouseId,
       name: '妻',
+      notes: '',
       gender: Gender.FEMALE,
       language: Language.ENGLISH,
       gradeGroup: GradeGroup.LOWER,

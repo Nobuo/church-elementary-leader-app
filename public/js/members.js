@@ -22,6 +22,7 @@ function renderMembers() {
     const datesLabel = m.availableDates ? m.availableDates.length + t('days') : t('allDays');
     return `<tr>
       <td>${escapeHtml(m.name)}</td>
+      <td class="member-notes-cell">${m.notes ? escapeHtml(m.notes).replace(/\n/g, '<br>') : '-'}</td>
       <td>${genderMap[m.gender]()}</td>
       <td>${langMap[m.language]()}</td>
       <td>${gradeMap[m.gradeGroup]()}</td>
@@ -64,6 +65,7 @@ function openMemberForm(member) {
 
   document.getElementById('form-member-id').value = member?.id || '';
   document.getElementById('form-name').value = member?.name || '';
+  document.getElementById('form-notes').value = member?.notes || '';
   document.getElementById('form-gender').value = member?.gender || 'MALE';
   document.getElementById('form-language').value = member?.language || 'JAPANESE';
   document.getElementById('form-grade').value = member?.gradeGroup || 'LOWER';
@@ -164,6 +166,7 @@ document.getElementById('member-form')?.addEventListener('submit', async (e) => 
   const id = document.getElementById('form-member-id').value;
   const data = {
     name: document.getElementById('form-name').value,
+    notes: document.getElementById('form-notes').value,
     gender: document.getElementById('form-gender').value,
     language: document.getElementById('form-language').value,
     gradeGroup: document.getElementById('form-grade').value,

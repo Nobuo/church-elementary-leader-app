@@ -8,6 +8,7 @@ import { isValidGender, isValidLanguage, isValidGradeGroup, isValidMemberType } 
 
 export interface RegisterMemberInput {
   name: string;
+  notes?: string;
   gender: string;
   language: string;
   gradeGroup: string;
@@ -41,6 +42,7 @@ export function registerMember(
 
   const createInput: CreateMemberInput = {
     name: input.name,
+    notes: input.notes?.trim() ?? '',
     gender: input.gender as CreateMemberInput['gender'],
     language: input.language as CreateMemberInput['language'],
     gradeGroup: input.gradeGroup as CreateMemberInput['gradeGroup'],

@@ -8,6 +8,7 @@ const I18N = {
     month: '月',
     membersTitle: 'メンバー管理',
     name: '氏名',
+    notes: 'メモ',
     gender: '性別',
     male: '男性',
     female: '女性',
@@ -36,6 +37,7 @@ const I18N = {
     inactive: '無効',
     addMember: 'メンバー追加',
     editMember: 'メンバー編集',
+    memberNote: 'メモ',
     none: 'なし',
     schedulesTitle: 'スケジュール設定',
     generateSchedule: 'スケジュール生成',
@@ -131,6 +133,7 @@ const I18N = {
     month: 'Month',
     membersTitle: 'Member Management',
     name: 'Name',
+    notes: 'Notes',
     gender: 'Gender',
     male: 'Male',
     female: 'Female',
@@ -159,6 +162,7 @@ const I18N = {
     inactive: 'Inactive',
     addMember: 'Add Member',
     editMember: 'Edit Member',
+    memberNote: 'Note',
     none: 'None',
     schedulesTitle: 'Schedule Settings',
     generateSchedule: 'Generate Schedule',
@@ -269,6 +273,7 @@ function updateUILanguage() {
   document.getElementById('btn-add-member').textContent = t('add');
   document.getElementById('label-show-inactive').textContent = t('showInactive');
   document.getElementById('th-name').textContent = t('name');
+  document.getElementById('th-notes').textContent = t('notes');
   document.getElementById('th-gender').textContent = t('gender');
   document.getElementById('th-language').textContent = t('language');
   document.getElementById('th-grade').textContent = t('gradeGroup');
@@ -287,4 +292,5 @@ function updateUILanguage() {
   document.getElementById('btn-export-line').textContent = t('exportLine');
   document.getElementById('btn-export-members-csv').textContent = t('exportMembersCsv');
   document.getElementById('btn-import-members-csv').textContent = t('importMembersCsv');
+  document.getElementById('label-notes').textContent = t('notes');
 }

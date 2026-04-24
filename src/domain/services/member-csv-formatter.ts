@@ -4,8 +4,8 @@ import { MemberId } from '@shared/types';
 type Lang = 'ja' | 'en';
 
 const headers: Record<Lang, string[]> = {
-  ja: ['氏名', '性別', '言語', '担当区分', 'メンバー種別', '同性ペア制限', '配偶者', '参加可能日', '有効'],
-  en: ['Name', 'Gender', 'Language', 'Grade Group', 'Member Type', 'Same-gender Only', 'Spouse', 'Available Dates', 'Active'],
+  ja: ['氏名', 'メモ', '性別', '言語', '担当区分', 'メンバー種別', '同性ペア制限', '配偶者', '参加可能日', '有効'],
+  en: ['Name', 'Notes', 'Gender', 'Language', 'Grade Group', 'Member Type', 'Same-gender Only', 'Spouse', 'Available Dates', 'Active'],
 };
 
 function escapeCsvField(field: string): string {
@@ -30,6 +30,7 @@ export function formatMemberCsv(
     lines.push(
       [
         escapeCsvField(member.name),
+        escapeCsvField(member.notes),
         member.gender,
         member.language,
         member.gradeGroup,

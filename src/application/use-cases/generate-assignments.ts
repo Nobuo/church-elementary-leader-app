@@ -27,6 +27,7 @@ import {
 export interface AssignmentMemberDto {
   id: string;
   name: string;
+  notes: string;
   gradeGroup: string;
 }
 
@@ -177,6 +178,7 @@ export function generateMonthlyAssignments(
       members: a.memberIds.map((mid) => ({
         id: mid,
         name: memberMap.get(mid)?.name ?? 'Unknown',
+        notes: memberMap.get(mid)?.notes ?? '',
         gradeGroup: memberMap.get(mid)?.gradeGroup ?? GradeGroup.LOWER,
       })),
       vacantSlots: Math.max(0, max - a.memberIds.length),
@@ -312,6 +314,7 @@ export function adjustAssignment(
     members: updated.memberIds.map((mid) => ({
       id: mid,
       name: memberLookup.get(mid)?.name ?? 'Unknown',
+      notes: memberLookup.get(mid)?.notes ?? '',
       gradeGroup: memberLookup.get(mid)?.gradeGroup ?? GradeGroup.LOWER,
     })),
     vacantSlots: Math.max(0, maxMembersForSchedule(schedule) - updated.memberIds.length),
@@ -369,6 +372,7 @@ export function getAssignmentsForMonth(
       members: a.memberIds.map((mid) => ({
         id: mid,
         name: memberMap.get(mid)?.name ?? 'Unknown',
+        notes: memberMap.get(mid)?.notes ?? '',
         gradeGroup: memberMap.get(mid)?.gradeGroup ?? GradeGroup.LOWER,
       })),
       vacantSlots: Math.max(0, max - a.memberIds.length),
@@ -419,6 +423,7 @@ export function unassignMember(
       return {
         id: mid,
         name: m?.name ?? 'Unknown',
+        notes: m?.notes ?? '',
         gradeGroup: m?.gradeGroup ?? GradeGroup.LOWER,
       };
     }),
@@ -546,6 +551,7 @@ export function assignToVacantSlot(
     members: updated.memberIds.map((mid) => ({
       id: mid,
       name: memberLookup.get(mid)?.name ?? 'Unknown',
+      notes: memberLookup.get(mid)?.notes ?? '',
       gradeGroup: memberLookup.get(mid)?.gradeGroup ?? GradeGroup.LOWER,
     })),
     vacantSlots: Math.max(0, max - updated.memberIds.length),

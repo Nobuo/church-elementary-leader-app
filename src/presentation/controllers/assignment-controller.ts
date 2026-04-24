@@ -247,6 +247,7 @@ export function createAssignmentController(
         return {
           id: m.id,
           name: m.name,
+          notes: m.notes,
           count,
           warnings,
           recommended: warnings.length === 0,

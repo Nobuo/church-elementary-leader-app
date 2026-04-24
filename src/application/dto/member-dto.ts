@@ -3,6 +3,7 @@ import { Member } from '@domain/entities/member';
 export interface MemberDto {
   id: string;
   name: string;
+  notes: string;
   gender: string;
   language: string;
   gradeGroup: string;
@@ -17,6 +18,7 @@ export function toMemberDto(member: Member): MemberDto {
   return {
     id: member.id,
     name: member.name,
+    notes: member.notes,
     gender: member.gender,
     language: member.language,
     gradeGroup: member.gradeGroup,

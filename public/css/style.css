@@ -122,11 +122,24 @@ dialog::backdrop { background: rgba(0,0,0,0.3); }
   font-size: 0.9rem;
 }
 .form-group input[type="text"],
-.form-group select {
+.form-group select,
+.form-group textarea {
   width: 100%;
   padding: 8px;
   border: 1px solid #ddd;
   border-radius: 4px;
+}
+
+.form-group textarea {
+  min-height: 96px;
+  resize: vertical;
+  font-family: inherit;
+}
+
+.member-notes-cell {
+  max-width: 280px;
+  white-space: pre-wrap;
+  color: #4b5563;
 }
 
 .form-actions {
@@ -261,6 +274,69 @@ dialog::backdrop { background: rgba(0,0,0,0.3); }
   padding: 4px 0;
 }
 .assignment-group .group-label { font-weight: 600; min-width: 100px; }
+
+.member-note-badge {
+  position: relative;
+  display: inline-block;
+  margin-left: 4px;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: #fef3c7;
+  color: #92400e;
+  font-size: 0.72rem;
+  vertical-align: middle;
+  border: 1px solid #f59e0b;
+  cursor: pointer;
+}
+
+.replace-inline {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin-left: 6px;
+}
+
+.candidate-notes {
+  display: none;
+  flex-basis: 100%;
+  padding: 8px 10px;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  background: #f9fafb;
+  color: #374151;
+  font-size: 0.82rem;
+  line-height: 1.5;
+}
+
+.member-note-wrap {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+
+.member-note-panel {
+  display: none;
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  z-index: 20;
+  min-width: 220px;
+  max-width: min(320px, 70vw);
+  padding: 10px 12px;
+  border: 1px solid #fcd34d;
+  border-radius: 8px;
+  background: #fffdf5;
+  box-shadow: 0 10px 24px rgba(0,0,0,0.12);
+  color: #4b5563;
+  font-size: 0.85rem;
+  line-height: 1.5;
+  white-space: normal;
+}
+
+.member-note-wrap.open .member-note-panel {
+  display: block;
+}
 
 .warnings {
   background: #fffbeb;

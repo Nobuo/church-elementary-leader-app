@@ -1,5 +1,22 @@
 let memberCountMap = {};
 
+function closeOpenNotePanels(exceptWrap = null) {
+  document.querySelectorAll('.member-note-wrap.open').forEach((el) => {
+    if (exceptWrap && el === exceptWrap) return;
+    el.classList.remove('open');
+  });
+}
+
+function renderInlineNotes(notes, memberId) {
+  if (!notes) return '';
+  return (
+    ` <span class="member-note-wrap" data-member-id="${escapeHtml(memberId)}">` +
+    `<button type="button" class="member-note-badge" data-action="toggle-note" aria-label="${t('memberNote')}">${t('memberNote')}</button>` +
+    `<span class="member-note-panel">${escapeHtml(notes).replace(/\n/g, '<br>')}</span>` +
+    `</span>`
+  );
+}
+
 async function loadAssignments() {
   const year = getSelectedFiscalYear();
   const month = getSelectedMonth();
@@ -100,7 +117,7 @@ function renderAssignments(assignments, scheduleMap = {}) {
             const isCrossover = !isMixed && m.gradeGroup && g.gradeGroup && m.gradeGroup !== g.gradeGroup;
             const crossoverClass = isCrossover ? ' crossover' : '';
             return `<span class="grade-label${crossoverClass}">[${shortLabel}]</span>` +
-              `<span class="member-name" data-member-id="${escapeHtml(m.id)}">${escapeHtml(m.name)}</span>${countStr}` +
+              `<span class="member-name" data-member-id="${escapeHtml(m.id)}">${escapeHtml(m.name)}</span>${renderInlineNotes(m.notes, m.id)}${countStr}` +
               ` <button class="replace-btn" data-action="start-replace" data-assignment-id="${escapeHtml(g.id)}" data-member-id="${escapeHtml(m.id)}" data-assigned='${escapeHtml(JSON.stringify([...assignedOnDate]))}' data-date="${escapeHtml(date)}" data-partner-id="${escapeHtml(partnerId)}" data-role="${g.gradeGroup || ''}">${t('replace')}</button>` +
               ` <button class="unassign-btn" data-action="unassign" data-assignment-id="${escapeHtml(g.id)}" data-member-id="${escapeHtml(m.id)}" data-date="${escapeHtml(date)}">${t('unassign')}</button>`;
         });
@@ -127,12 +144,27 @@ function renderAssignments(assignments, scheduleMap = {}) {
 // Event delegation for assignment actions
 document.getElementById('assignments-list')?.addEventListener('click', (e) => {
   const btn = e.target.closest('[data-action]');
-  if (!btn) return;
+  if (!btn) {
+    if (!e.target.closest('.member-note-wrap')) closeOpenNotePanels();
+    return;
+  }
   const action = btn.dataset.action;
+  if (action === 'toggle-note') {
+    const wrap = btn.closest('.member-note-wrap');
+    if (!wrap) return;
+    const willOpen = !wrap.classList.contains('open');
+    closeOpenNotePanels(wrap);
+    wrap.classList.toggle('open', willOpen);
+    return;
+  }
   if (action === 'clear-day') clearDayAssignments(btn.dataset.date);
   if (action === 'start-replace') startReplace(btn.dataset.assignmentId, btn.dataset.memberId, btn);
   if (action === 'unassign') doUnassign(btn.dataset.assignmentId, btn.dataset.memberId, btn.dataset.date);
   if (action === 'start-assign') startAssign(btn.dataset.assignmentId, btn);
+});
+
+document.addEventListener('click', (e) => {
+  if (!e.target.closest('.member-note-wrap')) closeOpenNotePanels();
 });
 
 async function generateAssignmentsAction() {
@@ -314,6 +346,15 @@ async function startReplace(assignmentId, memberId, btnEl) {
     sel.appendChild(opt);
   }
 
+  const notesEl = document.createElement('div');
+  notesEl.className = 'candidate-notes';
+  const updateNotes = () => {
+    const selected = candidates.find((c) => c.id === sel.value);
+    notesEl.innerHTML = selected?.notes ? escapeHtml(selected.notes).replace(/\n/g, '<br>') : '';
+    notesEl.style.display = selected?.notes ? 'block' : 'none';
+  };
+  sel.addEventListener('change', updateNotes);
+
   const confirmBtn = document.createElement('button');
   confirmBtn.className = 'replace-btn';
   confirmBtn.textContent = t('confirm');
@@ -325,9 +366,11 @@ async function startReplace(assignmentId, memberId, btnEl) {
   cancelBtn.addEventListener('click', () => wrapper.remove());
 
   wrapper.appendChild(sel);
+  wrapper.appendChild(notesEl);
   wrapper.appendChild(confirmBtn);
   wrapper.appendChild(cancelBtn);
   btnEl.after(wrapper);
+  updateNotes();
 }
 
 async function doReplace(assignmentId, oldMemberId, newMemberId, wrapperEl) {
@@ -413,6 +456,15 @@ async function startAssign(assignmentId, btnEl) {
     sel.appendChild(opt);
   }
 
+  const notesEl = document.createElement('div');
+  notesEl.className = 'candidate-notes';
+  const updateNotes = () => {
+    const selected = candidates.find((c) => c.id === sel.value);
+    notesEl.innerHTML = selected?.notes ? escapeHtml(selected.notes).replace(/\n/g, '<br>') : '';
+    notesEl.style.display = selected?.notes ? 'block' : 'none';
+  };
+  sel.addEventListener('change', updateNotes);
+
   const confirmBtn = document.createElement('button');
   confirmBtn.className = 'replace-btn';
   confirmBtn.textContent = t('confirm');
@@ -424,9 +476,11 @@ async function startAssign(assignmentId, btnEl) {
   cancelBtn.addEventListener('click', () => wrapper.remove());
 
   wrapper.appendChild(sel);
+  wrapper.appendChild(notesEl);
   wrapper.appendChild(confirmBtn);
   wrapper.appendChild(cancelBtn);
   btnEl.after(wrapper);
+  updateNotes();
 }
 
 async function doAssign(assignmentId, memberId, wrapperEl) {

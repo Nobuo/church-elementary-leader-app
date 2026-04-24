@@ -14,6 +14,7 @@ export interface ImportResult {
 
 interface ParsedRow {
   name: string;
+  notes: string;
   gender: string;
   language: string;
   gradeGroup: string;
@@ -59,35 +60,39 @@ function parseCsvLine(line: string): string[] {
 
 function parseRow(fields: string[], rowNum: number): ParsedRow | { error: string } {
   if (fields.length < 9) {
-    return { error: `Row ${rowNum}: Expected 9 columns, got ${fields.length}` };
+    return { error: `Row ${rowNum}: Expected at least 9 columns, got ${fields.length}` };
   }
 
+  const hasNotesColumn = fields.length >= 10;
   const name = fields[0].trim();
   if (!name) return { error: `Row ${rowNum}: Name is required` };
 
-  const gender = fields[1].trim().toUpperCase();
+  const notes = hasNotesColumn ? fields[1].trim() : '';
+  const offset = hasNotesColumn ? 1 : 0;
+
+  const gender = fields[1 + offset].trim().toUpperCase();
   if (!isValidGender(gender)) {
-    return { error: `Row ${rowNum}: Invalid gender "${fields[1]}"` };
+    return { error: `Row ${rowNum}: Invalid gender "${fields[1 + offset]}"` };
   }
 
-  const language = fields[2].trim().toUpperCase();
+  const language = fields[2 + offset].trim().toUpperCase();
   if (!isValidLanguage(language)) {
-    return { error: `Row ${rowNum}: Invalid language "${fields[2]}"` };
+    return { error: `Row ${rowNum}: Invalid language "${fields[2 + offset]}"` };
   }
 
-  const gradeGroup = fields[3].trim().toUpperCase();
+  const gradeGroup = fields[3 + offset].trim().toUpperCase();
   if (!isValidGradeGroup(gradeGroup)) {
-    return { error: `Row ${rowNum}: Invalid grade group "${fields[3]}"` };
+    return { error: `Row ${rowNum}: Invalid grade group "${fields[3 + offset]}"` };
   }
 
-  const memberType = fields[4].trim().toUpperCase();
+  const memberType = fields[4 + offset].trim().toUpperCase();
   if (!isValidMemberType(memberType)) {
-    return { error: `Row ${rowNum}: Invalid member type "${fields[4]}"` };
+    return { error: `Row ${rowNum}: Invalid member type "${fields[4 + offset]}"` };
   }
 
-  const sameGenderOnly = fields[5].trim().toUpperCase() === 'TRUE';
-  const spouseName = fields[6].trim();
-  const datesStr = fields[7].trim();
+  const sameGenderOnly = fields[5 + offset].trim().toUpperCase() === 'TRUE';
+  const spouseName = fields[6 + offset].trim();
+  const datesStr = fields[7 + offset].trim();
   let availableDates: string[] | null = null;
   if (datesStr) {
     const dates = datesStr.split(';').map((d) => d.trim()).filter(Boolean);
@@ -99,9 +104,9 @@ function parseRow(fields: string[], rowNum: number): ParsedRow | { error: string
     }
     availableDates = dates.length > 0 ? dates : null;
   }
-  const isActive = fields[8].trim().toUpperCase() !== 'FALSE';
+  const isActive = fields[8 + offset].trim().toUpperCase() !== 'FALSE';
 
-  return { name, gender, language, gradeGroup, memberType, sameGenderOnly, spouseName, availableDates, isActive };
+  return { name, notes, gender, language, gradeGroup, memberType, sameGenderOnly, spouseName, availableDates, isActive };
 }
 
 export function importMembersCsv(
@@ -149,6 +154,7 @@ export function importMembersCsv(
     if (existing) {
       // Update existing
       const updateResult = existing.update({
+        notes: parsed.notes,
         gender: parsed.gender as Gender,
         language: parsed.language as Language,
         gradeGroup: parsed.gradeGroup as GradeGroup,
@@ -170,6 +176,7 @@ export function importMembersCsv(
       // Create new
       const createResult = Member.create({
         name: parsed.name,
+        notes: parsed.notes,
         gender: parsed.gender as Gender,
         language: parsed.language as Language,
         gradeGroup: parsed.gradeGroup as GradeGroup,

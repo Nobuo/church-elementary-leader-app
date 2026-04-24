@@ -127,6 +127,17 @@ Test,MALE,JAPANESE,UPPER,HELPER,FALSE,,2026-04-05;2026-04-12,TRUE`;
     expect(repo.members[0].availableDates).toEqual(['2026-04-05', '2026-04-12']);
   });
 
+  it('imports notes column when present', () => {
+    const repo = createInMemoryMemberRepo();
+    const csv = `Name,Notes,Gender,Language,Grade Group,Member Type,Same-gender Only,Spouse,Available Dates,Active
+Test,"Starts practicum from 2026-05-01",MALE,JAPANESE,UPPER,HELPER,FALSE,,,TRUE`;
+
+    const result = importMembersCsv(csv, repo);
+
+    expect(result.created).toBe(1);
+    expect(repo.members[0].notes).toBe('Starts practicum from 2026-05-01');
+  });
+
   it('accepts gradeGroup=ANY in CSV import (T7)', () => {
     const repo = createInMemoryMemberRepo();
     const csv = `Name,Gender,Language,Grade Group,Member Type,Same-gender Only,Spouse,Available Dates,Active

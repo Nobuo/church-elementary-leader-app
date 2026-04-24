@@ -7,6 +7,7 @@ import { isValidGender, isValidLanguage, isValidGradeGroup, isValidMemberType } 
 export interface UpdateMemberInput {
   id: string;
   name?: string;
+  notes?: string;
   gender?: string;
   language?: string;
   gradeGroup?: string;
@@ -30,6 +31,7 @@ export function updateMember(
 
   const changes: Record<string, unknown> = {};
   if (input.name !== undefined) changes.name = input.name;
+  if (input.notes !== undefined) changes.notes = input.notes.trim();
   if (input.gender !== undefined) changes.gender = input.gender;
   if (input.language !== undefined) changes.language = input.language;
   if (input.gradeGroup !== undefined) changes.gradeGroup = input.gradeGroup;

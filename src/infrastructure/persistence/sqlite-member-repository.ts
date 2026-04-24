@@ -10,6 +10,7 @@ import { MemberType } from '@domain/value-objects/member-type';
 interface MemberRow {
   id: string;
   name: string;
+  notes: string | null;
   gender: string;
   language: string;
   grade_group: string;
@@ -34,6 +35,7 @@ function rowToMember(row: MemberRow): Member {
   return Member.reconstruct({
     id: asMemberId(row.id),
     name: row.name,
+    notes: row.notes ?? '',
     gender: row.gender as Gender,
     language: row.language as Language,
     gradeGroup: row.grade_group as GradeGroup,
@@ -51,12 +53,13 @@ export class SqliteMemberRepository implements MemberRepository {
   save(member: Member): void {
     this.db
       .prepare(
-        `INSERT OR REPLACE INTO members (id, name, gender, language, grade_group, member_type, same_gender_only, spouse_id, available_dates, is_active)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        `INSERT OR REPLACE INTO members (id, name, notes, gender, language, grade_group, member_type, same_gender_only, spouse_id, available_dates, is_active)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       )
       .run(
         member.id,
         member.name,
+        member.notes,
         member.gender,
         member.language,
         member.gradeGroup,

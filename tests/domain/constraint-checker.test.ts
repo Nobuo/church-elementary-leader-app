@@ -182,6 +182,7 @@ describe('constraint-checker', () => {
       const m2 = Member.reconstruct({
         id: spouseId,
         name: 'Spouse',
+        notes: '',
         gender: Gender.FEMALE,
         language: Language.ENGLISH,
         gradeGroup: GradeGroup.LOWER,

@@ -357,6 +357,7 @@ describe('generateAssignments', () => {
       const m1 = Member.reconstruct({
         id: spouseId1,
         name: 'Husband',
+        notes: '',
         gender: Gender.MALE,
         language: Language.BOTH,
         gradeGroup: GradeGroup.UPPER,
@@ -369,6 +370,7 @@ describe('generateAssignments', () => {
       const m2 = Member.reconstruct({
         id: spouseId2,
         name: 'Wife',
+        notes: '',
         gender: Gender.FEMALE,
         language: Language.BOTH,
         gradeGroup: GradeGroup.LOWER,

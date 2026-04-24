@@ -8,6 +8,7 @@ import { MemberType } from '@domain/value-objects/member-type';
 export interface MemberProps {
   readonly id: MemberId;
   readonly name: string;
+  readonly notes: string;
   readonly gender: Gender;
   readonly language: Language;
   readonly gradeGroup: GradeGroup;
@@ -18,11 +19,14 @@ export interface MemberProps {
   readonly isActive: boolean;
 }
 
-export type CreateMemberInput = Omit<MemberProps, 'id' | 'isActive'>;
+export type CreateMemberInput = Omit<MemberProps, 'id' | 'isActive' | 'notes'> & {
+  readonly notes?: string;
+};
 
 export class Member {
   readonly id: MemberId;
   readonly name: string;
+  readonly notes: string;
   readonly gender: Gender;
   readonly language: Language;
   readonly gradeGroup: GradeGroup;
@@ -35,6 +39,7 @@ export class Member {
   private constructor(props: MemberProps) {
     this.id = props.id;
     this.name = props.name;
+    this.notes = props.notes;
     this.gender = props.gender;
     this.language = props.language;
     this.gradeGroup = props.gradeGroup;
@@ -46,11 +51,16 @@ export class Member {
   }
 
   static create(input: CreateMemberInput): Result<Member> {
+    const notes = input.notes ?? '';
+
     if (!input.name.trim()) {
       return err('Name is required');
     }
     if (input.name.length > 200) {
       return err('Name must be 200 characters or less');
+    }
+    if (notes.length > 2000) {
+      return err('Notes must be 2000 characters or less');
     }
 
     if (input.memberType !== MemberType.PARENT_COUPLE && input.spouseId) {
@@ -60,6 +70,7 @@ export class Member {
     return ok(
       new Member({
         ...input,
+        notes,
         id: createMemberId(),
         isActive: true,
       }),
@@ -78,6 +89,9 @@ export class Member {
     }
     if (updated.name.length > 200) {
       return err('Name must be 200 characters or less');
+    }
+    if (updated.notes.length > 2000) {
+      return err('Notes must be 2000 characters or less');
     }
 
     if (updated.memberType !== MemberType.PARENT_COUPLE && updated.spouseId) {
@@ -108,6 +122,7 @@ export class Member {
     return {
       id: this.id,
       name: this.name,
+      notes: this.notes,
       gender: this.gender,
       language: this.language,
       gradeGroup: this.gradeGroup,

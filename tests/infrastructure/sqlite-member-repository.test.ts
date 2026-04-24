@@ -78,6 +78,7 @@ describe('SqliteMemberRepository', () => {
   it('saves member with available dates', () => {
     const result = Member.create({
       name: 'Dates User',
+      notes: 'Needs quiet workload',
       gender: Gender.FEMALE,
       language: Language.BOTH,
       gradeGroup: GradeGroup.LOWER,
@@ -91,5 +92,6 @@ describe('SqliteMemberRepository', () => {
     const found = repo.findById(result.value.id);
     expect(found!.availableDates).toEqual(['2026-04-05', '2026-04-12']);
     expect(found!.sameGenderOnly).toBe(true);
+    expect(found!.notes).toBe('Needs quiet workload');
   });
 });
