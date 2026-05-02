@@ -26,7 +26,11 @@ interface GenerateScheduleBatchResult {
   existingCount: number;
 }
 
-export interface GenerateFiscalYearScheduleDto extends GenerateScheduleBatchResult {}
+export interface GenerateFiscalYearScheduleDto {
+  schedules: ScheduleDto[];
+  createdCount: number;
+  existingCount: number;
+}
 
 function generateScheduleBatch(
   dates: string[],
