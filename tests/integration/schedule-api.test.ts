@@ -37,6 +37,40 @@ describe('Schedule API', () => {
     });
   });
 
+  describe('POST /api/schedules/generate-fiscal-year', () => {
+    it('generates schedules for the full fiscal year', async () => {
+      const fiscalYear = testYear;
+
+      const res = await t.request
+        .post('/api/schedules/generate-fiscal-year')
+        .send({ fiscalYear })
+        .expect(200);
+
+      expect(res.body.schedules.length).toBeGreaterThanOrEqual(52);
+      expect(res.body.schedules.every((s: { date: string }) => new Date(s.date).getDay() === 0)).toBe(true);
+      expect(res.body.createdCount).toBeGreaterThanOrEqual(52);
+      expect(res.body.existingCount).toBe(0);
+
+      const april = await t.request.get(`/api/schedules?year=${fiscalYear}&month=4`).expect(200);
+      const march = await t.request.get(`/api/schedules?year=${fiscalYear + 1}&month=3`).expect(200);
+      expect(april.body.length).toBeGreaterThanOrEqual(4);
+      expect(march.body.length).toBeGreaterThanOrEqual(4);
+    });
+
+    it('is idempotent for the same fiscal year', async () => {
+      const fiscalYear = testYear;
+      const res1 = await t.request.post('/api/schedules/generate-fiscal-year').send({ fiscalYear }).expect(200);
+      const res2 = await t.request.post('/api/schedules/generate-fiscal-year').send({ fiscalYear }).expect(200);
+      expect(res2.body.schedules).toHaveLength(res1.body.schedules.length);
+      expect(res2.body.createdCount).toBe(0);
+      expect(res2.body.existingCount).toBe(res1.body.schedules.length);
+    });
+
+    it('returns 400 when fiscalYear is missing', async () => {
+      await t.request.post('/api/schedules/generate-fiscal-year').send({}).expect(400);
+    });
+  });
+
   describe('GET /api/schedules', () => {
     it('2.4 returns schedules after generation', async () => {
       await t.request.post('/api/schedules/generate').send({ year: testYear, month: 4 }).expect(200);
@@ -47,6 +81,19 @@ describe('Schedule API', () => {
     it('2.5 returns empty array for ungenerated month', async () => {
       const res = await t.request.get(`/api/schedules?year=${testYear}&month=5`).expect(200);
       expect(res.body).toEqual([]);
+    });
+  });
+
+  describe('GET /api/schedules/fiscal-year', () => {
+    it('returns all schedules for the fiscal year', async () => {
+      await t.request.post('/api/schedules/generate-fiscal-year').send({ fiscalYear: testYear }).expect(200);
+      const res = await t.request.get(`/api/schedules/fiscal-year?fiscalYear=${testYear}`).expect(200);
+      expect(res.body.length).toBeGreaterThanOrEqual(52);
+      expect(res.body.every((s: { year: number }) => s.year === testYear)).toBe(true);
+    });
+
+    it('returns 400 when fiscalYear is missing', async () => {
+      await t.request.get('/api/schedules/fiscal-year').expect(400);
     });
   });
 

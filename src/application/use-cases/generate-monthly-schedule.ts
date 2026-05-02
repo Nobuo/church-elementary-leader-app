@@ -20,18 +20,27 @@ function toScheduleDto(s: Schedule): ScheduleDto {
   return { id: s.id, date: s.date, isExcluded: s.isExcluded, isEvent: s.isEvent, isEbt: s.isEbt, isSplitClass: s.isSplitClass, splitType: s.splitType, eventNameJa: s.eventNameJa, eventNameEn: s.eventNameEn, year: s.year };
 }
 
-export function generateMonthlySchedule(
-  year: number,
-  month: number,
-  scheduleRepo: ScheduleRepository,
-): Result<ScheduleDto[]> {
-  const sundays = getSundaysInMonth(year, month);
-  const results: ScheduleDto[] = [];
+interface GenerateScheduleBatchResult {
+  schedules: ScheduleDto[];
+  createdCount: number;
+  existingCount: number;
+}
 
-  for (const dateStr of sundays) {
+export interface GenerateFiscalYearScheduleDto extends GenerateScheduleBatchResult {}
+
+function generateScheduleBatch(
+  dates: string[],
+  scheduleRepo: ScheduleRepository,
+): GenerateScheduleBatchResult {
+  const schedules: ScheduleDto[] = [];
+  let createdCount = 0;
+  let existingCount = 0;
+
+  for (const dateStr of dates) {
     const existing = scheduleRepo.findByDate(dateStr);
     if (existing) {
-      results.push(toScheduleDto(existing));
+      existingCount += 1;
+      schedules.push(toScheduleDto(existing));
       continue;
     }
 
@@ -39,10 +48,40 @@ export function generateMonthlySchedule(
     if (!result.ok) continue;
 
     scheduleRepo.save(result.value);
-    results.push(toScheduleDto(result.value));
+    createdCount += 1;
+    schedules.push(toScheduleDto(result.value));
   }
 
-  return ok(results);
+  return { schedules, createdCount, existingCount };
+}
+
+export function generateMonthlySchedule(
+  year: number,
+  month: number,
+  scheduleRepo: ScheduleRepository,
+): Result<ScheduleDto[]> {
+  const sundays = getSundaysInMonth(year, month);
+  return ok(generateScheduleBatch(sundays, scheduleRepo).schedules);
+}
+
+export function generateFiscalYearSchedule(
+  fiscalYear: number,
+  scheduleRepo: ScheduleRepository,
+): Result<GenerateFiscalYearScheduleDto> {
+  const fiscalMonths = [4, 5, 6, 7, 8, 9, 10, 11, 12, 1, 2, 3];
+  const schedules: ScheduleDto[] = [];
+  let createdCount = 0;
+  let existingCount = 0;
+
+  for (const month of fiscalMonths) {
+    const calendarYear = month <= 3 ? fiscalYear + 1 : fiscalYear;
+    const batch = generateScheduleBatch(getSundaysInMonth(calendarYear, month), scheduleRepo);
+    schedules.push(...batch.schedules);
+    createdCount += batch.createdCount;
+    existingCount += batch.existingCount;
+  }
+
+  return ok({ schedules, createdCount, existingCount });
 }
 
 export function toggleExclusion(
@@ -135,4 +174,11 @@ export function listSchedules(
   scheduleRepo: ScheduleRepository,
 ): ScheduleDto[] {
   return scheduleRepo.findByMonth(year, month).map(toScheduleDto);
+}
+
+export function listFiscalYearSchedules(
+  fiscalYear: number,
+  scheduleRepo: ScheduleRepository,
+): ScheduleDto[] {
+  return scheduleRepo.findByFiscalYear(fiscalYear).map(toScheduleDto);
 }

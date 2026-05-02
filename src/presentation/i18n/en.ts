@@ -39,6 +39,7 @@ export const en = {
   schedules: {
     title: 'Schedule Settings',
     generate: 'Generate Schedule',
+    generateFiscalYear: 'Generate Fiscal Year',
     excluded: 'Excluded',
     include: 'Include',
     exclude: 'Exclude',

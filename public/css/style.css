@@ -49,6 +49,31 @@ h2 { margin-bottom: 12px; font-size: 1.2rem; }
 
 .toolbar { display: flex; gap: 8px; margin-bottom: 16px; align-items: center; }
 
+.view-toggle {
+  display: inline-flex;
+  gap: 4px;
+  padding: 4px;
+  margin-bottom: 12px;
+  background: #f3f4f6;
+  border-radius: 8px;
+}
+
+.toggle-btn {
+  padding: 8px 12px;
+  border: none;
+  background: transparent;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  color: #4b5563;
+}
+
+.toggle-btn.active {
+  background: #fff;
+  color: #111827;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.08);
+}
+
 .btn-primary {
   padding: 8px 16px;
   background: #2563eb;
@@ -154,11 +179,54 @@ dialog::backdrop { background: rgba(0,0,0,0.3); }
   gap: 8px;
 }
 
+.fiscal-year-schedule-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 16px;
+}
+
+.schedule-month-block {
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 12px;
+  background: #fafafa;
+  min-width: 0;
+}
+
+.schedule-month-block h3 {
+  margin-bottom: 10px;
+  font-size: 1rem;
+}
+
+.schedule-month-block .schedule-grid {
+  grid-template-columns: 1fr;
+}
+
+.schedule-empty {
+  padding: 16px;
+  border: 1px dashed #d1d5db;
+  border-radius: 8px;
+  color: #6b7280;
+  background: #fafafa;
+}
+
+.fiscal-year-empty-banner {
+  grid-column: 1 / -1;
+}
+
+.schedule-error {
+  grid-column: 1 / -1;
+  border-color: #fca5a5;
+  background: #fef2f2;
+  color: #991b1b;
+}
+
 .schedule-card {
   border: 1px solid #ddd;
   border-radius: 8px;
   padding: 12px;
   text-align: center;
+  min-width: 0;
 }
 .schedule-card.excluded {
   background: #fef2f2;
@@ -174,6 +242,63 @@ dialog::backdrop { background: rgba(0,0,0,0.3); }
 }
 .schedule-card .date { font-weight: 600; margin-bottom: 8px; }
 .schedule-actions { display: flex; flex-wrap: wrap; gap: 4px; justify-content: center; margin-top: 8px; }
+
+.schedule-tags {
+  min-height: 1.2em;
+}
+
+.schedule-card-compact {
+  padding: 10px;
+  text-align: left;
+}
+
+.schedule-card-compact .date {
+  margin-bottom: 4px;
+  font-size: 0.95rem;
+  text-align: left;
+}
+
+.schedule-card-compact .schedule-tags {
+  margin-bottom: 8px;
+  min-height: 1.1em;
+  color: #4b5563;
+  font-size: 0.82rem;
+  line-height: 1.4;
+}
+
+.schedule-card-compact .schedule-actions {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(76px, 1fr));
+  gap: 6px;
+  justify-content: stretch;
+}
+
+.schedule-card-compact .btn-small {
+  width: 100%;
+  min-width: 0;
+  white-space: nowrap;
+}
+
+.schedule-card-compact .split-type-select {
+  grid-column: 1 / -1;
+  width: 100%;
+  min-width: 0;
+}
+
+.schedule-card-compact .event-name-inputs {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+@media (max-width: 720px) {
+  .fiscal-year-schedule-list {
+    grid-template-columns: 1fr;
+  }
+
+  .schedule-card-compact .event-name-inputs {
+    grid-template-columns: 1fr;
+  }
+}
 
 .btn-event.active {
   background: #2563eb;

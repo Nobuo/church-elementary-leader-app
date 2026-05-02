@@ -24,6 +24,10 @@ document.getElementById('lang-select').addEventListener('change', (e) => {
   else if (activePage === 'assignments') loadAssignments();
 });
 
+function getFiscalMonths() {
+  return [4, 5, 6, 7, 8, 9, 10, 11, 12, 1, 2, 3];
+}
+
 // Year/month selectors
 function initDateSelectors() {
   const now = new Date();
@@ -39,9 +43,7 @@ function initDateSelectors() {
   }
 
   const monthSelect = document.getElementById('month-select');
-  // Fiscal year months: 4,5,6,7,8,9,10,11,12,1,2,3
-  const fiscalMonths = [4, 5, 6, 7, 8, 9, 10, 11, 12, 1, 2, 3];
-  for (const m of fiscalMonths) {
+  for (const m of getFiscalMonths()) {
     const opt = document.createElement('option');
     opt.value = m;
     opt.textContent = m;

@@ -2,6 +2,7 @@ import { Router, Request, Response } from 'express';
 import { ScheduleRepository } from '@domain/repositories/schedule-repository';
 import {
   generateMonthlySchedule,
+  generateFiscalYearSchedule,
   toggleExclusion,
   toggleEvent,
   toggleEbt,
@@ -9,6 +10,7 @@ import {
   updateSplitType,
   setEventName,
   listSchedules,
+  listFiscalYearSchedules,
 } from '@application/use-cases/generate-monthly-schedule';
 import { isValidYear, isValidMonth } from '@shared/validators';
 
@@ -27,6 +29,19 @@ export function createScheduleController(scheduleRepo: ScheduleRepository): Rout
     res.json(listSchedules(year, month, scheduleRepo));
   });
 
+  router.get('/fiscal-year', (req: Request, res: Response) => {
+    const fiscalYear = parseInt(req.query.fiscalYear as string);
+    if (isNaN(fiscalYear)) {
+      res.status(400).json({ error: 'fiscalYear is required' });
+      return;
+    }
+    if (!isValidYear(fiscalYear)) {
+      res.status(400).json({ error: 'fiscalYear must be between 2000 and 2100' });
+      return;
+    }
+    res.json(listFiscalYearSchedules(fiscalYear, scheduleRepo));
+  });
+
   router.post('/generate', (req: Request, res: Response) => {
     const { year, month } = req.body;
     if (!year || !month) {
@@ -36,6 +51,24 @@ export function createScheduleController(scheduleRepo: ScheduleRepository): Rout
     if (!isValidYear(year)) { res.status(400).json({ error: 'year must be between 2000 and 2100' }); return; }
     if (!isValidMonth(month)) { res.status(400).json({ error: 'month must be between 1 and 12' }); return; }
     const result = generateMonthlySchedule(year, month, scheduleRepo);
+    if (!result.ok) {
+      res.status(400).json({ error: result.error });
+      return;
+    }
+    res.json(result.value);
+  });
+
+  router.post('/generate-fiscal-year', (req: Request, res: Response) => {
+    const { fiscalYear } = req.body;
+    if (!fiscalYear) {
+      res.status(400).json({ error: 'fiscalYear is required' });
+      return;
+    }
+    if (!isValidYear(fiscalYear)) {
+      res.status(400).json({ error: 'fiscalYear must be between 2000 and 2100' });
+      return;
+    }
+    const result = generateFiscalYearSchedule(fiscalYear, scheduleRepo);
     if (!result.ok) {
       res.status(400).json({ error: result.error });
       return;

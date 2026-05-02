@@ -69,3 +69,73 @@ test('E2.4-E2.5 toggle event', async ({ page }) => {
   // Should have no event-day cards
   await expect(page.locator('.schedule-card.event-day')).toHaveCount(0, { timeout: 5000 });
 });
+
+test('E2.x generate fiscal year schedule via UI', async ({ page }) => {
+  await page.goto('/');
+  await page.click('[data-page="schedules"]');
+  await page.selectOption('#fiscal-year', '2026');
+  await page.selectOption('#month-select', '7');
+
+  page.once('dialog', async (dialog) => {
+    expect(dialog.message()).toContain('新規');
+    await dialog.accept();
+  });
+
+  await page.click('#btn-generate-fiscal-year-schedule');
+
+  await expect(page.locator('.schedule-card')).toHaveCount(4, { timeout: 5000 });
+
+  await page.selectOption('#month-select', '4');
+  await expect(page.locator('.schedule-card')).toHaveCount(4, { timeout: 5000 });
+
+  await page.selectOption('#month-select', '3');
+  await expect(page.locator('.schedule-card')).toHaveCount(4, { timeout: 5000 });
+});
+
+test('E2.x fiscal year view shows the full year on one screen', async ({ page }) => {
+  await page.goto('/');
+  await page.click('[data-page="schedules"]');
+  await page.selectOption('#fiscal-year', '2026');
+
+  page.once('dialog', async (dialog) => {
+    await dialog.accept();
+  });
+
+  await page.click('#btn-generate-fiscal-year-schedule');
+  await page.click('#btn-schedule-view-year');
+
+  await expect(page.locator('#schedule-fiscal-year-list')).toBeVisible();
+  await expect(page.locator('.schedule-month-block')).toHaveCount(12);
+  await expect(page.locator('.schedule-month-block').first()).toContainText('4');
+  await expect(page.locator('.schedule-month-block').last()).toContainText('3');
+  await expect(page.locator('#schedule-fiscal-year-list .schedule-card')).toHaveCount(52);
+
+  const hasHorizontalOverflow = await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth);
+  expect(hasHorizontalOverflow).toBe(false);
+});
+
+test('E2.x fiscal year view shows empty month blocks before generation', async ({ page }) => {
+  await page.goto('/');
+  await page.click('[data-page="schedules"]');
+  await page.click('#btn-schedule-view-year');
+
+  await expect(page.locator('.schedule-month-block')).toHaveCount(12);
+  await expect(page.locator('.fiscal-year-empty-banner')).toContainText('この年度のスケジュール');
+  await expect(page.locator('#schedule-fiscal-year-list .schedule-empty')).toHaveCount(13);
+});
+
+test('E2.x fiscal year view shows API load errors', async ({ page }) => {
+  await page.route('**/api/schedules/fiscal-year?fiscalYear=*', async (route) => {
+    await route.fulfill({
+      status: 500,
+      contentType: 'application/json',
+      body: JSON.stringify({ error: 'forced failure' }),
+    });
+  });
+
+  await page.goto('/');
+  await page.click('[data-page="schedules"]');
+  await page.click('#btn-schedule-view-year');
+
+  await expect(page.locator('#schedule-fiscal-year-list .schedule-error')).toContainText('forced failure');
+});

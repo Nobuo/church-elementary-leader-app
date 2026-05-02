@@ -30,14 +30,14 @@ function makeMember(
 
 function makeSchedule(
   date: string,
-  opts: { isEvent?: boolean; isSplitClass?: boolean; splitType?: SplitType | null; eventNameJa?: string | null; eventNameEn?: string | null } = {},
+  opts: { isEvent?: boolean; isEbt?: boolean; isSplitClass?: boolean; splitType?: SplitType | null; eventNameJa?: string | null; eventNameEn?: string | null } = {},
 ): Schedule {
   return Schedule.reconstruct({
     id: createScheduleId(),
     date,
     isExcluded: false,
     isEvent: opts.isEvent ?? false,
-    isEbt: false,
+    isEbt: opts.isEbt ?? false,
     isSplitClass: opts.isSplitClass ?? false,
     splitType: opts.splitType ?? null,
     eventNameJa: opts.eventNameJa ?? null,
@@ -179,6 +179,35 @@ describe('formatLineMessage', () => {
       const result = formatLineMessage([assignment], [schedule], members, 2026, 3, 'ja');
       expect(result).not.toContain('🎉');
       expect(result).not.toContain('📚');
+    });
+
+    it('shows EBT tag on EBT days', () => {
+      const m1 = makeMember('Alice');
+      const m2 = makeMember('Bob');
+      const schedule = makeSchedule('2026-03-01', { isEbt: true });
+      const assignment = Assignment.create(schedule.id, 1, [m1.id, m2.id]);
+
+      const members = new Map<MemberId, Member>();
+      members.set(m1.id, m1);
+      members.set(m2.id, m2);
+
+      const result = formatLineMessage([assignment], [schedule], members, 2026, 3, 'ja');
+      expect(result).toContain(' EBT');
+    });
+
+    it('shows event and EBT tags together when both are set', () => {
+      const m1 = makeMember('Alice');
+      const m2 = makeMember('Bob');
+      const schedule = makeSchedule('2026-03-01', { isEvent: true, isEbt: true, eventNameJa: '特別礼拝' });
+      const assignment = Assignment.create(schedule.id, 1, [m1.id, m2.id]);
+
+      const members = new Map<MemberId, Member>();
+      members.set(m1.id, m1);
+      members.set(m2.id, m2);
+
+      const result = formatLineMessage([assignment], [schedule], members, 2026, 3, 'ja');
+      expect(result).toContain('🎉 特別礼拝');
+      expect(result).toContain(' EBT');
     });
   });
 

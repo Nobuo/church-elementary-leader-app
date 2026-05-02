@@ -21,6 +21,11 @@ const splitTagLabels: Record<Lang, Record<SplitType, string>> = {
   },
 };
 
+const ebtTagLabel: Record<Lang, string> = {
+  ja: ' EBT',
+  en: ' EBT',
+};
+
 const splitGroupLabels: Record<Lang, Record<SplitType, { upper: string; lower: string }>> = {
   ja: {
     standard: { upper: '4~6年', lower: '1~3年' },
@@ -79,14 +84,16 @@ export function formatLineMessage(
       eventTag = ` 🎉 ${primaryName ?? fallbackName ?? defaultLabel}`;
     }
 
+    const ebtTag = schedule.isEbt ? ebtTagLabel[lang] : '';
+
     // Split class tag
     const splitType = schedule.effectiveSplitType;
     const splitTag = schedule.isSplitClass ? ` ${splitTagLabels[lang][splitType]}` : '';
 
     const dateLabel =
       lang === 'ja'
-        ? `${month}/${dayOfMonth}（${dayName}）${eventTag}${splitTag}`
-        : `${month}/${dayOfMonth} (${dayName})${eventTag}${splitTag}`;
+        ? `${month}/${dayOfMonth}（${dayName}）${eventTag}${ebtTag}${splitTag}`
+        : `${month}/${dayOfMonth} (${dayName})${eventTag}${ebtTag}${splitTag}`;
 
     lines.push(dateLabel);
 

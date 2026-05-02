@@ -39,6 +39,7 @@ export const ja = {
   schedules: {
     title: 'スケジュール設定',
     generate: 'スケジュール生成',
+    generateFiscalYear: '年度分を一括生成',
     excluded: '除外日',
     include: '含める',
     exclude: '除外する',

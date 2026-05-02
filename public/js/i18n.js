@@ -40,7 +40,14 @@ const I18N = {
     memberNote: 'メモ',
     none: 'なし',
     schedulesTitle: 'スケジュール設定',
+    scheduleViewMonth: '月表示',
+    scheduleViewYear: '年度表示',
     generateSchedule: 'スケジュール生成',
+    generateFiscalYearSchedule: '年度分を一括生成',
+    fiscalYearGenerationResult: '年度分を生成しました。新規 {created} 件、既存 {existing} 件です。',
+    fiscalYearEmpty: 'この年度のスケジュールはまだありません。',
+    fiscalMonthEmpty: 'この月のスケジュールはまだありません。',
+    fiscalYearLoadError: '年度スケジュールを読み込めませんでした: {message}',
     exclude: '除外する',
     include: '含める',
     excluded: '除外日',
@@ -165,7 +172,14 @@ const I18N = {
     memberNote: 'Note',
     none: 'None',
     schedulesTitle: 'Schedule Settings',
+    scheduleViewMonth: 'Month View',
+    scheduleViewYear: 'Fiscal Year View',
     generateSchedule: 'Generate Schedule',
+    generateFiscalYearSchedule: 'Generate Fiscal Year',
+    fiscalYearGenerationResult: 'Generated fiscal year schedules. New: {created}, existing: {existing}.',
+    fiscalYearEmpty: 'No schedules yet for this fiscal year.',
+    fiscalMonthEmpty: 'No schedules yet for this month.',
+    fiscalYearLoadError: 'Could not load fiscal year schedules: {message}',
     exclude: 'Exclude',
     include: 'Include',
     excluded: 'Excluded',
@@ -284,7 +298,10 @@ function updateUILanguage() {
   document.getElementById('th-status').textContent = t('status');
   document.getElementById('th-actions').textContent = t('actions');
   document.getElementById('schedules-title').textContent = t('schedulesTitle');
+  document.getElementById('btn-schedule-view-month').textContent = t('scheduleViewMonth');
+  document.getElementById('btn-schedule-view-year').textContent = t('scheduleViewYear');
   document.getElementById('btn-generate-schedule').textContent = t('generateSchedule');
+  document.getElementById('btn-generate-fiscal-year-schedule').textContent = t('generateFiscalYearSchedule');
   document.getElementById('assignments-title').textContent = t('assignmentsTitle');
   document.getElementById('btn-generate-assignments').textContent = t('autoGenerate');
   document.getElementById('btn-clear-month').textContent = t('clearMonth');
