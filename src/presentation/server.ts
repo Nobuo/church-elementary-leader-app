@@ -26,10 +26,10 @@ export function createServer(
 ) {
   const app = express();
 
-  // Security headers (CSP disabled until inline onclick handlers are fully removed)
+  // セキュリティヘッダー（インライン onclick ハンドラーを完全に除去するまで CSP は無効）
   app.use(helmet({ contentSecurityPolicy: false }));
 
-  // Rate limiting on API routes (skip in test environment)
+  // API ルートのレート制限（テスト環境ではスキップ）
   if (process.env.NODE_ENV !== 'test') {
     app.use(
       '/api/',
@@ -50,7 +50,7 @@ export function createServer(
   app.use('/api/schedules', createScheduleController(scheduleRepo));
   app.use('/api/assignments', createAssignmentController(memberRepo, scheduleRepo, assignmentRepo));
 
-  // Test-only reset endpoint
+  // テスト専用のリセットエンドポイント
   if (process.env.NODE_ENV === 'test' && options?.db) {
     const db = options.db;
     app.delete('/api/test/reset', (_req, res) => {
@@ -59,7 +59,7 @@ export function createServer(
     });
   }
 
-  // Global error handler
+  // グローバルエラーハンドラー
   app.use((err: Error, _req: Request, res: Response, _next: NextFunction) => {
     console.error(err.stack);
     const message = process.env.NODE_ENV === 'production' ? 'Internal server error' : err.message;

@@ -23,9 +23,9 @@ const PROD_DB = path.join(
 );
 const TEMP_DB = path.join(import.meta.dirname, '../.verify-temp.db');
 
-// Copy production DB
+// 本番DBをコピーする
 fs.copyFileSync(PROD_DB, TEMP_DB);
-// Remove WAL/SHM if they exist (clean state)
+// WAL/SHM があれば削除してクリーンな状態にする
 try { fs.unlinkSync(TEMP_DB + '-wal'); } catch {}
 try { fs.unlinkSync(TEMP_DB + '-shm'); } catch {}
 
@@ -112,7 +112,7 @@ async function clearAllAssignments() {
 }
 
 async function clearAllSchedules() {
-  // Delete schedules by removing them from DB directly for the fiscal year range
+  // 対象年度範囲のスケジュールをDBから直接削除する
   for (const { year, month } of [...months].reverse()) {
     const schedules = await r.get(`/api/schedules?year=${year}&month=${month}`).expect(200);
     for (const s of schedules.body) {
@@ -136,13 +136,13 @@ async function generateFullYear(): Promise<{
   const allSchedules: Record<string, any[]> = {};
   const report: MonthReport[] = [];
 
-  // Generate schedules
+  // スケジュールを生成する
   for (const { year, month } of months) {
     const res = await r.post('/api/schedules/generate').send({ year, month }).expect(200);
     allSchedules[`${year}-${month}`] = res.body;
   }
 
-  // Generate assignments
+  // 割り当てを生成する
   for (const { year, month } of months) {
     const genRes = await r
       .post('/api/assignments/generate')
@@ -171,33 +171,33 @@ async function generateFullYear(): Promise<{
 }
 
 async function main() {
-  // === Get member info ===
+  // === メンバー情報を取得 ===
   const membersRes = await r.get('/api/members?activeOnly=true').expect(200);
   const memberList = membersRes.body;
 
-  // === Clear everything for clean start ===
+  // === クリーンに開始するため全削除 ===
   await clearAllSchedules();
 
-  // === Run 1 ===
+  // === 1回目 ===
   const run1Data = await generateFullYear();
   const run1Counts = await r.get(`/api/assignments/counts?fiscalYear=${fiscalYear}`).expect(200);
 
-  // === Run 2: Clear assignments + schedules, regenerate ===
+  // === 2回目: 割り当てとスケジュールを削除して再生成 ===
   await clearAllSchedules();
   const run2Data = await generateFullYear();
   const run2Counts = await r.get(`/api/assignments/counts?fiscalYear=${fiscalYear}`).expect(200);
 
-  // === Run 3 ===
+  // === 3回目 ===
   await clearAllSchedules();
   const run3Data = await generateFullYear();
   const run3Counts = await r.get(`/api/assignments/counts?fiscalYear=${fiscalYear}`).expect(200);
 
-  // === Collect stats ===
+  // === 統計を集計 ===
   const stats1 = collectPairStats(run1Data.report);
   const stats2 = collectPairStats(run2Data.report);
   const stats3 = collectPairStats(run3Data.report);
 
-  // === Build markdown report ===
+  // === Markdownレポートを作成 ===
   const lines: string[] = [];
   const w = (s: string = '') => lines.push(s);
 
@@ -210,7 +210,7 @@ async function main() {
   w('---');
   w();
 
-  // === Member composition ===
+  // === メンバー構成 ===
   w('## 1. メンバー構成');
   w();
   w('| # | 名前 | 言語 | 学年 | タイプ | 同性のみ |');
@@ -221,7 +221,7 @@ async function main() {
   w();
   w(`合計: ${memberList.length}名（アクティブ）`);
 
-  // Count by attributes
+  // 属性ごとに集計する
   const langCounts: Record<string, number> = {};
   const gradeCounts: Record<string, number> = {};
   const typeCounts: Record<string, number> = {};
@@ -239,7 +239,7 @@ async function main() {
   w('---');
   w();
 
-  // === Schedule summary ===
+  // === スケジュール概要 ===
   w('## 2. 月別スケジュール');
   w();
   w('| 月 | 日曜日数 | 除外 | 有効日数 |');
@@ -257,7 +257,7 @@ async function main() {
   w('---');
   w();
 
-  // === Run reports ===
+  // === 実行結果レポート ===
   function writeRunReport(
     runName: string,
     report: MonthReport[],
@@ -267,7 +267,7 @@ async function main() {
     w(`## ${runName}`);
     w();
 
-    // Monthly results
+    // 月別結果
     w('### 月別割り当て結果');
     w();
     w('| 月 | 割り当て数 | 違反数 | 違反詳細 |');
@@ -283,7 +283,7 @@ async function main() {
     w(`| **合計** | **${totalAssignments}** | **${stats.totalViolations}** | |`);
     w();
 
-    // Distribution
+    // 分布
     w('### 割り当て回数（均等性）');
     w();
     w('| メンバー | 回数 | グラフ |');
@@ -299,7 +299,7 @@ async function main() {
     w(`- **差分（max-min）:** ${counts.summary.max.count - counts.summary.min.count}回`);
     w();
 
-    // Pair diversity
+    // ペアの多様性
     w('### ペア組み合わせの多様性');
     w();
     const sortedPairs = [...stats.pairCounts.entries()].sort((a, b) => b[1] - a[1]);
@@ -312,7 +312,7 @@ async function main() {
     }
     w();
 
-    // Violations
+    // 制約違反
     w('### 制約違反サマリー');
     w();
     w(`- **総違反数:** ${stats.totalViolations}`);
@@ -320,7 +320,7 @@ async function main() {
     w(`- **ソフト制約違反:** ${stats.softViolations}`);
     w();
 
-    // Detail violations if any
+    // 制約違反があれば詳細を出力する
     if (stats.totalViolations > 0) {
       w('**違反詳細:**');
       w();
@@ -340,7 +340,7 @@ async function main() {
   writeRunReport('4. Run 2: 全クリア→再生成', run2Data.report, stats2, run2Counts.body);
   writeRunReport('5. Run 3: 再クリア→3回目生成', run3Data.report, stats3, run3Counts.body);
 
-  // === Cross-run comparison ===
+  // === 実行間の比較 ===
   w('## 6. ラン間比較');
   w();
 
@@ -370,7 +370,7 @@ async function main() {
   w(`| Run 1 ↔ Run 3 | ${overlap13}/${run1P.length} | ${Math.round((overlap13 / run1P.length) * 100)}% |`);
   w();
 
-  // === Validation summary ===
+  // === 検証結果サマリー ===
   w('---');
   w();
   w('## 7. 検証結果サマリー');
@@ -399,13 +399,13 @@ async function main() {
   w(`| ペア多様性（>10種） | | ${stats1.pairCounts.size} | ${stats2.pairCounts.size} | ${stats3.pairCounts.size} | ${stats1.pairCounts.size > 10 && stats2.pairCounts.size > 10 && stats3.pairCounts.size > 10 ? '**PASS**' : '**FAIL**'} |`);
   w();
 
-  // === Analysis ===
+  // === 分析 ===
   w('---');
   w();
   w('## 8. 分析・考察');
   w();
 
-  // UPPER/LOWER breakdown
+  // UPPER/LOWER の内訳
   const upperMembers = memberList.filter((m: any) => m.gradeGroup === 'UPPER');
   const lowerMembers = memberList.filter((m: any) => m.gradeGroup === 'LOWER');
   const anyMembers = memberList.filter((m: any) => m.gradeGroup === 'ANY');
@@ -416,7 +416,7 @@ async function main() {
   w(`- UPPER/LOWERの人数差が割り当て回数の差に影響する（人数が少ないグループのメンバーは多く割り当てられる）`);
   w();
 
-  // Spouse constraints
+  // 配偶者制約
   const couples = memberList.filter((m: any) => m.memberType === 'PARENT_COUPLE');
   if (couples.length > 0) {
     w('### 配偶者制約');
@@ -426,7 +426,7 @@ async function main() {
     w();
   }
 
-  // Helpers
+  // ヘルパー
   const helpers = memberList.filter((m: any) => m.memberType === 'HELPER');
   if (helpers.length > 0) {
     w('### ヘルパー制約');
@@ -436,7 +436,7 @@ async function main() {
     w();
   }
 
-  // sameGenderOnly
+  // 同性のみ設定
   const sameGender = memberList.filter((m: any) => m.sameGenderOnly);
   if (sameGender.length > 0) {
     w('### 同性ペア制約');
@@ -451,7 +451,7 @@ async function main() {
   w(`- 3回の生成でペアリング一致率は${Math.round((overlap12 / run1P.length) * 100)}%〜${Math.round((overlap13 / run1P.length) * 100)}%と低く、シャッフルが効果的に機能`);
   w('- 最大割り当て者がラン間で変動し、特定メンバーへの偏りが固定化されていない');
 
-  // Write report
+  // レポートを書き出す
   const reportPath = path.join(import.meta.dirname, '../reports/yearly-combination-verification-prod-2026.md');
   fs.mkdirSync(path.dirname(reportPath), { recursive: true });
   fs.writeFileSync(reportPath, lines.join('\n'), 'utf-8');
@@ -461,7 +461,7 @@ async function main() {
   console.log(`Total assignments per run: ${run1P.length}`);
   console.log(`Hard violations: Run1=${stats1.hardViolations}, Run2=${stats2.hardViolations}, Run3=${stats3.hardViolations}`);
 
-  // Cleanup
+  // 後片付け
   db.close();
   fs.unlinkSync(TEMP_DB);
   try { fs.unlinkSync(TEMP_DB + '-wal'); } catch {}

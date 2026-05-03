@@ -11,18 +11,18 @@ describe('Bulk clear assignments', () => {
   afterEach(() => { t.db.close(); });
 
   it('clears all assignments for a future month', async () => {
-    // Use a far-future month to ensure it's always future
+    // 常に未来日になるよう、十分先の月を使う
     await seedSchedule(t.request, 2099, 4);
     await seedAssignments(t.request, 2099, 4);
 
-    // Verify assignments exist
+    // 割り当てが存在することを確認する
     const before = await t.request.get('/api/assignments?year=2099&month=4').expect(200);
     expect(before.body.length).toBeGreaterThan(0);
 
-    // Bulk clear
+    // 一括クリア
     await t.request.delete('/api/assignments?year=2099&month=4').expect(200);
 
-    // Verify all cleared
+    // すべてクリアされたことを確認する
     const after = await t.request.get('/api/assignments?year=2099&month=4').expect(200);
     expect(after.body.length).toBe(0);
   });
@@ -42,14 +42,14 @@ describe('Bulk clear assignments', () => {
   });
 
   it('does not affect single-date clear for future dates', async () => {
-    // Single-date clear (by-date) should still work independently
+    // 単一日付のクリア（by-date）は独立して動作するはず
     await seedSchedule(t.request, 2099, 5);
     await seedAssignments(t.request, 2099, 5);
 
     const before = await t.request.get('/api/assignments?year=2099&month=5').expect(200);
     expect(before.body.length).toBeGreaterThan(0);
 
-    // Get a specific date from the assignments
+    // 割り当てから特定の日付を取得する
     const date = before.body[0].date;
     await t.request.delete(`/api/assignments/by-date?date=${date}`).expect(200);
 

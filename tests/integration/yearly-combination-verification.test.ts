@@ -21,11 +21,11 @@ describe('Yearly Combination Verification', () => {
   });
 
   it('should generate all 12 months with no hard constraint violations and fair distribution', async () => {
-    // === Setup: Register members ===
+    // === 準備: メンバーを登録 ===
     const members = await seedStandardMembers(t.request);
     expect(members.length).toBe(10);
 
-    // Add a PARENT_COUPLE with spouse for spouse constraint testing
+    // 配偶者制約テストのため、配偶者付きの PARENT_COUPLE を追加する
     const husband = members[0];
     await t.request.post('/api/members').send({
       name: '配偶者A',
@@ -37,7 +37,7 @@ describe('Yearly Combination Verification', () => {
       spouseId: husband.id,
     }).expect(201);
 
-    // Use a future fiscal year to avoid "Cannot clear current or past month" restriction
+    // 「現在月または過去月はクリア不可」制約を避けるため、未来の年度を使う
     const fiscalYear = new Date().getFullYear() + 1;
     const months = [
       { year: fiscalYear, month: 4 },
@@ -54,7 +54,7 @@ describe('Yearly Combination Verification', () => {
       { year: fiscalYear + 1, month: 3 },
     ];
 
-    // === Phase 1: Generate schedules for all months ===
+    // === フェーズ1: 全月のスケジュールを生成 ===
     const allSchedules: Record<string, Array<{ id: string; date: string }>> = {};
     for (const { year, month } of months) {
       const res = await t.request.post('/api/schedules/generate').send({ year, month }).expect(200);
@@ -62,7 +62,7 @@ describe('Yearly Combination Verification', () => {
       expect(res.body.length).toBeGreaterThan(0);
     }
 
-    // === Phase 2: Generate assignments month by month ===
+    // === フェーズ2: 月ごとに割り当てを生成 ===
     const report: {
       month: string;
       sundayCount: number;
@@ -97,22 +97,22 @@ describe('Yearly Combination Verification', () => {
       });
     }
 
-    // === Phase 3: Verify initial generation ===
+    // === フェーズ3: 初回生成を検証 ===
     const initialCounts = await t.request
       .get(`/api/assignments/counts?fiscalYear=${fiscalYear}`)
       .expect(200);
 
     const initialCountData = initialCounts.body;
 
-    // === Phase 4: Clear ALL and regenerate from April ===
-    // Clear all months in reverse order
+    // === フェーズ4: 全クリアして4月から再生成 ===
+    // 全月を逆順でクリアする
     for (const { year, month } of [...months].reverse()) {
       await t.request
         .delete(`/api/assignments?year=${year}&month=${month}`)
         .expect(200);
     }
 
-    // Verify all cleared
+    // すべてクリアされたことを確認する
     for (const { year, month } of months) {
       const check = await t.request
         .get(`/api/assignments?year=${year}&month=${month}`)
@@ -120,7 +120,7 @@ describe('Yearly Combination Verification', () => {
       expect(check.body.length).toBe(0);
     }
 
-    // Regenerate from April
+    // 4月から再生成する
     const regeneratedReport: typeof report = [];
     for (const { year, month } of months) {
       const genRes = await t.request
@@ -146,14 +146,14 @@ describe('Yearly Combination Verification', () => {
       });
     }
 
-    // === Phase 5: Get regenerated counts ===
+    // === フェーズ5: 再生成後の回数を取得 ===
     const regenCounts = await t.request
       .get(`/api/assignments/counts?fiscalYear=${fiscalYear}`)
       .expect(200);
 
     const regenCountData = regenCounts.body;
 
-    // === Phase 6: Clear ALL and regenerate AGAIN for stability check ===
+    // === フェーズ6: 安定性確認のため全クリアして再度生成 ===
     for (const { year, month } of [...months].reverse()) {
       await t.request
         .delete(`/api/assignments?year=${year}&month=${month}`)
@@ -189,10 +189,10 @@ describe('Yearly Combination Verification', () => {
       .expect(200);
 
     // ==============================
-    // ASSERTIONS & REPORT
+    // アサーションとレポート
     // ==============================
 
-    // Collect all unique pairings across all runs
+    // 全実行を通じた一意のペアを集計する
     function collectPairStats(rep: typeof report) {
       const pairCounts = new Map<string, number>();
       const memberAssignments = new Map<string, number>();
@@ -222,7 +222,7 @@ describe('Yearly Combination Verification', () => {
     const run2 = collectPairStats(regeneratedReport);
     const run3 = collectPairStats(thirdReport);
 
-    // --- Report Output ---
+    // --- レポート出力 ---
     console.log('\n' + '='.repeat(80));
     console.log(`年間組み合わせ検証レポート（${fiscalYear}年度: ${fiscalYear}/4〜${fiscalYear + 1}/3）`);
     console.log('='.repeat(80));
@@ -289,12 +289,12 @@ describe('Yearly Combination Verification', () => {
     printRunReport('Run 2: 全クリア→再生成', regeneratedReport, run2, regenCountData);
     printRunReport('Run 3: 再クリア→3回目生成', thirdReport, run3, thirdCounts.body);
 
-    // --- Cross-run comparison ---
+    // --- 実行間の比較 ---
     console.log(`\n${'═'.repeat(80)}`);
     console.log('【ラン間比較】');
     console.log(`${'═'.repeat(80)}`);
 
-    // Check that regeneration produces different pairings (due to shuffle randomness)
+    // 再生成で異なるペアが作られることを確認する（シャッフルのランダム性による）
     const run1Pairings = report.flatMap((m) => m.pairings.map((p) => `${p.date}:G${p.group}:${[...p.members].sort().join('+')}`));
     const run2Pairings = regeneratedReport.flatMap((m) => m.pairings.map((p) => `${p.date}:G${p.group}:${[...p.members].sort().join('+')}`));
     const run3Pairings = thirdReport.flatMap((m) => m.pairings.map((p) => `${p.date}:G${p.group}:${[...p.members].sort().join('+')}`));
@@ -314,14 +314,14 @@ describe('Yearly Combination Verification', () => {
     console.log(`  Run2-Run3 一致率: ${overlap23}/${run2Pairings.length} (${Math.round((overlap23 / run2Pairings.length) * 100)}%)`);
     console.log(`  Run1-Run3 一致率: ${overlap13}/${run1Pairings.length} (${Math.round((overlap13 / run1Pairings.length) * 100)}%)`);
 
-    // === HARD ASSERTIONS ===
+    // === 厳格なアサーション ===
 
-    // 1. No hard constraint violations in any run
+    // 1. どの実行でもハード制約違反がない
     expect(run1.hardViolations).toBe(0);
     expect(run2.hardViolations).toBe(0);
     expect(run3.hardViolations).toBe(0);
 
-    // 2. All months produced assignments
+    // 2. すべての月で割り当てが生成されている
     for (const m of report) {
       expect(m.assignmentCount).toBeGreaterThan(0);
     }
@@ -332,25 +332,25 @@ describe('Yearly Combination Verification', () => {
       expect(m.assignmentCount).toBeGreaterThan(0);
     }
 
-    // 3. Assignment counts should be consistent across runs (same total)
+    // 3. 実行間で割り当て回数が一致するはず（合計が同じ）
     const totalRun1 = report.reduce((s, m) => s + m.assignmentCount, 0);
     const totalRun2 = regeneratedReport.reduce((s, m) => s + m.assignmentCount, 0);
     const totalRun3 = thirdReport.reduce((s, m) => s + m.assignmentCount, 0);
     expect(totalRun1).toBe(totalRun2);
     expect(totalRun2).toBe(totalRun3);
 
-    // 4. Distribution fairness: max-min diff should be reasonable (within 50% of average)
+    // 4. 分布の公平性: 最大と最小の差が妥当な範囲にあるはず（平均の50%以内）
     for (const counts of [initialCountData, regenCountData, thirdCounts.body]) {
       const diff = counts.summary.max.count - counts.summary.min.count;
       const avg = counts.summary.average;
       expect(diff).toBeLessThanOrEqual(Math.ceil(avg * 0.6));
     }
 
-    // 5. Pairings should vary between runs (randomness check)
-    // At least 20% should be different between runs
+    // 5. 実行間でペアが変化するはず（ランダム性の確認）
+    // 実行間で少なくとも20%は異なるはず
     expect(overlap12 / run1Pairings.length).toBeLessThan(0.8);
 
-    // 6. Each run should produce multiple unique pairs (diversity)
+    // 6. 各実行で複数の一意なペアが作られるはず（多様性）
     expect(run1.pairCounts.size).toBeGreaterThan(10);
     expect(run2.pairCounts.size).toBeGreaterThan(10);
     expect(run3.pairCounts.size).toBeGreaterThan(10);
@@ -358,10 +358,10 @@ describe('Yearly Combination Verification', () => {
     console.log('\n' + '='.repeat(80));
     console.log('✅ 全検証パス');
     console.log('='.repeat(80));
-  }, 60000); // 60s timeout for this comprehensive test
+  }, 60000); // この総合テストのタイムアウトは60秒
 
   it('should handle mixed combined/split-class days across a full year', async () => {
-    // === Setup: Register members (need BOTH members for split-class coverage) ===
+    // === 準備: メンバーを登録（分級日のカバーには BOTH メンバーが必要）===
     const memberInputs = [
       { name: 'U1', gender: 'MALE', language: 'BOTH', gradeGroup: 'UPPER', memberType: 'PARENT_SINGLE', sameGenderOnly: false },
       { name: 'U2', gender: 'FEMALE', language: 'JAPANESE', gradeGroup: 'UPPER', memberType: 'PARENT_SINGLE', sameGenderOnly: false },
@@ -378,7 +378,7 @@ describe('Yearly Combination Verification', () => {
       await t.request.post('/api/members').send(input).expect(201);
     }
 
-    // Use a future fiscal year to avoid "Cannot clear current or past month" restriction
+    // 「現在月または過去月はクリア不可」制約を避けるため、未来の年度を使う
     const fiscalYear = new Date().getFullYear() + 1;
     const months = [
       { year: fiscalYear, month: 4 },
@@ -395,22 +395,22 @@ describe('Yearly Combination Verification', () => {
       { year: fiscalYear + 1, month: 3 },
     ];
 
-    // Generate schedules for all months
+    // 全月のスケジュールを生成する
     const allSchedules: Record<string, Array<{ id: string; date: string }>> = {};
     for (const { year, month } of months) {
       const res = await t.request.post('/api/schedules/generate').send({ year, month }).expect(200);
       allSchedules[`${year}-${month}`] = res.body;
     }
 
-    // Toggle every other Sunday in each month to split-class
-    // This creates a realistic mix: ~half combined (3 members), ~half split (2×2 members)
+    // 各月の日曜日を1つおきに分級日にする
+    // これにより、約半分が合同日（3人）、約半分が分級日（2人×2組）という現実的な混在になる
     let splitCount = 0;
     let combinedCount = 0;
     for (const { year, month } of months) {
       const schedules = allSchedules[`${year}-${month}`];
       for (let i = 0; i < schedules.length; i++) {
         if (i % 2 === 1) {
-          // Every other Sunday becomes split-class
+          // 日曜日を1つおきに分級日にする
           await t.request.post(`/api/schedules/${schedules[i].id}/toggle-split-class`).expect(200);
           splitCount++;
         } else {
@@ -419,7 +419,7 @@ describe('Yearly Combination Verification', () => {
       }
     }
 
-    // Generate assignments for all months
+    // 全月の割り当てを生成する
     let totalAssignments = 0;
     let totalHardViolations = 0;
     const monthlyResults: Array<{
@@ -470,29 +470,29 @@ describe('Yearly Combination Verification', () => {
       });
     }
 
-    // === Assertions ===
+    // === アサーション ===
 
-    // 1. No hard constraint violations
+    // 1. ハード制約違反がない
     expect(totalHardViolations).toBe(0);
 
-    // 2. All months produced assignments
+    // 2. すべての月で割り当てが生成されている
     for (const m of monthlyResults) {
       expect(m.assignments).toBeGreaterThan(0);
     }
 
-    // 3. Combined days should have exactly 3 members per group
+    // 3. 合同日は各グループが必ず3人であるはず
     for (const m of monthlyResults) {
       for (const g of m.combinedDayGroups) {
         expect(g.memberCount).toBe(3);
       }
     }
 
-    // 4. Split days should have exactly 2 members per group, 2 groups per day
+    // 4. 分級日は各グループが必ず2人で、1日2グループであるはず
     for (const m of monthlyResults) {
       for (const g of m.splitDayGroups) {
         expect(g.memberCount).toBe(2);
       }
-      // Each split day should have 2 groups
+      // 各分級日は2グループであるはず
       const splitDates = [...new Set(m.splitDayGroups.map((g) => g.date))];
       for (const date of splitDates) {
         const groups = m.splitDayGroups.filter((g) => g.date === date);
@@ -500,22 +500,22 @@ describe('Yearly Combination Verification', () => {
       }
     }
 
-    // 5. Total assignments should match expected:
-    //    combined days × 1 + split days × 2
+    // 5. 割り当て総数が期待値と一致するはず:
+    //    合同日 × 1 + 分級日 × 2
     const expectedAssignments = combinedCount * 1 + splitCount * 2;
     expect(totalAssignments).toBe(expectedAssignments);
 
-    // 6. Distribution fairness
+    // 6. 分布の公平性
     const counts = await t.request
       .get(`/api/assignments/counts?fiscalYear=${fiscalYear}`)
       .expect(200);
 
     const diff = counts.body.summary.max.count - counts.body.summary.min.count;
     const avg = counts.body.summary.average;
-    // With mixed days the expected count per member varies, allow reasonable spread
+    // 日種別が混在するとメンバーごとの期待回数が変わるため、妥当なばらつきを許容する
     expect(diff).toBeLessThanOrEqual(Math.ceil(avg * 0.6));
 
-    // === Report ===
+    // === レポート ===
     console.log('\n' + '='.repeat(80));
     console.log('年間混合日検証レポート（合同日 + 分級日混在）');
     console.log('='.repeat(80));

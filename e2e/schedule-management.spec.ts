@@ -9,20 +9,20 @@ test.beforeEach(async ({ request }) => {
 test('E2.1 generate schedule via UI', async ({ page }) => {
   await page.goto('/');
 
-  // Navigate to schedules tab
+  // スケジュールタブへ移動する
   await page.click('[data-page="schedules"]');
   await expect(page.locator('#page-schedules')).toBeVisible();
 
-  // Select a future month (April of the current fiscal year)
+  // 未来の月を選択する（現在年度の4月）
   await page.selectOption('#month-select', '4');
 
-  // Generate schedule
+  // スケジュールを生成する
   await page.click('#btn-generate-schedule');
   await page.waitForTimeout(500);
 
-  // Should have schedule cards
+  // スケジュールカードがあるはず
   const cards = page.locator('.schedule-card');
-  await expect(cards).toHaveCount(await cards.count()); // At least rendered
+  await expect(cards).toHaveCount(await cards.count()); // 少なくとも描画されている
   const count = await cards.count();
   expect(count).toBeGreaterThanOrEqual(4);
   expect(count).toBeLessThanOrEqual(5);
@@ -35,17 +35,17 @@ test('E2.2-E2.3 toggle exclusion', async ({ page }) => {
   await page.click('#btn-generate-schedule');
   await page.waitForTimeout(500);
 
-  // Exclude first card
+  // 先頭のカードを除外する
   const firstCard = page.locator('.schedule-card').first();
   await firstCard.locator('button:has-text("除外")').click();
 
-  // Should have excluded class after re-render
+  // 再描画後に `excluded` クラスが付くはず
   await expect(page.locator('.schedule-card.excluded').first()).toBeVisible({ timeout: 5000 });
 
-  // Include it back
+  // 再び含める
   await page.locator('.schedule-card.excluded').first().locator('button:has-text("含める")').click();
 
-  // First card should no longer be excluded
+  // 先頭のカードは除外状態ではなくなるはず
   await expect(page.locator('.schedule-card.excluded')).toHaveCount(0, { timeout: 5000 });
 });
 
@@ -56,17 +56,17 @@ test('E2.4-E2.5 toggle event', async ({ page }) => {
   await page.click('#btn-generate-schedule');
   await page.waitForTimeout(500);
 
-  // Click event button on first card
+  // 先頭カードのイベントボタンをクリックする
   const firstCard = page.locator('.schedule-card').first();
   await firstCard.locator('.btn-event').click();
 
-  // Should have event-day class after re-render
+  // 再描画後に `event-day` クラスが付くはず
   await expect(page.locator('.schedule-card.event-day').first()).toBeVisible({ timeout: 5000 });
 
-  // Toggle off
+  // オフに切り替える
   await page.locator('.schedule-card.event-day').first().locator('.btn-event').click();
 
-  // Should have no event-day cards
+  // イベント日のカードはなくなるはず
   await expect(page.locator('.schedule-card.event-day')).toHaveCount(0, { timeout: 5000 });
 });
 

@@ -1,6 +1,6 @@
 /**
- * Database adapter interface — abstracts over better-sqlite3 and bun:sqlite.
- * Both libraries implement this subset of the API.
+ * データベースアダプターのインターフェース。better-sqlite3 と bun:sqlite の差を吸収する。
+ * どちらのライブラリも、この API の一部を実装している。
  */
 
 export interface AppStatement {

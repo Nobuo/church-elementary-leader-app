@@ -50,7 +50,7 @@ export function formatLineMessage(
   month: number,
   lang: Lang = 'ja',
 ): string {
-  // Group assignments by schedule
+  // スケジュールごとに割り当てをまとめる
   const bySchedule = new Map<ScheduleId, Assignment[]>();
   for (const a of assignments) {
     const existing = bySchedule.get(a.scheduleId) ?? [];
@@ -58,7 +58,7 @@ export function formatLineMessage(
     bySchedule.set(a.scheduleId, existing);
   }
 
-  // Sort schedules by date
+  // スケジュールを日付順に並べる
   const sortedSchedules = schedules
     .filter((s) => !s.isExcluded && bySchedule.has(s.id))
     .sort((a, b) => a.date.localeCompare(b.date));
@@ -75,7 +75,7 @@ export function formatLineMessage(
     const dayOfMonth = d.getDate();
     const dayName = dayNames[lang][d.getDay()];
 
-    // Event tag
+    // イベントタグ
     let eventTag = '';
     if (schedule.isEvent) {
       const primaryName = lang === 'ja' ? schedule.eventNameJa : schedule.eventNameEn;
@@ -86,7 +86,7 @@ export function formatLineMessage(
 
     const ebtTag = schedule.isEbt ? ebtTagLabel[lang] : '';
 
-    // Split class tag
+    // 分級日タグ
     const splitType = schedule.effectiveSplitType;
     const splitTag = schedule.isSplitClass ? ` ${splitTagLabels[lang][splitType]}` : '';
 
@@ -100,7 +100,7 @@ export function formatLineMessage(
     const dayAssignments = bySchedule.get(schedule.id) ?? [];
 
     if (schedule.isSplitClass) {
-      // Split class: show grade-based labels, lower (group 2) first
+      // 分級日: 学年別ラベルを表示し、下学年（グループ2）を先に出す
       const labels = splitGroupLabels[lang][splitType];
       const maxPerGroup = 2;
       const sorted = [...dayAssignments].sort((a, b) => b.groupNumber - a.groupNumber);
@@ -114,7 +114,7 @@ export function formatLineMessage(
         lines.push(`  ${label}: ${nameList.join(sep)}`);
       }
     } else {
-      // Combined day: no group label, just member names
+      // 合同日: グループラベルなしでメンバー名だけを表示する
       const maxPerGroup = 3;
       for (const assignment of dayAssignments) {
         const sep = lang === 'ja' ? '・' : ' & ';

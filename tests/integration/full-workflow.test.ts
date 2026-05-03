@@ -9,14 +9,14 @@ describe('Full Workflow', () => {
   afterEach(() => { t.db.close(); });
 
   it('6.1-6.14 complete workflow: register → schedule → assign → adjust → export', async () => {
-    // 6.1 Register 10 members
+    // 6.1 10名のメンバーを登録
     const members = await seedStandardMembers(t.request);
     expect(members.length).toBe(10);
 
     const list = await t.request.get('/api/members?activeOnly=true').expect(200);
     expect(list.body.length).toBe(10);
 
-    // 6.2 Register spouse link
+    // 6.2 配偶者リンクを登録
     const husband = members[0];
     const wifeRes = await t.request.post('/api/members').send({
       name: '配偶者テスト',
@@ -33,14 +33,14 @@ describe('Full Workflow', () => {
     expect(h.spouseId).toBe(wifeRes.body.id);
     expect(h.memberType).toBe('PARENT_COUPLE');
 
-    // 6.3 Generate April schedule
+    // 6.3 4月のスケジュールを生成
     const schedules = await t.request
       .post('/api/schedules/generate')
       .send({ year: testYear, month: 4 })
       .expect(200);
     expect(schedules.body.length).toBeGreaterThanOrEqual(4);
 
-    // 6.4 Exclude one day, set one as event
+    // 6.4 1日を除外し、1日をイベントに設定
     await t.request.post(`/api/schedules/${schedules.body[0].id}/toggle-exclusion`).expect(200);
     await t.request.post(`/api/schedules/${schedules.body[1].id}/toggle-event`).expect(200);
 
@@ -48,12 +48,12 @@ describe('Full Workflow', () => {
     expect(updatedSchedules.body.find((s: { id: string }) => s.id === schedules.body[0].id).isExcluded).toBe(true);
     expect(updatedSchedules.body.find((s: { id: string }) => s.id === schedules.body[1].id).isEvent).toBe(true);
 
-    // Toggle all schedules to split-class for 2-group behavior
+    // 2グループ動作にするため、全スケジュールを分級日に切り替える
     for (const s of schedules.body) {
       await t.request.post(`/api/schedules/${s.id}/toggle-split-class`).expect(200);
     }
 
-    // 6.5 Generate assignments (excluded days should not have assignments)
+    // 6.5 割り当てを生成（除外日には割り当てがないはず）
     const gen = await t.request
       .post('/api/assignments/generate')
       .send({ year: testYear, month: 4 })
@@ -65,13 +65,13 @@ describe('Full Workflow', () => {
     const assignmentDates = gen.body.assignments.map((a: { date: string }) => a.date);
     expect(assignmentDates).not.toContain(schedules.body[0].date);
 
-    // 6.7 Check violations have messageKey
+    // 6.7 制約違反に messageKey があることを確認
     for (const v of gen.body.violations) {
       expect(v).toHaveProperty('messageKey');
       expect(v).toHaveProperty('messageParams');
     }
 
-    // 6.8 Member replacement
+    // 6.8 メンバー置き換え
     const firstAssignment = gen.body.assignments[0];
     const assignedIds = new Set(firstAssignment.members.map((m: { id: string }) => m.id));
     const replacement = members.find(m => !assignedIds.has(m.id));
@@ -83,20 +83,20 @@ describe('Full Workflow', () => {
 
       expect(adjustRes.body.assignment.members.some((m: { id: string }) => m.id === replacement.id)).toBe(true);
 
-      // 6.9 Violations have messageKey
+      // 6.9 制約違反に messageKey がある
       for (const v of adjustRes.body.violations) {
         expect(v).toHaveProperty('messageKey');
       }
     }
 
-    // 6.10 Assignment counts
+    // 6.10 割り当て回数
     const counts = await t.request.get(`/api/assignments/counts?fiscalYear=${testYear}`).expect(200);
     expect(counts.body.summary).toHaveProperty('max');
     expect(counts.body.summary).toHaveProperty('min');
     expect(counts.body.summary).toHaveProperty('average');
     expect(counts.body.members.length).toBeGreaterThan(0);
 
-    // 6.11 Clear future date assignments
+    // 6.11 未来日の割り当てをクリア
     const assignments = await t.request.get(`/api/assignments?year=${testYear}&month=4`).expect(200);
     const lastDate = [...new Set(assignments.body.map((a: { date: string }) => a.date))].sort().pop() as string;
     await t.request.delete(`/api/assignments/by-date?date=${lastDate}`).expect(200);
@@ -106,17 +106,17 @@ describe('Full Workflow', () => {
     expect(remainingDates).not.toContain(lastDate);
     expect(afterClear.body.length).toBeLessThan(assignments.body.length);
 
-    // 6.12 CSV export (Japanese)
+    // 6.12 CSV出力（日本語）
     const csv = await t.request.get(`/api/assignments/export/csv?year=${testYear}&month=4&lang=ja`).expect(200);
     expect(csv.text).toContain('\uFEFF');
     expect(csv.text).toContain('日付');
 
-    // 6.13 LINE export (English)
+    // 6.13 LINE出力（英語）
     const line = await t.request.get(`/api/assignments/export/line?year=${testYear}&month=4&lang=en`).expect(200);
     expect(line.body.text).toContain('Leader Schedule');
     expect(line.body.text).toContain('If any helper');
 
-    // 6.14 Member CSV round-trip
+    // 6.14 メンバーCSVの往復確認
     const csvExport = await t.request.get('/api/members/export/csv?lang=ja').expect(200);
     expect(csvExport.text).toContain('田中太郎');
   });

@@ -103,14 +103,14 @@ describe('Migration up/down roundtrip', () => {
     db = createTestDb();
     runMigrations(db);
 
-    // ANY should be accepted after migration 006
+    // マイグレーション006後は ANY が受け入れられるはず
     db.prepare(
       "INSERT INTO members (id, name, gender, language, grade_group, member_type) VALUES (?, ?, ?, ?, ?, ?)",
     ).run('m-any', 'AnyHelper', 'FEMALE', 'BOTH', 'ANY', 'HELPER');
     const found = db.prepare("SELECT * FROM members WHERE id = 'm-any'").get() as Record<string, unknown>;
     expect(found.grade_group).toBe('ANY');
 
-    // Rollback 006 — ANY members are removed
+    // 006をロールバックすると ANY メンバーは削除される
     rollbackMigrations(db, 5);
     expect(() =>
       db.prepare(
@@ -118,7 +118,7 @@ describe('Migration up/down roundtrip', () => {
       ).run('m-any2', 'AnyHelper2', 'FEMALE', 'BOTH', 'ANY', 'HELPER'),
     ).toThrow();
 
-    // Re-apply
+    // 再適用する
     runMigrations(db);
     db.prepare(
       "INSERT INTO members (id, name, gender, language, grade_group, member_type) VALUES (?, ?, ?, ?, ?, ?)",
@@ -158,7 +158,7 @@ describe('Migration up/down roundtrip', () => {
     db = createTestDb();
     runMigrations(db);
 
-    // Insert test data
+    // テストデータを挿入する
     db.prepare(
       "INSERT INTO members (id, name, gender, language, grade_group, member_type) VALUES (?, ?, ?, ?, ?, ?)",
     ).run('m1', 'Test', 'MALE', 'JAPANESE', 'UPPER', 'PARENT_SINGLE');
@@ -169,19 +169,19 @@ describe('Migration up/down roundtrip', () => {
       "INSERT INTO assignments (id, schedule_id, group_number, member_id_1, member_id_2) VALUES (?, ?, ?, ?, ?)",
     ).run('a1', 's1', 1, 'm1', 'm1');
 
-    // Rollback 005 (remove is_split_class)
+    // 005をロールバックする（is_split_class を削除）
     rollbackMigrations(db, 4);
     expect(getColumnNames(db, 'schedules')).not.toContain('is_split_class');
     const row4 = db.prepare("SELECT * FROM schedules WHERE id = 's1'").get() as Record<string, unknown>;
     expect(row4.is_event).toBe(1);
 
-    // Rollback 004 (remove is_event)
+    // 004をロールバックする（is_event を削除）
     rollbackMigrations(db, 3);
     expect(getColumnNames(db, 'schedules')).not.toContain('is_event');
     const row3 = db.prepare("SELECT * FROM schedules WHERE id = 's1'").get() as Record<string, unknown>;
     expect(row3.date).toBe('2026-04-05');
 
-    // Restore all
+    // すべて復元する
     runMigrations(db);
     expect(getColumnNames(db, 'schedules')).toContain('is_event');
     expect(getColumnNames(db, 'schedules')).toContain('is_split_class');

@@ -42,7 +42,7 @@ describe('Assignment API', () => {
     });
 
     it('3.3 returns 400 when not enough members', async () => {
-      // Register only 2 members (minimum is 3)
+      // 2名だけ登録する（最小人数は3名）
       for (let i = 0; i < 2; i++) {
         await t.request.post('/api/members').send({
           name: `Member${i}`, gender: 'MALE', language: 'BOTH',
@@ -59,7 +59,7 @@ describe('Assignment API', () => {
 
     it('3.4 excluded dates have no assignments', async () => {
       const { schedules } = await setupMembersAndSchedule();
-      // Exclude first date
+      // 最初の日付を除外する
       await t.request.post(`/api/schedules/${schedules[0].id}/toggle-exclusion`).expect(200);
 
       const res = await t.request
@@ -77,7 +77,7 @@ describe('Assignment API', () => {
       const res1 = await t.request.post('/api/assignments/generate').send({ year: testYear, month: 4 }).expect(200);
       expect(res1.body.assignments.length).toBeGreaterThan(0);
 
-      // Second call: all weeks already assigned, returns empty with message
+      // 2回目の呼び出し: すべての週が割り当て済みなので、メッセージ付きで空を返す
       const res2 = await t.request.post('/api/assignments/generate').send({ year: testYear, month: 4 }).expect(200);
       expect(res2.body.assignments.length).toBe(0);
       expect(res2.body.message).toBe('allWeeksAssigned');
@@ -116,7 +116,7 @@ describe('Assignment API', () => {
 
       const assignment = gen.body.assignments[0];
       const oldMemberId = assignment.members[0].id;
-      // Find a member not in this assignment
+      // この割り当てに含まれていないメンバーを探す
       const assignedIds = new Set(assignment.members.map((m: { id: string }) => m.id));
       const newMember = members.find(m => !assignedIds.has(m.id))!;
 
@@ -130,11 +130,11 @@ describe('Assignment API', () => {
     });
 
     it('3.9 detects language balance violation', async () => {
-      // Create members: JP-only + EN-only pair, then replace EN with JP
+      // メンバーを作成する: 日本語のみ + 英語のみのペアを作り、その後英語を日本語に置き換える
       await t.request.post('/api/members').send({ name: 'JP1', gender: 'MALE', language: 'JAPANESE', gradeGroup: 'UPPER', memberType: 'PARENT_SINGLE', sameGenderOnly: false }).expect(201);
       const en1 = await t.request.post('/api/members').send({ name: 'EN1', gender: 'FEMALE', language: 'ENGLISH', gradeGroup: 'LOWER', memberType: 'PARENT_SINGLE', sameGenderOnly: false }).expect(201);
       const jp2 = await t.request.post('/api/members').send({ name: 'JP2', gender: 'MALE', language: 'JAPANESE', gradeGroup: 'LOWER', memberType: 'PARENT_SINGLE', sameGenderOnly: false }).expect(201);
-      // Need enough members for generation
+      // 生成に十分な人数が必要
       await t.request.post('/api/members').send({ name: 'Both1', gender: 'MALE', language: 'BOTH', gradeGroup: 'UPPER', memberType: 'PARENT_SINGLE', sameGenderOnly: false });
       await t.request.post('/api/members').send({ name: 'Both2', gender: 'FEMALE', language: 'BOTH', gradeGroup: 'UPPER', memberType: 'PARENT_SINGLE', sameGenderOnly: false });
       await t.request.post('/api/members').send({ name: 'Both3', gender: 'MALE', language: 'BOTH', gradeGroup: 'UPPER', memberType: 'PARENT_SINGLE', sameGenderOnly: false });
@@ -146,22 +146,22 @@ describe('Assignment API', () => {
       await seedSchedule(t.request, testYear, 4);
       const gen = await t.request.post('/api/assignments/generate').send({ year: testYear, month: 4 }).expect(200);
 
-      // Find an assignment containing EN1 and replace with JP2
+      // EN1 を含む割り当てを探し、JP2 に置き換える
       const a = gen.body.assignments.find((a: { members: Array<{ id: string }> }) =>
         a.members.some((m: { id: string }) => m.id === en1.body.id),
       );
-      if (!a) return; // EN1 might not be assigned; skip
+      if (!a) return; // EN1 が割り当てられていない場合があるためスキップ
 
       const res = await t.request
         .put(`/api/assignments/${a.id}/adjust`)
         .send({ oldMemberId: en1.body.id, newMemberId: jp2.body.id })
         .expect(200);
 
-      // Should have language violation since now both are Japanese
+      // 両方が日本語になったため、言語制約違反があるはず
       const partner = a.members.find((m: { id: string }) => m.id !== en1.body.id);
       if (partner) {
-        // Only expect violation if partner is not BOTH
-        // The partner might cover both languages, so this is conditional
+        // 相手が BOTH でない場合だけ違反を期待する
+        // 相手が両言語をカバーできる場合があるため、条件付きで確認する
         expect(res.body).toHaveProperty('violations');
       }
     });
@@ -202,7 +202,7 @@ describe('Assignment API', () => {
       const { schedules } = await setupMembersAndSchedule();
       await t.request.post('/api/assignments/generate').send({ year: testYear, month: 4 }).expect(200);
 
-      const futureDate = schedules[schedules.length - 1].date; // Last Sunday, likely future
+      const futureDate = schedules[schedules.length - 1].date; // 最後の日曜日。おそらく未来日
       await t.request.delete(`/api/assignments/by-date?date=${futureDate}`).expect(200);
 
       const res = await t.request.get(`/api/assignments?year=${testYear}&month=4`).expect(200);
@@ -256,10 +256,10 @@ describe('Assignment API', () => {
 
       const candidates = res.body;
       if (candidates.length >= 2) {
-        // Find first non-recommended
+        // 最初の非推奨候補を探す
         const firstNonRec = candidates.findIndex((c: { recommended: boolean }) => !c.recommended);
         if (firstNonRec > 0) {
-          // All before it should be recommended
+          // その前にある候補はすべて推奨のはず
           for (let i = 0; i < firstNonRec; i++) {
             expect(candidates[i].recommended).toBe(true);
           }
@@ -317,7 +317,7 @@ describe('Assignment API', () => {
     });
 
     it('T12 split-class day: candidates with role=LOWER includes BOTH from UPPER with isCrossover', async () => {
-      // Create members with BOTH only in UPPER
+      // UPPER にだけ BOTH メンバーを作成する
       const memberInputs = [
         { name: 'U1', gender: 'MALE', language: 'BOTH', gradeGroup: 'UPPER', memberType: 'PARENT_SINGLE', sameGenderOnly: false },
         { name: 'U2', gender: 'FEMALE', language: 'BOTH', gradeGroup: 'UPPER', memberType: 'PARENT_SINGLE', sameGenderOnly: false },
@@ -335,7 +335,7 @@ describe('Assignment API', () => {
       }
       const schedules = await seedSchedule(t.request, testYear, 4);
 
-      // Make first date a split-class day
+      // 最初の日付を分級日にする
       await t.request.post(`/api/schedules/${schedules[0].id}/toggle-split-class`).expect(200);
       await t.request.post('/api/assignments/generate').send({ year: testYear, month: 4 }).expect(200);
 
@@ -343,7 +343,7 @@ describe('Assignment API', () => {
         .get(`/api/assignments/candidates?date=${schedules[0].date}&excludeIds=&role=LOWER`)
         .expect(200);
 
-      // Should include LOWER members and UPPER BOTH members
+      // LOWER メンバーと UPPER の BOTH メンバーが含まれるはず
       const lowerCandidates = res.body.filter((c: { gradeGroup: string }) => c.gradeGroup === 'LOWER');
       const upperBothCandidates = res.body.filter(
         (c: { gradeGroup: string; isCrossover: boolean }) => c.gradeGroup === 'UPPER' && c.isCrossover,
@@ -352,7 +352,7 @@ describe('Assignment API', () => {
       expect(lowerCandidates.length).toBeGreaterThan(0);
       expect(upperBothCandidates.length).toBeGreaterThan(0);
 
-      // Crossover candidates should have gradeGroupMismatch warning
+      // 学年をまたぐ候補には gradeGroupMismatch 警告が付くはず
       for (const c of upperBothCandidates) {
         expect(c.warnings).toContain('gradeGroupMismatch');
       }
@@ -386,7 +386,7 @@ describe('Assignment API', () => {
 
   describe('Event management', () => {
     it('5.1 HELPER excluded from event day assignments', async () => {
-      // Create members with a HELPER
+      // HELPER を含むメンバーを作成する
       const memberInputs = [
         { name: 'U1', gender: 'MALE', language: 'BOTH', gradeGroup: 'UPPER', memberType: 'PARENT_SINGLE', sameGenderOnly: false },
         { name: 'U2', gender: 'FEMALE', language: 'BOTH', gradeGroup: 'UPPER', memberType: 'PARENT_SINGLE', sameGenderOnly: false },
@@ -406,7 +406,7 @@ describe('Assignment API', () => {
       }
 
       const schedules = await seedSchedule(t.request, testYear, 4);
-      // Set first schedule as event day
+      // 最初のスケジュールをイベント日に設定する
       await t.request.post(`/api/schedules/${schedules[0].id}/toggle-event`).expect(200);
 
       const gen = await t.request.post('/api/assignments/generate').send({ year: testYear, month: 4 }).expect(200);
@@ -482,7 +482,7 @@ describe('Assignment API', () => {
         lower: ['BOTH', 'JAPANESE', 'ENGLISH', 'BOTH', 'JAPANESE'],
       });
 
-      // Mark first date as split-class
+      // 最初の日付を分級日にする
       await t.request.post(`/api/schedules/${schedules[0].id}/toggle-split-class`).expect(200);
 
       const gen = await t.request.post('/api/assignments/generate').send({ year: testYear, month: 4 }).expect(200);
@@ -514,7 +514,7 @@ describe('Assignment API', () => {
         upper: ['JAPANESE', 'ENGLISH', 'JAPANESE', 'ENGLISH', 'JAPANESE'],
         lower: ['JAPANESE', 'ENGLISH', 'JAPANESE', 'ENGLISH', 'JAPANESE'],
       });
-      // No split-class toggle — all days are normal
+      // 分級日の切り替えなし。すべて通常日
 
       const gen = await t.request.post('/api/assignments/generate').send({ year: testYear, month: 4 }).expect(200);
 
@@ -533,13 +533,13 @@ describe('Assignment API', () => {
       await t.request.post(`/api/schedules/${schedules[0].id}/toggle-split-class`).expect(200);
       const gen = await t.request.post('/api/assignments/generate').send({ year: testYear, month: 4 }).expect(200);
 
-      // Find an assignment on the split-class date that has a BOTH member
+      // 分級日の割り当てから BOTH メンバーを含むものを探す
       const splitDateAssignments = gen.body.assignments.filter(
         (a: { date: string }) => a.date === schedules[0].date,
       );
       if (splitDateAssignments.length < 2) return;
 
-      // Find a BOTH member in the assignments
+      // 割り当て内の BOTH メンバーを探す
       const bothMember = members.find(m => m.language === 'BOTH');
       const jpOnlyMember = members.find(m => m.language === 'JAPANESE' && !splitDateAssignments.some(
         (a: { members: Array<{ id: string }> }) => a.members.some(am => am.id === m.id),
@@ -556,7 +556,7 @@ describe('Assignment API', () => {
         .send({ oldMemberId: bothMember.id, newMemberId: jpOnlyMember.id })
         .expect(200);
 
-      // May or may not have class violation depending on whether the other group has BOTH
+      // 他方のグループに BOTH がいるかどうかで、クラス制約違反が出る場合と出ない場合がある
       expect(res.body).toHaveProperty('violations');
     });
   });
@@ -583,13 +583,13 @@ describe('Assignment API', () => {
       const gen = await t.request.post('/api/assignments/generate').send({ year: testYear, month: 4 }).expect(200);
       const assignment = gen.body.assignments[0];
 
-      // Remove first member
+      // 1人目のメンバーを外す
       await t.request
         .put(`/api/assignments/${assignment.id}/unassign`)
         .send({ memberId: assignment.members[0].id })
         .expect(200);
 
-      // Remove second (last) member
+      // 2人目（最後）のメンバーを外す
       const res = await t.request
         .put(`/api/assignments/${assignment.id}/unassign`)
         .send({ memberId: assignment.members[1].id })
@@ -623,17 +623,17 @@ describe('Assignment API', () => {
       const assignment = gen.body.assignments[0];
       const removedMemberId = assignment.members[0].id;
 
-      // Get count before
+      // 変更前の回数を取得する
       const countsBefore = await t.request.get(`/api/assignments/counts?fiscalYear=${testYear}`).expect(200);
       const beforeCount = countsBefore.body.members.find((m: { id: string }) => m.id === removedMemberId)?.count ?? 0;
 
-      // Unassign
+      // 割り当てを外す
       await t.request
         .put(`/api/assignments/${assignment.id}/unassign`)
         .send({ memberId: removedMemberId })
         .expect(200);
 
-      // Get count after
+      // 変更後の回数を取得する
       const countsAfter = await t.request.get(`/api/assignments/counts?fiscalYear=${testYear}`).expect(200);
       const afterCount = countsAfter.body.members.find((m: { id: string }) => m.id === removedMemberId)?.count ?? 0;
 
@@ -648,13 +648,13 @@ describe('Assignment API', () => {
       const assignment = gen.body.assignments[0];
       const removedMemberId = assignment.members[0].id;
 
-      // Unassign first
+      // 先に割り当てを外す
       await t.request
         .put(`/api/assignments/${assignment.id}/unassign`)
         .send({ memberId: removedMemberId })
         .expect(200);
 
-      // Find a member not assigned on this date
+      // この日付に割り当てられていないメンバーを探す
       const sameDateAssignments = gen.body.assignments.filter(
         (a: { date: string }) => a.date === assignment.date,
       );
@@ -662,9 +662,9 @@ describe('Assignment API', () => {
       for (const a of sameDateAssignments) {
         for (const m of a.members) allAssignedIds.add(m.id);
       }
-      allAssignedIds.delete(removedMemberId); // removed already
+      allAssignedIds.delete(removedMemberId); // すでに外している
       const candidate = members.find(m => !allAssignedIds.has(m.id));
-      if (!candidate) return; // skip if no candidates
+      if (!candidate) return; // 候補がなければスキップ
 
       const res = await t.request
         .put(`/api/assignments/${assignment.id}/assign`)
@@ -723,7 +723,7 @@ describe('Assignment API', () => {
       const gen = await t.request.post('/api/assignments/generate').send({ year: testYear, month: 4 }).expect(200);
       const assignment = gen.body.assignments[0];
 
-      // Unassign one member
+      // メンバー1人の割り当てを外す
       await t.request
         .put(`/api/assignments/${assignment.id}/unassign`)
         .send({ memberId: assignment.members[0].id })

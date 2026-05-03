@@ -113,7 +113,7 @@ export function importMembersCsv(
   csvContent: string,
   memberRepo: MemberRepository,
 ): ImportResult {
-  // Remove BOM if present
+  // BOM があれば削除する
   const content = csvContent.replace(/^\uFEFF/, '');
   const lines = content.split(/\r?\n/).filter((l) => l.trim());
 
@@ -121,20 +121,20 @@ export function importMembersCsv(
     return { created: 0, updated: 0, errors: [{ row: 0, message: 'CSV is empty or has no data rows' }] };
   }
 
-  // Skip header row
+  // ヘッダー行をスキップする
   const dataLines = lines.slice(1);
   const result: ImportResult = { created: 0, updated: 0, errors: [] };
 
-  // Track processed names to detect duplicates within the CSV
+  // CSV内の重複を検出するため、処理済みの名前を記録する
   const processedNames = new Set<string>();
   const spouseLinks: { name: string; spouseName: string; memberType: string }[] = [];
 
-  // Load all members once and maintain a lookup map
+  // 全メンバーを一度だけ読み込み、検索用マップを保持する
   const allMembers = memberRepo.findAll(false);
   const memberByName = new Map<string, Member>(allMembers.map((m) => [m.name, m]));
 
   for (let i = 0; i < dataLines.length; i++) {
-    const rowNum = i + 2; // 1-indexed, skip header
+    const rowNum = i + 2; // 1始まり。ヘッダーは除く
     const fields = parseCsvLine(dataLines[i]);
     const parsed = parseRow(fields, rowNum);
 
@@ -152,7 +152,7 @@ export function importMembersCsv(
     const existing = memberByName.get(parsed.name);
 
     if (existing) {
-      // Update existing
+      // 既存メンバーを更新する
       const updateResult = existing.update({
         notes: parsed.notes,
         gender: parsed.gender as Gender,
@@ -173,7 +173,7 @@ export function importMembersCsv(
       memberByName.set(updateResult.value.name, updateResult.value);
       result.updated++;
     } else {
-      // Create new
+      // 新規メンバーを作成する
       const createResult = Member.create({
         name: parsed.name,
         notes: parsed.notes,
@@ -206,7 +206,7 @@ export function importMembersCsv(
     }
   }
 
-  // Phase 2: Link spouses (re-query to get latest saved state)
+  // フェーズ2: 配偶者を紐づける（最新の保存状態を得るため再取得）
   const finalMembers = memberRepo.findAll(false);
   const finalByName = new Map<string, Member>(finalMembers.map((m) => [m.name, m]));
 
@@ -224,7 +224,7 @@ export function importMembersCsv(
       continue;
     }
 
-    // Link both directions
+    // 双方向に紐づける
     const updatedMember = member.withSpouseId(spouse.id);
     memberRepo.save(updatedMember);
 

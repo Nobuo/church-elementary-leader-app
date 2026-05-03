@@ -8,11 +8,11 @@ test.beforeEach(async ({ request }) => {
 test('full scenario: register → schedule → assign → replace → export → i18n', async ({ page }) => {
   await page.goto('/');
 
-  // Get current fiscal year
+  // 現在の年度を取得する
   const fiscalYear = await page.locator('#fiscal-year').inputValue();
   const year = parseInt(fiscalYear);
 
-  // --- Step 1-2: Register 10 members (5 UPPER + 5 LOWER) ---
+  // --- 手順1-2: 10名のメンバーを登録（UPPER 5名 + LOWER 5名）---
   const members = [
     { name: '田中太郎', gender: 'MALE', language: 'JAPANESE', grade: 'UPPER', type: 'PARENT_SINGLE' },
     { name: 'John Smith', gender: 'MALE', language: 'ENGLISH', grade: 'UPPER', type: 'PARENT_SINGLE' },
@@ -38,11 +38,11 @@ test('full scenario: register → schedule → assign → replace → export →
     await expect(page.locator('#member-dialog')).not.toBeVisible();
   }
 
-  // Verify 10 members in table
+  // 表に10名のメンバーが表示されていることを確認する
   const rows = page.locator('#members-body tr');
   await expect(rows).toHaveCount(10);
 
-  // --- Step 4-5: Schedule generation ---
+  // --- 手順4-5: スケジュール生成 ---
   await page.click('[data-page="schedules"]');
   await page.selectOption('#month-select', '4');
   await page.click('#btn-generate-schedule');
@@ -52,7 +52,7 @@ test('full scenario: register → schedule → assign → replace → export →
   const cardCount = await cards.count();
   expect(cardCount).toBeGreaterThanOrEqual(4);
 
-  // --- Step 6: Exclude first day, set second as event ---
+  // --- 手順6: 1日目を除外し、2日目をイベントに設定 ---
   await cards.nth(0).locator('button:has-text("除外")').click();
   await page.waitForTimeout(300);
   await expect(page.locator('.schedule-card.excluded')).toHaveCount(1);
@@ -61,18 +61,18 @@ test('full scenario: register → schedule → assign → replace → export →
   await page.waitForTimeout(300);
   await expect(page.locator('.schedule-card.event-day')).toHaveCount(1);
 
-  // --- Step 7-8: Assignment generation ---
+  // --- 手順7-8: 割り当て生成 ---
   await page.click('[data-page="assignments"]');
   await page.selectOption('#month-select', '4');
   await page.click('#btn-generate-assignments');
   await page.waitForTimeout(1000);
 
-  // Should have assignment days (excluding excluded day)
+  // 割り当て日が存在するはず（除外日を除く）
   const assignmentDays = page.locator('.assignment-day');
   const dayCount = await assignmentDays.count();
-  expect(dayCount).toBe(cardCount - 1); // minus excluded
+  expect(dayCount).toBe(cardCount - 1); // 除外分を差し引く
 
-  // --- Step 10: Member replacement ---
+  // --- 手順10: メンバー置き換え ---
   const replaceBtn = page.locator('.replace-btn').first();
   if (await replaceBtn.isVisible()) {
     await replaceBtn.click();
@@ -89,10 +89,10 @@ test('full scenario: register → schedule → assign → replace → export →
     }
   }
 
-  // --- Step 11: Assignment counts visible ---
+  // --- 手順11: 割り当て回数が表示される ---
   await expect(page.locator('#assignment-counts-section')).toBeVisible();
 
-  // --- Step 12: LINE text ---
+  // --- 手順12: LINE文面 ---
   await page.click('#btn-export-line');
   await page.waitForTimeout(500);
   await expect(page.locator('#line-dialog')).toBeVisible();
@@ -100,7 +100,7 @@ test('full scenario: register → schedule → assign → replace → export →
   expect(lineText).toContain('リーダー担当表');
   await page.click('#btn-close-line');
 
-  // --- Step 13-14: Switch to English ---
+  // --- 手順13-14: 英語へ切り替え ---
   await page.selectOption('#lang-select', 'en');
   await expect(page.locator('#app-title')).toHaveText('Leader Management');
   await expect(page.locator('#assignments-title')).toHaveText('Assignment Results');

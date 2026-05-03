@@ -6,7 +6,7 @@ export type SplitType = 'standard' | 'senior_discussion';
 
 export interface ScheduleProps {
   readonly id: ScheduleId;
-  readonly date: string; // ISO date string (YYYY-MM-DD)
+  readonly date: string; // ISO形式の日付文字列（YYYY-MM-DD）
   readonly isExcluded: boolean;
   readonly isEvent: boolean;
   readonly isEbt: boolean;
@@ -14,7 +14,7 @@ export interface ScheduleProps {
   readonly splitType: SplitType | null;
   readonly eventNameJa: string | null;
   readonly eventNameEn: string | null;
-  readonly year: number; // fiscal year
+  readonly year: number; // 年度
 }
 
 export class Schedule {

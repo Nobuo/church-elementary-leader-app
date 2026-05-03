@@ -58,7 +58,7 @@ describe('generateAssignments', () => {
 
       const { assignments } = generateAssignments(schedules, members, [], counts);
 
-      // 2 days × 2 groups = 4 assignments
+      // 2日 × 2グループ = 割り当て4件
       expect(assignments.length).toBe(4);
       for (const a of assignments) {
         expect(a.memberIds.length).toBe(2);
@@ -239,7 +239,7 @@ describe('generateAssignments', () => {
 
       const { assignments } = generateAssignments(schedules, members, [], counts);
 
-      // 2 combined days × 1 group = 2 assignments
+      // 合同日2日 × 1グループ = 割り当て2件
       expect(assignments.length).toBe(2);
       for (const a of assignments) {
         expect(a.memberIds.length).toBe(3);
@@ -259,7 +259,7 @@ describe('generateAssignments', () => {
 
       const schedule = makeSchedule('2026-04-05');
 
-      // Over many runs, we should see both UPPER and LOWER in the same group
+      // 多数回実行すると、同じグループ内に UPPER と LOWER の両方が現れるはず
       let hasMixed = false;
       for (let run = 0; run < 20; run++) {
         const counts = new Map<MemberId, number>();
@@ -306,7 +306,7 @@ describe('generateAssignments', () => {
     });
 
     it('合同日: sameGenderOnly女性が女性多数派グループに配置される', () => {
-      // Female(SGO) + Male + Female = 2F:1M → female is majority → OK
+      // 女性（SGO）+ 男性 + 女性 = 女性2:男性1 → 女性が多数派なのでOK
       const members = [
         makeMember('M1-F-SGO', { gradeGroup: GradeGroup.UPPER, language: Language.BOTH, gender: Gender.FEMALE, sameGenderOnly: true }),
         makeMember('M2-M', { gradeGroup: GradeGroup.UPPER, language: Language.JAPANESE, gender: Gender.MALE }),
@@ -323,8 +323,8 @@ describe('generateAssignments', () => {
     });
 
     it('合同日: sameGenderOnly女性が男性多数派グループに配置されない', () => {
-      // 4 members: Female(SGO), Male, Male, Female(BOTH)
-      // Best trio should avoid putting Female(SGO) with 2 Males
+      // メンバー4名: 女性（SGO）、男性、男性、女性（BOTH）
+      // 最適な3人組では、女性（SGO）を男性2名と一緒にしないはず
       const members = [
         makeMember('F-SGO', { gradeGroup: GradeGroup.UPPER, language: Language.BOTH, gender: Gender.FEMALE, sameGenderOnly: true }),
         makeMember('M1', { gradeGroup: GradeGroup.UPPER, language: Language.JAPANESE, gender: Gender.MALE }),
@@ -342,7 +342,7 @@ describe('generateAssignments', () => {
       const fSgo = members.find((m) => m.name === 'F-SGO')!;
       const assigned = assignments[0].memberIds;
       if (assigned.includes(fSgo.id)) {
-        // If F-SGO is assigned, she must be with at least one other female (majority)
+        // F-SGO が割り当てられる場合、少なくとも他の女性1名と同組である必要がある（多数派）
         const femaleCount = assigned.filter((id) =>
           members.find((m) => m.id === id)?.gender === Gender.FEMALE,
         ).length;
@@ -398,7 +398,7 @@ describe('generateAssignments', () => {
           }
         }
       }
-      // Spouses should almost never be together (penalty +30)
+      // 配偶者同士はほぼ同組にならないはず（ペナルティ +30）
       expect(spousesTogether).toBeLessThan(3);
     });
 
@@ -432,8 +432,8 @@ describe('generateAssignments', () => {
         if (bc === 2) bothCount2++;
       }
 
-      // BOTH conservation: fewer BOTHs preferred (each BOTH adds +3)
-      // Groups with 0 or 1 BOTH should be much more common than 2
+      // BOTH温存: BOTHが少ない組み合わせを優先する（BOTH 1名につき +3）
+      // BOTHが0名または1名のグループは、2名のグループよりかなり多くなるはず
       expect(bothCount0 + bothCount1).toBeGreaterThan(bothCount2);
     });
 
@@ -499,12 +499,12 @@ describe('generateAssignments', () => {
       const combinedAssignments = assignments.filter((a) => a.scheduleId === combinedSchedule.id);
       const splitAssignments = assignments.filter((a) => a.scheduleId === splitSchedule.id);
 
-      // Combined: 1 group × 3 members
+      // 合同日: 1グループ × 3名
       expect(combinedAssignments.length).toBe(1);
       expect(combinedAssignments[0].memberIds.length).toBe(3);
       expect(combinedAssignments[0].groupNumber).toBe(1);
 
-      // Split: 2 groups × 2 members
+      // 分級日: 2グループ × 2名
       expect(splitAssignments.length).toBe(2);
       for (const a of splitAssignments) {
         expect(a.memberIds.length).toBe(2);
@@ -540,10 +540,10 @@ describe('generateAssignments', () => {
       ];
 
       const schedules = [
-        makeSchedule('2026-04-05'),            // combined
-        makeSplitSchedule('2026-04-12'),        // split
-        makeSplitSchedule('2026-04-19'),        // split
-        makeSchedule('2026-04-26'),             // combined
+        makeSchedule('2026-04-05'),            // 合同日
+        makeSplitSchedule('2026-04-12'),        // 分級日
+        makeSplitSchedule('2026-04-19'),        // 分級日
+        makeSchedule('2026-04-26'),             // 合同日
       ];
 
       const counts = new Map<MemberId, number>();
@@ -551,7 +551,7 @@ describe('generateAssignments', () => {
 
       const { assignments } = generateAssignments(schedules, members, [], counts);
 
-      // UPPER BOTH members should each be assigned at most once across all groups
+      // UPPER の BOTH メンバーは、全グループを通じて各自最大1回まで割り当てられるはず
       const upperBothIds = new Set(
         members.filter((m) => m.gradeGroup === GradeGroup.UPPER && m.language === Language.BOTH).map((m) => m.id),
       );
@@ -1031,7 +1031,7 @@ describe('generateAssignments', () => {
         members.forEach((m) => counts.set(m.id, 0));
         const { assignments } = generateAssignments(schedules, members, [], counts);
 
-        // 3 dates × 2 groups = 6 assignments
+        // 3日 × 2グループ = 割り当て6件
         expect(assignments.length).toBe(6);
 
         for (const s of schedules) {
@@ -1190,7 +1190,7 @@ describe('generateAssignments', () => {
         makeMember('M2-BOTH', { language: Language.BOTH }),
         makeMember('M3-JP2', { language: Language.JAPANESE }),
         makeMember('M4-BOTH2', { language: Language.BOTH }),
-        // This ENGLISH member can only attend the EBT day
+        // この英語メンバーは EBT 日にしか参加できない
         makeMember('M5-EN-restricted', { language: Language.ENGLISH, availableDates: [ebtDate] }),
       ];
 
@@ -1215,7 +1215,7 @@ describe('generateAssignments', () => {
         makeMember('M2-BOTH', { language: Language.BOTH }),
         makeMember('M3-JP2', { language: Language.JAPANESE }),
         makeMember('M4-BOTH2', { language: Language.BOTH }),
-        // This ENGLISH member can attend both days
+        // この英語メンバーは両日とも参加できる
         makeMember('M5-EN-flexible', { language: Language.ENGLISH, availableDates: [ebtDate, nonEbtDate] }),
       ];
 
@@ -1267,7 +1267,7 @@ describe('generateAssignments', () => {
         makeMember('M4-JP2', { language: Language.JAPANESE }),
       ];
 
-      const schedule = makeSchedule('2026-04-05'); // not EBT
+      const schedule = makeSchedule('2026-04-05'); // EBTではない
       const counts = new Map<MemberId, number>();
       members.forEach((m) => counts.set(m.id, 0));
 

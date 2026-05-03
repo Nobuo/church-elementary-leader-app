@@ -67,7 +67,7 @@ describe('formatCsv', () => {
 
     const csv = formatCsv([assignment], [schedule], members, 'en');
     const dataLine = csv.split('\n')[1];
-    expect(dataLine).toContain('TRUE,FALSE'); // isEvent=TRUE, isSplitClass=FALSE
+    expect(dataLine).toContain('TRUE,FALSE'); // isEvent=TRUE、isSplitClass=FALSE
   });
 
   it('outputs event name in ja for event day', () => {
@@ -103,7 +103,7 @@ describe('formatCsv', () => {
 
     const csv = formatCsv([assignment], [schedule], members, 'en');
     const dataLine = csv.split('\n')[1];
-    expect(dataLine).toContain('FALSE,TRUE'); // isEvent=FALSE, isSplitClass=TRUE
+    expect(dataLine).toContain('FALSE,TRUE'); // isEvent=FALSE、isSplitClass=TRUE
   });
 
   it('outputs FALSE for normal day', () => {
@@ -165,7 +165,7 @@ describe('formatCsv', () => {
     const csv = formatCsv([assignment], [schedule], members, 'en');
     const dataLine = csv.split('\n')[1];
     const fields = dataLine.split(',');
-    // Last 2 fields (Member 3 name and language) should be empty
+    // 最後の2項目（メンバー3の名前と言語）は空になるはず
     expect(fields[fields.length - 1]).toBe('');
     expect(fields[fields.length - 2]).toBe('');
   });

@@ -22,7 +22,7 @@ async function loadAssignments() {
   const month = getSelectedMonth();
   const calYear = getCalendarYear();
 
-  // Load counts first so we can display them alongside assignments
+  // 割り当てと一緒に表示できるよう、先に回数を読み込む
   try {
     const countsData = await API.get(`/api/assignments/counts?fiscalYear=${year}`);
     memberCountMap = {};
@@ -35,12 +35,12 @@ async function loadAssignments() {
     document.getElementById('assignment-counts-section').style.display = 'none';
   }
 
-  // Load schedules to know which dates are event days
+  // どの日がイベント日か判断するため、スケジュールを読み込む
   let scheduleMap = {};
   try {
     const schedules = await API.get(`/api/schedules?year=${calYear}&month=${month}`);
     for (const s of schedules) scheduleMap[s.date] = s;
-  } catch (_) { /* ignore */ }
+  } catch (_) { /* 無視 */ }
 
   try {
     const assignments = await API.get(`/api/assignments?year=${calYear}&month=${month}`);
@@ -60,7 +60,7 @@ function renderAssignments(assignments, scheduleMap = {}) {
     return;
   }
 
-  // Group by date
+  // 日付ごとにまとめる
   const byDate = {};
   for (const a of assignments) {
     if (!byDate[a.date]) byDate[a.date] = [];
@@ -90,7 +90,7 @@ function renderAssignments(assignments, scheduleMap = {}) {
     const dateLabel = `${d.getMonth()+1}/${d.getDate()} (${dayNames[d.getDay()]})${eventTag}${ebtTag}${splitTag}`;
     const groups = byDate[date].sort((a, b) => a.groupNumber - b.groupNumber);
 
-    // Collect all assigned member IDs for this date
+    // この日付に割り当て済みのメンバーIDをすべて集める
     const assignedOnDate = new Set();
     for (const g of groups) {
       for (const m of g.members) assignedOnDate.add(m.id);
@@ -141,7 +141,7 @@ function renderAssignments(assignments, scheduleMap = {}) {
   container.innerHTML = html;
 }
 
-// Event delegation for assignment actions
+// 割り当て操作のイベント委譲
 document.getElementById('assignments-list')?.addEventListener('click', (e) => {
   const btn = e.target.closest('[data-action]');
   if (!btn) {
@@ -178,7 +178,7 @@ async function generateAssignmentsAction() {
       return;
     }
     showViolations(result.violations);
-    // Reload everything (counts + assignments with scheduleMap for event tags)
+    // すべて再読み込みする（回数 + イベントタグ用 scheduleMap 付きの割り当て）
     await loadAssignments();
   } catch (e) {
     alert(e.message);
@@ -190,7 +190,7 @@ function translateViolation(v) {
   let template = I18N[currentLang][v.messageKey];
   if (!template) return escapeHtml(v.message);
   const params = v.messageParams || {};
-  // Translate direction params
+  // 方向パラメーターを変換する
   if (params.direction) {
     const dirKey = 'violations.' + params.direction;
     params.direction = I18N[currentLang][dirKey] || params.direction;
@@ -203,7 +203,7 @@ function showViolations(violations) {
   const area = document.getElementById('violations-area');
   if (!violations || violations.length === 0) {
     area.style.display = 'none';
-    // Clear all warning highlights
+    // 警告のハイライトをすべて消す
     document.querySelectorAll('.warning-member').forEach(el => el.classList.remove('warning-member'));
     return;
   }
@@ -213,7 +213,7 @@ function showViolations(violations) {
     `<li>${translateViolation(v)}</li>`
   ).join('')}</ul>`;
 
-  // Feature 4: Highlight warning members
+  // 機能4: 警告対象メンバーをハイライトする
   document.querySelectorAll('.warning-member').forEach(el => el.classList.remove('warning-member'));
   const warningMemberIds = new Set();
   for (const v of violations) {
@@ -264,7 +264,7 @@ function renderAssignmentCounts(data) {
     `<span>${t('average')}: <span class="stat">${summary.average}${t('times')}</span></span>` +
     `<span>${t('difference')}: <span class="stat">${diff}</span></span>`;
 
-  // Show/hide unassigned weeks info message
+  // 未割り当て週の情報メッセージを表示/非表示にする
   const infoEl = document.getElementById('counts-info');
   if (infoEl) {
     if (data.unassignedWeeks > 0) {
@@ -283,7 +283,7 @@ function renderAssignmentCounts(data) {
     const pct = (m.count / maxCount * 100).toFixed(0);
     let barClass = 'count-bar';
     let labelHtml = '';
-    // Only show too-many/too-few labels when all weeks are assigned
+    // すべての週が割り当て済みのときだけ、過多/過少ラベルを表示する
     if (!hasUnassigned) {
       if (avg > 0 && m.count > avg * 1.5) {
         barClass += ' too-many';
@@ -303,14 +303,14 @@ function renderAssignmentCounts(data) {
 }
 
 async function startReplace(assignmentId, memberId, btnEl) {
-  // If already showing select, remove it
+  // すでに選択欄を表示している場合は削除する
   const existing = btnEl.parentElement.querySelector('.replace-inline');
   if (existing) { existing.remove(); return; }
 
   const assignedIds = JSON.parse(btnEl.dataset.assigned);
   const date = btnEl.dataset.date;
 
-  // Feature 6: warn when replacing on past dates
+  // 機能6: 過去日を置き換えるときに警告する
   const today = new Date().toISOString().slice(0, 10);
   if (date < today) {
     if (!confirm(t('pastAssignmentWarning'))) return;
@@ -319,7 +319,7 @@ async function startReplace(assignmentId, memberId, btnEl) {
   const partnerId = btnEl.dataset.partnerId || '';
   const role = btnEl.dataset.role || '';
 
-  // Fetch candidates from server (filters by availability + active status + recommendations)
+  // サーバーから候補を取得する（参加可能日 + 有効状態 + 推奨で絞り込み）
   let candidates;
   try {
     candidates = await API.get(`/api/assignments/candidates?date=${date}&excludeIds=${assignedIds.join(',')}&partnerId=${partnerId}&role=${role}`);

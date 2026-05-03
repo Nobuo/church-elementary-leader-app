@@ -41,7 +41,7 @@ function renderMembers() {
   }).join('');
 }
 
-// Event delegation for member table actions
+// メンバー表操作のイベント委譲
 document.getElementById('members-body')?.addEventListener('click', (e) => {
   const btn = e.target.closest('[data-action]');
   if (!btn) return;
@@ -72,7 +72,7 @@ function openMemberForm(member) {
   document.getElementById('form-type').value = member?.memberType || 'PARENT_SINGLE';
   document.getElementById('form-same-gender').checked = member?.sameGenderOnly || false;
 
-  // Populate spouse dropdown — only PARENT_COUPLE members or those without a spouse
+  // 配偶者ドロップダウンを埋める。PARENT_COUPLE か、配偶者未設定のメンバーのみ
   const spouseSelect = document.getElementById('form-spouse');
   spouseSelect.innerHTML = `<option value="">${t('none')}</option>`;
   allMembers
@@ -84,7 +84,7 @@ function openMemberForm(member) {
       if (member?.spouseId === m.id) opt.selected = true;
       spouseSelect.appendChild(opt);
     });
-  // Also add current spouse if editing
+  // 編集中の場合は現在の配偶者も追加する
   if (member?.spouseId) {
     const currentSpouse = allMembers.find(m => m.id === member.spouseId);
     if (currentSpouse && !spouseSelect.querySelector(`option[value="${CSS.escape(currentSpouse.id)}"]`)) {
@@ -96,7 +96,7 @@ function openMemberForm(member) {
     }
   }
 
-  // Available dates
+  // 参加可能日
   const allDatesCheck = document.getElementById('form-all-dates');
   const datesPicker = document.getElementById('dates-picker');
   const datesList = document.getElementById('dates-list');
@@ -116,7 +116,7 @@ function openMemberForm(member) {
   dialog.showModal();
 }
 
-// Event delegation for date removal
+// 日付削除のイベント委譲
 document.getElementById('dates-list')?.addEventListener('click', (e) => {
   const btn = e.target.closest('[data-action="remove-date"]');
   if (btn) btn.parentElement.remove();
@@ -145,7 +145,7 @@ document.getElementById('btn-add-date')?.addEventListener('click', () => {
   const date = input.value;
   if (!date) return;
   const datesList = document.getElementById('dates-list');
-  // Prevent duplicates
+  // 重複を防ぐ
   if (datesList.querySelector(`[data-date="${CSS.escape(date)}"]`)) return;
   const li = document.createElement('li');
   li.dataset.date = date;

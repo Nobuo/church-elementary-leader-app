@@ -29,7 +29,7 @@ export function registerMember(
 
   const spouseId = input.spouseId ? asMemberId(input.spouseId) : null;
 
-  // Validate spouse exists
+  // 配偶者が存在することを検証する
   if (spouseId) {
     const spouse = memberRepo.findById(spouseId);
     if (!spouse) {
@@ -58,7 +58,7 @@ export function registerMember(
   const member = result.value;
   memberRepo.save(member);
 
-  // Link spouse bidirectionally
+  // 配偶者を双方向に紐づける
   if (spouseId && member.memberType === MemberType.PARENT_COUPLE) {
     const spouse = memberRepo.findById(spouseId)!;
     const updatedSpouse = spouse.update({

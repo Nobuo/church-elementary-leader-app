@@ -74,7 +74,7 @@ describe('adjustAssignment', () => {
   it('returns language violation when replacing creates imbalanced pair', () => {
     const m1 = makeMember('JP1', { language: Language.JAPANESE });
     const m2 = makeMember('EN1', { language: Language.ENGLISH });
-    const m3 = makeMember('JP2', { language: Language.JAPANESE }); // replacement - same language as m1
+    const m3 = makeMember('JP2', { language: Language.JAPANESE }); // 置き換え候補。m1 と同じ言語
 
     const scheduleResult = Schedule.create('2026-04-05');
     if (!scheduleResult.ok) throw new Error('bad schedule');
@@ -89,8 +89,8 @@ describe('adjustAssignment', () => {
 
     const result = adjustAssignment(
       assignment.id,
-      m2.id, // replace EN1
-      m3.id, // with JP2
+      m2.id, // EN1 を置き換える
+      m3.id, // JP2 に置き換える
       assignmentRepo,
       memberRepo,
       scheduleRepo,
@@ -147,7 +147,7 @@ describe('adjustAssignment', () => {
     const result = adjustAssignment(
       assignment.id,
       m2.id,
-      m3.id, // replace with spouse
+      m3.id, // 配偶者に置き換える
       assignmentRepo,
       memberRepo,
       scheduleRepo,
@@ -166,7 +166,7 @@ describe('adjustAssignment', () => {
 
     const scheduleResult = Schedule.create('2026-04-05');
     if (!scheduleResult.ok) throw new Error('bad schedule');
-    const schedule = scheduleResult.value.toggleEvent(); // event day
+    const schedule = scheduleResult.value.toggleEvent(); // イベント日
 
     const assignment = Assignment.create(schedule.id, 1, [m1.id, m2.id]);
     const { memberRepo, assignmentRepo, scheduleRepo } = createRepos(
@@ -178,7 +178,7 @@ describe('adjustAssignment', () => {
     const result = adjustAssignment(
       assignment.id,
       m2.id,
-      m3.id, // replace with HELPER on event day
+      m3.id, // イベント日に HELPER へ置き換える
       assignmentRepo,
       memberRepo,
       scheduleRepo,
@@ -193,13 +193,13 @@ describe('adjustAssignment', () => {
   it('returns no violations for a valid replacement', () => {
     const m1 = makeMember('JP1', { language: Language.JAPANESE, gradeGroup: GradeGroup.UPPER });
     const m2 = makeMember('EN1', { language: Language.ENGLISH, gradeGroup: GradeGroup.UPPER });
-    const m3 = makeMember('EN2', { language: Language.ENGLISH, gradeGroup: GradeGroup.UPPER }); // valid replacement
+    const m3 = makeMember('EN2', { language: Language.ENGLISH, gradeGroup: GradeGroup.UPPER }); // 有効な置き換え
 
     const scheduleResult = Schedule.create('2026-04-05');
     if (!scheduleResult.ok) throw new Error('bad schedule');
     const schedule = scheduleResult.value;
 
-    // groupNumber=1 → UPPER group, all members are UPPER
+    // groupNumber=1 → UPPERグループで、全メンバーが UPPER
     const assignment = Assignment.create(schedule.id, 1, [m1.id, m2.id]);
     const { memberRepo, assignmentRepo, scheduleRepo } = createRepos(
       [m1, m2, m3],
@@ -226,13 +226,13 @@ describe('adjustAssignment', () => {
   it('returns GRADE_GROUP_MISMATCH warning when replacing with different grade group', () => {
     const m1 = makeMember('Lower1', { language: Language.BOTH, gradeGroup: GradeGroup.LOWER });
     const m2 = makeMember('Lower2', { language: Language.BOTH, gradeGroup: GradeGroup.LOWER });
-    const m3 = makeMember('Upper1', { language: Language.BOTH, gradeGroup: GradeGroup.UPPER }); // wrong grade for LOWER group
+    const m3 = makeMember('Upper1', { language: Language.BOTH, gradeGroup: GradeGroup.UPPER }); // LOWERグループには不正な学年
 
     const scheduleResult = Schedule.create('2026-04-05');
     if (!scheduleResult.ok) throw new Error('bad schedule');
-    const schedule = scheduleResult.value.toggleSplitClass(); // split-class day for grade group check
+    const schedule = scheduleResult.value.toggleSplitClass(); // 学年グループ確認用の分級日
 
-    // groupNumber=2 → LOWER group
+    // groupNumber=2 → LOWERグループ
     const assignment = Assignment.create(schedule.id, 2, [m1.id, m2.id]);
     const { memberRepo, assignmentRepo, scheduleRepo } = createRepos(
       [m1, m2, m3],
@@ -240,7 +240,7 @@ describe('adjustAssignment', () => {
       [schedule],
     );
 
-    // Replace m2 (LOWER) with m3 (UPPER) in LOWER group → mismatch
+    // LOWERグループで m2（LOWER）を m3（UPPER）に置き換える → 不一致
     const result = adjustAssignment(
       assignment.id,
       m2.id,
@@ -319,7 +319,7 @@ describe('adjustAssignment', () => {
     if (!scheduleResult.ok) throw new Error('bad schedule');
     const schedule = scheduleResult.value;
 
-    // groupNumber=1 → UPPER group
+    // groupNumber=1 → UPPERグループ
     const assignment = Assignment.create(schedule.id, 1, [m1.id, m2.id]);
     const { memberRepo, assignmentRepo, scheduleRepo } = createRepos(
       [m1, m2, m3],

@@ -26,7 +26,7 @@ export const migration011: Migration = {
     db.exec('CREATE INDEX idx_assignments_schedule ON assignments(schedule_id)');
   },
   down(db) {
-    // Remove rows with NULL member slots before restoring NOT NULL constraint
+    // NOT NULL 制約を戻す前に、メンバー枠が NULL の行を削除する
     db.exec('DELETE FROM assignments WHERE member_id_1 IS NULL OR member_id_2 IS NULL');
     db.exec(`
       CREATE TABLE assignments_old (

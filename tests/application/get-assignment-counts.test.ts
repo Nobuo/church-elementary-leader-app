@@ -204,7 +204,7 @@ describe('getAssignmentCounts', () => {
     it('does not count excluded schedules as unassigned', () => {
       const m1 = makeMember('Alice');
       const s1 = makeSchedule('2026-04-05');
-      const s2 = makeSchedule('2026-04-12', true); // excluded
+      const s2 = makeSchedule('2026-04-12', true); // 除外済み
 
       const result = getAssignmentCounts(
         2026,
@@ -213,7 +213,7 @@ describe('getAssignmentCounts', () => {
         createMockScheduleRepo([s1, s2]),
       );
 
-      // Only s1 is active and unassigned; s2 is excluded
+      // s1 だけが有効かつ未割り当てで、s2 は除外済み
       expect(result.unassignedWeeks).toBe(1);
     });
   });

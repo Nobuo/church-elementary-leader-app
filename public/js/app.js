@@ -1,4 +1,4 @@
-// Navigation
+// ナビゲーション
 document.querySelectorAll('.nav-btn').forEach(btn => {
   btn.addEventListener('click', () => {
     document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
@@ -6,7 +6,7 @@ document.querySelectorAll('.nav-btn').forEach(btn => {
     btn.classList.add('active');
     document.getElementById(`page-${btn.dataset.page}`).classList.add('active');
 
-    // Load data for the page
+    // ページに必要なデータを読み込む
     const page = btn.dataset.page;
     if (page === 'members') loadMembers();
     else if (page === 'schedules') loadSchedules();
@@ -14,10 +14,10 @@ document.querySelectorAll('.nav-btn').forEach(btn => {
   });
 });
 
-// Language selector
+// 言語セレクター
 document.getElementById('lang-select').addEventListener('change', (e) => {
   setLanguage(e.target.value);
-  // Reload current page data
+  // 現在のページデータを再読み込みする
   const activePage = document.querySelector('.nav-btn.active')?.dataset.page;
   if (activePage === 'members') loadMembers();
   else if (activePage === 'schedules') loadSchedules();
@@ -28,7 +28,7 @@ function getFiscalMonths() {
   return [4, 5, 6, 7, 8, 9, 10, 11, 12, 1, 2, 3];
 }
 
-// Year/month selectors
+// 年月セレクター
 function initDateSelectors() {
   const now = new Date();
   const currentFiscalYear = now.getMonth() < 3 ? now.getFullYear() - 1 : now.getFullYear();
@@ -74,6 +74,6 @@ function getCalendarYear() {
   return month <= 3 ? getSelectedFiscalYear() + 1 : getSelectedFiscalYear();
 }
 
-// Initialize
+// 初期化
 initDateSelectors();
 loadMembers();

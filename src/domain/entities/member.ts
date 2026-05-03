@@ -15,7 +15,7 @@ export interface MemberProps {
   readonly memberType: MemberType;
   readonly sameGenderOnly: boolean;
   readonly spouseId: MemberId | null;
-  readonly availableDates: readonly string[] | null; // ISO date strings
+  readonly availableDates: readonly string[] | null; // ISO形式の日付文字列
   readonly isActive: boolean;
 }
 

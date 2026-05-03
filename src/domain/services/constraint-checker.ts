@@ -14,7 +14,7 @@ export interface AssignmentContext {
   members: Map<MemberId, Member>;
   existingAssignmentsForMonth: Assignment[];
   assignmentCountsForYear: Map<MemberId, number>;
-  pastPairs: Map<string, number>; // "id1-id2" -> count
+  pastPairs: Map<string, number>; // "id1-id2" -> 回数
 }
 
 export function checkAvailability(member: Member, date: string): boolean {

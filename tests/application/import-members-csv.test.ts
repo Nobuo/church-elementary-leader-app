@@ -53,7 +53,7 @@ describe('importMembersCsv', () => {
   it('updates existing members matched by name', () => {
     const repo = createInMemoryMemberRepo();
 
-    // Pre-existing member
+    // 既存メンバー
     const existing = Member.create({
       name: '田中太郎',
       gender: Gender.MALE,

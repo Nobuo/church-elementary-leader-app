@@ -151,7 +151,7 @@ export function createAssignmentController(
     }
     if (!isValidDateString(date)) { res.status(400).json({ error: 'Invalid date format' }); return; }
 
-    // Check schedule flags
+    // スケジュールのフラグを確認する
     const schedule = scheduleRepo.findByDate(date);
     const isEventDay = schedule?.isEvent ?? false;
     const isEbtDay = schedule?.isEbt ?? false;
@@ -163,26 +163,26 @@ export function createAssignmentController(
       .map((id) => memberRepo.findById(id as MemberId))
       .filter((m): m is Member => m !== null);
 
-    // Get fiscal year data for count/interval checks
+    // 回数と間隔の確認に使う年度データを取得する
     const fiscalYear = getFiscalYear(new Date(date));
     const allFiscalYearSchedules = scheduleRepo.findByFiscalYear(fiscalYear);
     const allScheduleIds = allFiscalYearSchedules.map((s) => s.id);
     const allAssignments = assignmentRepo.findByScheduleIds(allScheduleIds);
 
-    // Monthly assignments (excluding current assignment)
+    // 月内の割り当て（現在の割り当てを除く）
     const scheduleMonth = new Date(date).getMonth() + 1;
     const scheduleYear = new Date(date).getFullYear();
     const monthSchedules = scheduleRepo.findByMonth(scheduleYear, scheduleMonth);
     const monthScheduleIds = monthSchedules.map((s) => s.id);
     const monthAssignments = assignmentRepo.findByScheduleIds(monthScheduleIds);
 
-    // Schedule date map for interval check
+    // 間隔確認用のスケジュール日付マップ
     const scheduleDateMap = new Map<string, string>();
     for (const s of allFiscalYearSchedules) {
       scheduleDateMap.set(s.id, s.date);
     }
 
-    // Count map for fiscal year
+    // 年度内の割り当て回数マップ
     const countMap = assignmentRepo.countAllByFiscalYear(fiscalYear);
     const activeCounts = activeMembers.map((m) => countMap.get(m.id) ?? 0);
     const avgCount = activeCounts.length > 0
@@ -196,7 +196,7 @@ export function createAssignmentController(
       .filter((m) => {
         if (!isEbtDay) return true;
         if (m.language !== Language.ENGLISH) return true;
-        // Exception: keep if no non-EBT active dates are available
+        // 例外: EBT以外の有効日がない場合は候補に残す
         if (m.availableDates && m.availableDates.length > 0) {
           const hasNonEbtDate = allFiscalYearSchedules.some(
             (s) => s.date !== date && !s.isExcluded && !s.isEbt && m.isAvailableOn(s.date),
@@ -214,7 +214,7 @@ export function createAssignmentController(
       .map((m) => {
         const warnings: string[] = [];
 
-        // Check group constraints with partners
+        // 相手メンバーとのグループ制約を確認する
         if (partners.length > 0) {
           const group = [m, ...partners];
           if (checkLanguageBalanceGroup(group)) warnings.push('language');
@@ -222,25 +222,25 @@ export function createAssignmentController(
           if (checkSpouseSameGroupMulti(group)) warnings.push('spouse');
         }
 
-        // Monthly duplicate
+        // 月内重複
         if (checkMonthlyDuplicate(m.id, monthAssignments)) warnings.push('monthlyDuplicate');
 
-        // Min interval
+        // 最小間隔
         if (checkMinInterval(m.id, date, allAssignments, scheduleDateMap)) warnings.push('minInterval');
 
-        // Class language coverage on split-class days
-        // Approximate: we don't have full day assignment context here, so warn all
-        // non-BOTH candidates. In practice, replacing with a non-BOTH member may
-        // bring the total BOTH count below the required 2.
+        // 分級日のクラス別言語カバー
+        // 近似判定: ここでは1日全体の割り当て情報がないため、すべての
+        // BOTH以外の候補に警告する。実際にBOTH以外へ置き換えると、
+        // 必要なBOTH人数2名を下回る可能性がある。
         if (isSplitClass && m.language !== Language.BOTH) {
           warnings.push('classLanguageCoverage');
         }
 
-        // Excessive count
+        // 割り当て回数過多
         const count = countMap.get(m.id) ?? 0;
         if (avgCount > 0 && count > avgCount) warnings.push('excessiveCount');
 
-        // Grade group mismatch
+        // 学年グループ不一致
         const isCrossover = role ? m.gradeGroup !== role : false;
         if (isCrossover) warnings.push('gradeGroupMismatch');
 
@@ -256,7 +256,7 @@ export function createAssignmentController(
         };
       });
 
-    // Sort: recommended first, then by count ascending
+    // 並び順: 推奨候補を先に、その後は回数の少ない順
     candidates.sort((a, b) => {
       if (a.recommended !== b.recommended) return a.recommended ? -1 : 1;
       if (a.warnings.length !== b.warnings.length) return a.warnings.length - b.warnings.length;

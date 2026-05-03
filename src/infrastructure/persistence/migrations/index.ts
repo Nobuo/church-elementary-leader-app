@@ -78,7 +78,7 @@ export function rollbackMigrations(db: AppDatabase, targetVersion: number): void
     return;
   }
 
-  // Disable FK constraints for rollback (PRAGMA cannot be changed inside a transaction)
+  // ロールバック用に外部キー制約を無効化する（PRAGMA はトランザクション内で変更できない）
   db.exec('PRAGMA foreign_keys = OFF');
   try {
     for (let v = maxVersion; v > targetVersion; v--) {

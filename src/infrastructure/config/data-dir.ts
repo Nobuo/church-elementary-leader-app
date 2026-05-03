@@ -38,7 +38,7 @@ export function resolveDbPath(): string {
 }
 
 export function migrateOldDbIfNeeded(newDbPath: string): void {
-  // Check both cwd and executable directory for old DB files
+  // 旧DBファイルがないか、cwd と実行ファイルのディレクトリの両方を確認する
   const candidates = [
     path.join(process.cwd(), DB_FILENAME),
     path.join(path.dirname(process.execPath), DB_FILENAME),

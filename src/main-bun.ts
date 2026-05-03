@@ -1,6 +1,6 @@
 /**
- * Bun entry point for compiled binary.
- * Uses bun:sqlite instead of better-sqlite3.
+ * コンパイル済みバイナリ用の Bun エントリーポイント。
+ * better-sqlite3 の代わりに bun:sqlite を使う。
  */
 import path from 'path';
 import { Database } from 'bun:sqlite';
@@ -26,7 +26,7 @@ const memberRepo = new SqliteMemberRepository(db);
 const scheduleRepo = new SqliteScheduleRepository(db);
 const assignmentRepo = new SqliteAssignmentRepository(db);
 
-// In compiled binary, public/ is next to the executable
+// コンパイル済みバイナリでは、public/ は実行ファイルの隣にある
 const staticDir = path.join(path.dirname(process.execPath), 'public');
 const app = createServer(memberRepo, scheduleRepo, assignmentRepo, { staticDir });
 

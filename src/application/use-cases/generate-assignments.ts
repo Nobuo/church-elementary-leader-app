@@ -47,7 +47,7 @@ export interface GenerateAssignmentsResult {
   message?: string;
 }
 
-/** Combined day = 3 slots, split day = 4 slots */
+/** 合同日は3枠、分級日は4枠 */
 function slotsForSchedule(schedule: Schedule): number {
   return schedule.isSplitClass ? 4 : 3;
 }
@@ -80,31 +80,31 @@ export function generateMonthlyAssignments(
 
   const allScheduleIds = schedules.map((s) => s.id);
 
-  // Incremental mode: find unassigned schedules only
+  // 差分モード: 未割り当てのスケジュールだけを探す
   const existingMonthAssignments = assignmentRepo.findByScheduleIds(allScheduleIds);
   const assignedScheduleIds = new Set(existingMonthAssignments.map((a) => a.scheduleId));
   const unassignedSchedules = schedules.filter(
     (s) => !s.isExcluded && !assignedScheduleIds.has(s.id),
   );
 
-  // If all schedules already have assignments, do nothing
+  // すべてのスケジュールが割り当て済みなら何もしない
   if (unassignedSchedules.length === 0) {
     return ok({ assignments: [], violations: [], message: 'allWeeksAssigned' });
   }
 
   const fiscalYear = getFiscalYear(new Date(year, month - 1, 1));
 
-  // Get all existing assignments for count calculation
+  // 回数計算のため既存の割り当てをすべて取得する
   const allFiscalYearSchedules = scheduleRepo.findByFiscalYear(fiscalYear);
   const otherScheduleIds = allFiscalYearSchedules
     .filter((s) => !allScheduleIds.includes(s.id))
     .map((s) => s.id);
   const otherMonthAssignments = assignmentRepo.findByScheduleIds(otherScheduleIds);
 
-  // Include both other-month assignments and this-month confirmed assignments
+  // 他月の割り当てと当月の確定済み割り当ての両方を含める
   const existingAssignmentsAll = [...otherMonthAssignments, ...existingMonthAssignments];
 
-  // Build count map from all existing assignments
+  // 既存の割り当て全体から回数マップを作る
   const countMap = new Map<MemberId, number>();
   for (const m of members) {
     countMap.set(m.id, 0);
@@ -115,7 +115,7 @@ export function generateMonthlyAssignments(
     }
   }
 
-  // Generate only for unassigned schedules
+  // 未割り当てのスケジュールだけを生成する
   const { assignments, violations } = generateAlgorithm(
     unassignedSchedules,
     members,
@@ -123,7 +123,7 @@ export function generateMonthlyAssignments(
     countMap,
   );
 
-  // Check excessive counts after generation
+  // 生成後に割り当て回数過多を確認する
   const updatedCountMap = new Map(countMap);
   for (const a of assignments) {
     for (const mid of a.memberIds) {
@@ -131,7 +131,7 @@ export function generateMonthlyAssignments(
     }
   }
 
-  // Build schedule lookup for slot calculation
+  // 枠数計算用のスケジュール検索表を作る
   const scheduleMap = new Map<ScheduleId, Schedule>();
   for (const s of allFiscalYearSchedules) {
     scheduleMap.set(s.id, s);
@@ -150,18 +150,18 @@ export function generateMonthlyAssignments(
   const excessiveViolations = checkExcessiveCount(members, updatedCountMap, totalSlots);
   violations.push(...excessiveViolations);
 
-  // Save assignments
+  // 割り当てを保存する
   for (const a of assignments) {
     assignmentRepo.save(a);
   }
 
-  // Build member lookup
+  // メンバー検索表を作る
   const memberMap = new Map<MemberId, Member>();
   for (const m of members) {
     memberMap.set(m.id, m);
   }
 
-  // Build schedule date lookup
+  // スケジュール日付検索表を作る
   const scheduleDateMap = new Map<ScheduleId, string>();
   for (const s of schedules) {
     scheduleDateMap.set(s.id, s.date);
@@ -207,7 +207,7 @@ export function adjustAssignment(
   const newMember = memberRepo.findById(asMemberId(newMemberId));
   if (!newMember) return err('New member not found');
 
-  // Reject HELPER on event days
+  // イベント日は HELPER を拒否する
   const schedule = scheduleRepo.findById(assignment.scheduleId);
   if (schedule?.isEvent && newMember.memberType === MemberType.HELPER) {
     return err('HELPER members cannot be assigned on event days');
@@ -216,7 +216,7 @@ export function adjustAssignment(
   const updated = assignment.replaceMember(asMemberId(oldMemberId), asMemberId(newMemberId));
   assignmentRepo.save(updated);
 
-  // Look up all members for the updated assignment
+  // 更新後の割り当てに必要な全メンバーを取得する
   const memberLookup = new Map(
     updated.memberIds.map((mid) => [mid, memberRepo.findById(mid)] as const),
   );
@@ -224,28 +224,28 @@ export function adjustAssignment(
   const date = schedule?.date ?? '';
   const isCombinedDay = schedule ? !schedule.isSplitClass : false;
 
-  // Check constraints on the updated group
+  // 更新後のグループの制約を確認する
   const violations: ConstraintViolation[] = [];
   const groupMembers = updated.memberIds
     .map((mid) => memberLookup.get(mid) ?? null)
     .filter((m): m is Member => m !== null);
 
   if (groupMembers.length >= 2) {
-    // Language balance (works for 2 or 3 members)
+    // 言語バランス（2人または3人で有効）
     const langViolation = checkLanguageBalanceGroup(groupMembers);
     if (langViolation) violations.push(langViolation);
 
-    // Same-gender constraint: only for 2-member pairs (split-class day)
+    // 同性制約: 2人ペア（分級日）のみ対象
     if (!isCombinedDay && groupMembers.length === 2) {
       const genderViolation = checkSameGender(groupMembers[0], groupMembers[1]);
       if (genderViolation) violations.push(genderViolation);
     }
 
-    // Spouse avoidance (works for 2 or 3 members)
+    // 配偶者回避（2人または3人で有効）
     const spouseViolation = checkSpouseSameGroupMulti(groupMembers);
     if (spouseViolation) violations.push(spouseViolation);
 
-    // Check class language coverage on split-class days
+    // 分級日のクラス別言語カバーを確認する
     if (schedule?.isSplitClass) {
       const sameDateAssignments = assignmentRepo.findByScheduleIds([updated.scheduleId]);
       const otherGroup = sameDateAssignments.find((a) => a.id !== updated.id);
@@ -259,7 +259,7 @@ export function adjustAssignment(
       }
     }
 
-    // Grade group mismatch check (only for split-class days)
+    // 学年グループ不一致の確認（分級日のみ）
     if (!isCombinedDay) {
       const expectedGrade = updated.groupNumber === 1 ? GradeGroup.UPPER : GradeGroup.LOWER;
       if (newMember.gradeGroup !== GradeGroup.ANY && newMember.gradeGroup !== expectedGrade) {
@@ -279,7 +279,7 @@ export function adjustAssignment(
     }
   }
 
-  // Check monthly duplicate and min interval for the new member
+  // 新しいメンバーについて月内重複と最小間隔を確認する
   if (date) {
     const fiscalYear = getFiscalYear(new Date(date));
     const allFiscalYearSchedules = scheduleRepo.findByFiscalYear(fiscalYear);
@@ -288,7 +288,7 @@ export function adjustAssignment(
     const monthSchedules = scheduleRepo.findByMonth(scheduleYear, scheduleMonth);
     const monthScheduleIds = monthSchedules.map((s) => s.id);
     const monthAssignments = assignmentRepo.findByScheduleIds(monthScheduleIds);
-    // Exclude the current assignment from duplicate check
+    // 重複確認から現在の割り当てを除外する
     const otherMonthAssignments = monthAssignments.filter((a) => a.id !== updated.id);
 
     const newMembIdBranded = asMemberId(newMemberId);
@@ -453,7 +453,7 @@ export function assignToVacantSlot(
   const newMember = memberRepo.findById(asMemberId(memberId));
   if (!newMember) return err('Member not found');
 
-  // Reject HELPER on event days
+  // イベント日は HELPER を拒否する
   if (schedule?.isEvent && newMember.memberType === MemberType.HELPER) {
     return err('HELPER members cannot be assigned on event days');
   }
@@ -464,7 +464,7 @@ export function assignToVacantSlot(
   const date = schedule?.date ?? '';
   const isCombinedDay = schedule ? !schedule.isSplitClass : false;
 
-  // Check constraints on the updated group
+  // 更新後のグループの制約を確認する
   const violations: ConstraintViolation[] = [];
   const memberLookup = new Map(
     updated.memberIds.map((mid) => [mid, memberRepo.findById(mid)] as const),
@@ -517,7 +517,7 @@ export function assignToVacantSlot(
     }
   }
 
-  // Check monthly duplicate and min interval
+  // 月内重複と最小間隔を確認する
   if (date) {
     const fiscalYear = getFiscalYear(new Date(date));
     const allFiscalYearSchedules = scheduleRepo.findByFiscalYear(fiscalYear);

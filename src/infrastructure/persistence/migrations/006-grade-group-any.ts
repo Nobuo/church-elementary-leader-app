@@ -4,8 +4,8 @@ export const migration006: Migration = {
   version: 6,
   description: 'Add ANY to grade_group CHECK constraint',
   up(db) {
-    // SQLite cannot ALTER CHECK constraints, so recreate the table
-    // FK is disabled by runMigrations before calling up()
+    // SQLite では CHECK 制約を ALTER できないため、テーブルを再作成する
+    // up() 呼び出し前に runMigrations が外部キー制約を無効化している
     db.exec(`
       CREATE TABLE members_new (
         id TEXT PRIMARY KEY,

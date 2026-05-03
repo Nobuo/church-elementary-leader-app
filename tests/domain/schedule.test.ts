@@ -3,17 +3,17 @@ import { Schedule, getSundaysInMonth } from '@domain/entities/schedule';
 
 describe('Schedule', () => {
   it('creates a valid schedule for a Sunday', () => {
-    const result = Schedule.create('2026-04-05'); // Sunday
+    const result = Schedule.create('2026-04-05'); // 日曜日
     expect(result.ok).toBe(true);
     if (result.ok) {
       expect(result.value.date).toBe('2026-04-05');
       expect(result.value.isExcluded).toBe(false);
-      expect(result.value.year).toBe(2026); // fiscal year
+      expect(result.value.year).toBe(2026); // 年度
     }
   });
 
   it('rejects non-Sunday dates', () => {
-    const result = Schedule.create('2026-04-06'); // Monday
+    const result = Schedule.create('2026-04-06'); // 月曜日
     expect(result.ok).toBe(false);
   });
 
@@ -27,9 +27,9 @@ describe('Schedule', () => {
   });
 
   it('assigns January to previous fiscal year', () => {
-    const result = Schedule.create('2027-01-03'); // Sunday in Jan 2027
+    const result = Schedule.create('2027-01-03'); // 2027年1月の日曜日
     if (!result.ok) throw new Error('should succeed');
-    expect(result.value.year).toBe(2026); // belongs to fiscal year 2026
+    expect(result.value.year).toBe(2026); // 2026年度に属する
   });
 
   it('reconstructs with isEvent true', () => {
@@ -185,12 +185,12 @@ describe('getSundaysInMonth', () => {
     for (const s of sundays) {
       const d = new Date(s);
       expect(d.getDay()).toBe(0);
-      expect(d.getMonth()).toBe(3); // April = 3
+      expect(d.getMonth()).toBe(3); // 4月 = 3
     }
   });
 
   it('returns correct number of Sundays', () => {
-    // April 2026 has Sundays on: 5, 12, 19, 26
+    // 2026年4月の日曜日は 5日、12日、19日、26日
     const sundays = getSundaysInMonth(2026, 4);
     expect(sundays).toEqual(['2026-04-05', '2026-04-12', '2026-04-19', '2026-04-26']);
   });

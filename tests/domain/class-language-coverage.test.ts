@@ -165,7 +165,7 @@ describe('assignment generator with split-class', () => {
       makeMember('L-EN', { language: Language.ENGLISH, gradeGroup: GradeGroup.LOWER }),
     ];
 
-    // Non-split day
+    // 分級日ではない日
     const schedule = makeSchedule('2026-04-05', false);
     const { violations } = generateAssignments(
       [schedule], members, [], new Map(),
@@ -176,7 +176,7 @@ describe('assignment generator with split-class', () => {
   });
 
   it('T12: Group 2 selects BOTH members to reach total of 2', () => {
-    // Group 1 might get 0 BOTH, Group 2 should compensate with 2 BOTH
+    // グループ1のBOTHが0人になる場合があり、グループ2がBOTH 2人で補うはず
     const members = [
       makeMember('U-JP', { language: Language.JAPANESE, gradeGroup: GradeGroup.UPPER }),
       makeMember('U-BOTH', { language: Language.BOTH, gradeGroup: GradeGroup.UPPER }),

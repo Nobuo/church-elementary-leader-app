@@ -39,7 +39,7 @@ export function getAssignmentCounts(
     }))
     .sort((a, b) => b.count - a.count);
 
-  // Calculate unassigned weeks
+  // 未割り当て週を計算する
   let unassignedWeeks = 0;
   if (scheduleRepo) {
     const allSchedules = scheduleRepo.findByFiscalYear(fiscalYear);

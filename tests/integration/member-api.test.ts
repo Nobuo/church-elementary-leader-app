@@ -60,7 +60,7 @@ describe('Member API', () => {
 
       expect(res2.body.spouseId).toBe(res1.body.id);
 
-      // Check reverse link
+      // 逆方向の紐づけを確認する
       const husband = await t.request.get(`/api/members?activeOnly=false`).expect(200);
       const h = husband.body.find((m: { id: string }) => m.id === res1.body.id);
       expect(h.spouseId).toBe(res2.body.id);
@@ -78,7 +78,7 @@ describe('Member API', () => {
   describe('GET /api/members', () => {
     it('1.7 returns only active members by default', async () => {
       const members = await seedStandardMembers(t.request);
-      // Deactivate one
+      // 1件を無効化する
       await t.request.post(`/api/members/${members[0].id}/deactivate`).expect(200);
 
       const res = await t.request.get('/api/members?activeOnly=true').expect(200);

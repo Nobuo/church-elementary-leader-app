@@ -118,7 +118,7 @@ function setScheduleView(view) {
   loadSchedules();
 }
 
-// Event delegation for schedule actions
+// スケジュール操作のイベント委譲
 function bindScheduleInteractions(containerId) {
   document.getElementById(containerId)?.addEventListener('click', (e) => {
     const btn = e.target.closest('button[data-action]');

@@ -7,7 +7,7 @@ export const migration007: Migration = {
     db.exec('ALTER TABLE assignments ADD COLUMN member_id_3 TEXT DEFAULT NULL');
   },
   down(db) {
-    // SQLite cannot DROP COLUMN in older versions, so recreate the table
+    // 古い SQLite では DROP COLUMN が使えないため、テーブルを再作成する
     db.exec(`
       CREATE TABLE assignments_old (
         id TEXT PRIMARY KEY,

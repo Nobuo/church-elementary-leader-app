@@ -217,7 +217,7 @@ describe('constraint-checker', () => {
         [m1.id, 31],
         [m2.id, 15],
       ]);
-      // 10 sundays × 4 slots = 40 total slots
+      // 日曜日10回 × 4枠 = 合計40枠
       const violations = checkExcessiveCount([m1, m2], counts, 40);
       expect(violations[0].messageKey).toBe('violations.excessiveCount');
       expect(violations[0].messageParams.name).toBe('Alice');
@@ -227,8 +227,8 @@ describe('constraint-checker', () => {
     it('warns when member count exceeds 1.5x expected', () => {
       const m1 = makeMember({ name: 'Alice' });
       const m2 = makeMember({ name: 'Bob' });
-      // 40 totalSlots, 2 members → expected = 40/2 = 20
-      // Alice has 31 (>30), Bob has 15
+      // totalSlots 40、メンバー2名 → 期待値 = 40/2 = 20
+      // Alice は31回（>30）、Bob は15回
       const counts = new Map<MemberId, number>([
         [m1.id, 31],
         [m2.id, 15],
@@ -243,8 +243,8 @@ describe('constraint-checker', () => {
       const m1 = makeMember({ name: 'Alice' });
       const m2 = makeMember({ name: 'Bob' });
       const m3 = makeMember({ name: 'Charlie' });
-      // 48 totalSlots, 3 members → expected = 48/3 = 16
-      // Bob has 7 (<8), count > 0
+      // totalSlots 48、メンバー3名 → 期待値 = 48/3 = 16
+      // Bob は7回（<8）で、回数は0より大きい
       const counts = new Map<MemberId, number>([
         [m1.id, 16],
         [m2.id, 7],
@@ -258,7 +258,7 @@ describe('constraint-checker', () => {
     it('returns no violations when counts are balanced', () => {
       const m1 = makeMember({ name: 'Alice' });
       const m2 = makeMember({ name: 'Bob' });
-      // 40 totalSlots, 2 members → expected = 20
+      // totalSlots 40、メンバー2名 → 期待値 = 20
       const counts = new Map<MemberId, number>([
         [m1.id, 18],
         [m2.id, 22],
@@ -272,14 +272,14 @@ describe('constraint-checker', () => {
     });
 
     it('no warning when expected is low and count = ceil(expected)', () => {
-      // 28 totalSlots, 22 members → expected ≈ 1.27
-      // count=2 should NOT trigger (2 < max(1.91, 3.27) = 3.27)
+      // totalSlots 28、メンバー22名 → 期待値 ≈ 1.27
+      // 回数2では発火しないはず（2 < max(1.91, 3.27) = 3.27）
       const members = Array.from({ length: 22 }, (_, i) =>
         makeMember({ name: `M${i}` }),
       );
       const counts = new Map<MemberId, number>();
       for (const m of members) counts.set(m.id, 1);
-      // Give 6 members count=2 (total = 6*2 + 16*1 = 28 slots filled)
+      // 6名の回数を2にする（合計 = 6*2 + 16*1 = 28枠が埋まる）
       let i = 0;
       for (const m of members) {
         if (i < 6) counts.set(m.id, 2);
@@ -290,8 +290,8 @@ describe('constraint-checker', () => {
     });
 
     it('warns when truly excessive at low expected', () => {
-      // 28 totalSlots, 22 members → expected ≈ 1.27
-      // count=4 should trigger (4 > max(1.91, 3.27) = 3.27)
+      // totalSlots 28、メンバー22名 → 期待値 ≈ 1.27
+      // 回数4では発火するはず（4 > max(1.91, 3.27) = 3.27）
       const members = Array.from({ length: 22 }, (_, i) =>
         makeMember({ name: `M${i}` }),
       );
@@ -303,22 +303,22 @@ describe('constraint-checker', () => {
     });
 
     it('no too-few warning when expected is low', () => {
-      // 28 totalSlots, 22 members → expected ≈ 1.27
-      // tooFewThreshold = min(0.64, -0.73) = -0.73 → never triggers
+      // totalSlots 28、メンバー22名 → 期待値 ≈ 1.27
+      // tooFewThreshold = min(0.64, -0.73) = -0.73 → 発火しない
       const members = Array.from({ length: 22 }, (_, i) =>
         makeMember({ name: `M${i}` }),
       );
       const counts = new Map<MemberId, number>();
       for (const m of members) counts.set(m.id, 2);
-      counts.set(members[0].id, 1); // below expected but should not warn
+      counts.set(members[0].id, 1); // 期待値未満だが警告しないはず
       const violations = checkExcessiveCount(members, counts, 28);
       const tooFew = violations.filter((v) => v.message.includes('too few'));
       expect(tooFew).toHaveLength(0);
     });
 
     it('high expected still warns at 1.5x threshold', () => {
-      // 168 totalSlots, 22 members → expected ≈ 7.64
-      // tooManyThreshold = max(11.45, 9.64) = 11.45 → count 12 triggers
+      // totalSlots 168、メンバー22名 → 期待値 ≈ 7.64
+      // tooManyThreshold = max(11.45, 9.64) = 11.45 → 回数12で発火
       const members = Array.from({ length: 22 }, (_, i) =>
         makeMember({ name: `M${i}` }),
       );

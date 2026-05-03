@@ -87,7 +87,7 @@ describe('formatMemberCsv', () => {
 
     const csv = formatMemberCsv([m1, m2], memberMap, 'ja');
     const lines = csv.replace('\uFEFF', '').split('\n');
-    // m1's row should contain spouse name '妻'
+    // m1 の行には配偶者名「妻」が含まれるはず
     expect(lines[1]).toContain('妻');
   });
 

@@ -4,10 +4,10 @@ import { ScheduleId } from '@shared/types';
 
 describe('clear day assignments logic', () => {
   /**
-   * Extracted controller logic for testability:
-   * - date < today → error
-   * - schedule not found → error
-   * - otherwise → delete assignments
+   * テストしやすいようにコントローラーのロジックを切り出している:
+   * - date < today → エラー
+   * - スケジュールが見つからない → エラー
+   * - それ以外 → 割り当てを削除
    */
   function clearDayAssignments(
     date: string,

@@ -3,9 +3,9 @@ import path from 'path';
 import os from 'os';
 import fs from 'fs';
 
-// We need to dynamically import the module after stubbing process.platform
+// process.platform をスタブ化した後でモジュールを動的インポートする必要がある
 async function importModule() {
-  // Clear module cache to pick up new stubs
+  // 新しいスタブを反映するためモジュールキャッシュを消す
   vi.resetModules();
   return import('@infrastructure/config/data-dir');
 }
@@ -105,7 +105,7 @@ describe('migrateOldDbIfNeeded', () => {
 
     const { migrateOldDbIfNeeded } = await importModule();
 
-    // Mock process.cwd to return old dir
+    // process.cwd が旧ディレクトリを返すようにモックする
     const originalCwd = process.cwd;
     process.cwd = () => path.join(tmpDir, 'old');
     try {

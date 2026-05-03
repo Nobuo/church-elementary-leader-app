@@ -17,11 +17,11 @@ describe('Schedule API', () => {
 
       expect(res.body.length).toBeGreaterThanOrEqual(4);
       expect(res.body.length).toBeLessThanOrEqual(5);
-      // All dates should be Sundays in April
+      // すべての日付が4月の日曜日であるはず
       for (const s of res.body) {
         const d = new Date(s.date);
-        expect(d.getDay()).toBe(0); // Sunday
-        expect(d.getMonth()).toBe(3); // April (0-indexed)
+        expect(d.getDay()).toBe(0); // 日曜日
+        expect(d.getMonth()).toBe(3); // 4月（0始まり）
         expect(d.getFullYear()).toBe(testYear);
       }
     });

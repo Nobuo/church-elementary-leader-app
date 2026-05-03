@@ -15,7 +15,7 @@ describe('Security', () => {
 
     it('sets X-Frame-Options or equivalent', async () => {
       const res = await t.request.get('/api/members').expect(200);
-      // helmet sets x-frame-options by default
+      // helmet はデフォルトで x-frame-options を設定する
       expect(res.headers['x-frame-options']).toBeDefined();
     });
   });
@@ -107,7 +107,7 @@ describe('Security', () => {
 
   describe('Global error handler', () => {
     it('does not leak stack traces in error responses', async () => {
-      // Accessing a non-existent member for update should return clean error
+      // 存在しないメンバーを更新しようとすると、整ったエラーを返すはず
       const res = await t.request.put('/api/members/nonexistent-id').send({ name: 'test' });
       expect(res.status).toBe(400);
       expect(res.body.error).toBeDefined();

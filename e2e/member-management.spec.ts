@@ -8,22 +8,22 @@ test.beforeEach(async ({ request }) => {
 test('E1.1 register a member via UI', async ({ page }) => {
   await page.goto('/');
 
-  // Click add button
+  // 追加ボタンをクリックする
   await page.click('#btn-add-member');
   await expect(page.locator('#member-dialog')).toBeVisible();
 
-  // Fill form
+  // フォームに入力する
   await page.fill('#form-name', 'テスト太郎');
   await page.selectOption('#form-gender', 'MALE');
   await page.selectOption('#form-language', 'JAPANESE');
   await page.selectOption('#form-grade', 'UPPER');
   await page.selectOption('#form-type', 'PARENT_SINGLE');
 
-  // Submit
+  // 送信する
   await page.click('#member-form button[type="submit"]');
   await expect(page.locator('#member-dialog')).not.toBeVisible();
 
-  // Verify in table
+  // 表に表示されていることを確認する
   await expect(page.locator('#members-body')).toContainText('テスト太郎');
 });
 
@@ -32,11 +32,11 @@ test('E1.3 edit a member via UI', async ({ page, request }) => {
   await page.goto('/');
   await page.waitForSelector('#members-body tr');
 
-  // Click first edit button
+  // 先頭の編集ボタンをクリックする
   await page.click('#members-body tr:first-child button:has-text("編集")');
   await expect(page.locator('#member-dialog')).toBeVisible();
 
-  // Change name
+  // 名前を変更する
   await page.fill('#form-name', '変更後の名前');
   await page.click('#member-form button[type="submit"]');
   await expect(page.locator('#member-dialog')).not.toBeVisible();
@@ -51,10 +51,10 @@ test('E1.4 deactivate a member', async ({ page, request }) => {
 
   const initialRows = await page.locator('#members-body tr').count();
 
-  // Accept the confirmation dialog
+  // 確認ダイアログを承認する
   page.on('dialog', dialog => dialog.accept());
 
-  // Click first deactivate button
+  // 先頭の無効化ボタンをクリックする
   await page.click('#members-body tr:first-child button:has-text("無効化")');
   await page.waitForTimeout(500);
 
@@ -67,18 +67,18 @@ test('E1.5 show inactive members', async ({ page, request }) => {
   await page.goto('/');
   await page.waitForSelector('#members-body tr');
 
-  // Accept the confirmation dialog
+  // 確認ダイアログを承認する
   page.on('dialog', dialog => dialog.accept());
 
-  // Deactivate one
+  // 1件を無効化する
   await page.click('#members-body tr:first-child button:has-text("無効化")');
   await page.waitForTimeout(500);
 
-  // Check show inactive
+  // 無効メンバー表示を確認する
   await page.check('#show-inactive');
   await page.waitForTimeout(500);
 
-  // Should see "無効" status
+  // 「無効」ステータスが表示されるはず
   await expect(page.locator('#members-body')).toContainText('無効');
 });
 

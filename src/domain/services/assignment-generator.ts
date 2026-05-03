@@ -29,7 +29,7 @@ function pairKey(a: MemberId, b: MemberId): string {
   return [a, b].sort().join('-');
 }
 
-/** Update pastPairCounts for all 2-member combinations in the group */
+/** グループ内の2人組すべてについて pastPairCounts を更新する */
 function updatePairCounts(memberIds: MemberId[], pastPairCounts: Map<string, number>): void {
   for (let i = 0; i < memberIds.length; i++) {
     for (let j = i + 1; j < memberIds.length; j++) {
@@ -53,8 +53,8 @@ interface ClassContext {
 }
 
 /**
- * Score a candidate pair for a group assignment (split-class days: 2 members per group).
- * Lower score = better candidate.
+ * グループ割り当ての候補ペアを採点する（分級日: 1グループ2名）。
+ * スコアが低いほどよい候補。
  */
 function scorePair(
   member1: Member,
@@ -70,14 +70,14 @@ function scorePair(
   let score = 0;
   const violations: ConstraintViolation[] = [];
 
-  // HARD: Language balance - each group needs both Japanese and English coverage
+  // ハード制約: 言語バランス。各グループは日本語と英語の両方をカバーする必要がある
   const hasJapanese = coversJapanese(member1.language) || coversJapanese(member2.language);
   const hasEnglish = coversEnglish(member1.language) || coversEnglish(member2.language);
   if (!hasJapanese || !hasEnglish) {
-    score += 100000; // effectively impossible
+    score += 100000; // 実質的に不可能
   }
 
-  // HARD: Class language coverage (split-class days only)
+  // ハード制約: クラス別言語カバー（分級日のみ）
   if (classContext) {
     const allFour = [...classContext.group1Members, member1, member2];
     const bothCount = allFour.filter((m) => m.language === Language.BOTH).length;
@@ -94,7 +94,7 @@ function scorePair(
     }
   }
 
-  // BOTH conservation / split-day optimization
+  // BOTH温存 / 分級日の最適化
   if (!isSplitClassDay) {
     // 合同日: BOTH温存（非BOTHを優先）
     for (const m of [member1, member2]) {
@@ -103,28 +103,28 @@ function scorePair(
       }
     }
   } else if (!classContext) {
-    // 分級日 Group 1: ちょうど1 BOTHを狙う
+    // 分級日グループ1: ちょうど1名のBOTHを狙う
     const bothInPair = [member1, member2].filter((m) => m.language === Language.BOTH).length;
     if (bothInPair === 0) score += 5; // G1はBOTHを1人出すべき
     if (bothInPair === 2) score += 3; // BOTH+BOTHは過剰消費
   }
-  // 分級日 Group 2: BOTH優遇なし（ハード制約のみ）
+  // 分級日グループ2: BOTH優遇なし（ハード制約のみ）
 
-  // HARD: Same-gender constraint (majority rule)
+  // ハード制約: 同性制約（多数派ルール）
   const genderViolation = checkSameGenderGroup([member1, member2]);
   if (genderViolation) {
     score += 100000;
     violations.push(genderViolation);
   }
 
-  // Available-dates priority: members with date restrictions get a bonus
+  // 参加可能日優先: 日付制約があるメンバーにボーナスを与える
   for (const m of [member1, member2]) {
     if (m.availableDates && m.availableDates.length > 0) {
       score -= 30;
     }
   }
 
-  // SOFT: Monthly duplicate (100 penalty per member already assigned this month)
+  // ソフト制約: 月内重複（当月すでに割り当て済みのメンバー1人につきペナルティ100）
   for (const m of [member1, member2]) {
     const alreadyAssigned = monthAssignments.some((a) => a.containsMember(m.id));
     if (alreadyAssigned) {
@@ -132,7 +132,7 @@ function scorePair(
     }
   }
 
-  // Equal distribution (50 per assignment count difference from pool minimum)
+  // 均等分布（プール内の最小割り当て回数との差1回につき50）
   const counts = context.assignmentCounts;
   const minCount = poolMinCount ?? Math.min(...context.members.filter((m) => m.isActive).map((m) => counts.get(m.id) ?? 0));
   for (const m of [member1, member2]) {
@@ -140,7 +140,7 @@ function scorePair(
     score += (memberCount - minCount) * 50;
   }
 
-  // SOFT: Spouse avoidance (30 penalty) — only for PARENT_COUPLE
+  // ソフト制約: 配偶者回避（ペナルティ30）。PARENT_COUPLE のみ対象
   if (
     member1.memberType === MemberType.PARENT_COUPLE &&
     member2.memberType === MemberType.PARENT_COUPLE &&
@@ -149,7 +149,7 @@ function scorePair(
     score += 30;
   }
 
-  // Spouse on same day different group (30 penalty) — only for PARENT_COUPLE
+  // 同じ日の別グループに配偶者がいる場合（ペナルティ30）。PARENT_COUPLE のみ対象
   for (const dayAssignment of dayAssignments) {
     for (const m of [member1, member2]) {
       if (m.memberType !== MemberType.PARENT_COUPLE) continue;
@@ -159,8 +159,8 @@ function scorePair(
     }
   }
 
-  // SOFT: HELPER deferral — prefer PARENT members when scores are close
-  // Only apply if already assigned this month (don't exclude HELPERs entirely)
+  // ソフト制約: HELPER 後回し。スコアが近い場合は PARENT メンバーを優先する
+  // 当月すでに割り当て済みの場合だけ適用する（HELPER を完全には除外しない）
   for (const m of [member1, member2]) {
     if (m.memberType === MemberType.HELPER) {
       const alreadyAssigned = monthAssignments.some((a) => a.containsMember(m.id));
@@ -170,7 +170,7 @@ function scorePair(
     }
   }
 
-  // Pair diversity (10 penalty per previous pairing)
+  // ペアの多様性（過去の同ペア1回につきペナルティ10）
   const pk = pairKey(member1.id, member2.id);
   const pairCount = pastPairCounts.get(pk) ?? 0;
   score += pairCount * 10;
@@ -179,8 +179,8 @@ function scorePair(
 }
 
 /**
- * Score a candidate trio for a combined-day assignment (3 members, 1 group).
- * Lower score = better candidate.
+ * 合同日の割り当て候補3人組を採点する（3名、1グループ）。
+ * スコアが低いほどよい候補。
  */
 function scoreTrio(
   members: [Member, Member, Member],
@@ -192,35 +192,35 @@ function scoreTrio(
   let score = 0;
   const violations: ConstraintViolation[] = [];
 
-  // HARD: Language balance — need both JP and EN coverage
+  // ハード制約: 言語バランス。JP と EN の両方をカバーする必要がある
   const hasJapanese = members.some((m) => coversJapanese(m.language));
   const hasEnglish = members.some((m) => coversEnglish(m.language));
   if (!hasJapanese || !hasEnglish) {
     score += 100000;
   }
 
-  // HARD: Same-gender constraint (majority rule)
+  // ハード制約: 同性制約（多数派ルール）
   const genderViolation = checkSameGenderGroup(members);
   if (genderViolation) {
     score += 100000;
     violations.push(genderViolation);
   }
 
-  // BOTH conservation: +3 per BOTH member (same as combined-day pair logic)
+  // BOTH温存: BOTH メンバー1名につき +3（合同日のペアロジックと同じ）
   for (const m of members) {
     if (m.language === Language.BOTH) {
       score += 3;
     }
   }
 
-  // Available-dates priority
+  // 参加可能日優先
   for (const m of members) {
     if (m.availableDates && m.availableDates.length > 0) {
       score -= 30;
     }
   }
 
-  // SOFT: Monthly duplicate
+  // ソフト制約: 月内重複
   for (const m of members) {
     const alreadyAssigned = monthAssignments.some((a) => a.containsMember(m.id));
     if (alreadyAssigned) {
@@ -228,14 +228,14 @@ function scoreTrio(
     }
   }
 
-  // Equal distribution
+  // 均等分布
   const counts = context.assignmentCounts;
   for (const m of members) {
     const memberCount = counts.get(m.id) ?? 0;
     score += (memberCount - poolMinCount) * 50;
   }
 
-  // SOFT: Spouse avoidance — check all pairs within the trio
+  // ソフト制約: 配偶者回避。3人組内の全ペアを確認する
   for (let i = 0; i < members.length; i++) {
     for (let j = i + 1; j < members.length; j++) {
       const mi = members[i];
@@ -250,7 +250,7 @@ function scoreTrio(
     }
   }
 
-  // SOFT: HELPER deferral
+  // ソフト制約: HELPER 後回し
   for (const m of members) {
     if (m.memberType === MemberType.HELPER) {
       const alreadyAssigned = monthAssignments.some((a) => a.containsMember(m.id));
@@ -260,7 +260,7 @@ function scoreTrio(
     }
   }
 
-  // Pair diversity — check all 3 pairs within the trio
+  // ペアの多様性。3人組内の3ペアすべてを確認する
   for (let i = 0; i < members.length; i++) {
     for (let j = i + 1; j < members.length; j++) {
       const pk = pairKey(members[i].id, members[j].id);
@@ -325,18 +325,18 @@ export function generateAssignments(
   const allAssignments: Assignment[] = [];
   const allViolations: ConstraintViolation[] = [];
 
-  // Build schedule-to-date map
+  // スケジュールIDから日付へのマップを作る
   const scheduleIdToDate = new Map<ScheduleId, string>();
   for (const s of schedules) {
     scheduleIdToDate.set(s.id, s.date);
   }
-  // Build past pair counts from existing assignments (handle 2 or 3 members)
+  // 既存の割り当てから過去ペア回数を作る（2人または3人に対応）
   const pastPairCounts = new Map<string, number>();
   for (const a of existingAssignmentsAll) {
     updatePairCounts([...a.memberIds], pastPairCounts);
   }
 
-  // Copy counts so we can update during generation
+  // 生成中に更新できるよう回数をコピーする
   const counts = new Map(assignmentCounts);
   for (const m of activeMembers) {
     if (!counts.has(m.id)) counts.set(m.id, 0);
@@ -358,16 +358,16 @@ export function generateAssignments(
     const dateStr = schedule.date;
     const dayAssignments: Assignment[] = [];
 
-    // Get available members for this date
-    // On event days, exclude HELPER members
-    // On EBT days, exclude ENGLISH-only members (unless they can only attend EBT days)
+    // この日付に参加可能なメンバーを取得する
+    // イベント日では HELPER メンバーを除外する
+    // EBT日では英語のみメンバーを除外する（EBT日にしか参加できない場合を除く）
     const available = activeMembers
       .filter((m) => m.isAvailableOn(dateStr))
       .filter((m) => !schedule.isEvent || m.memberType !== MemberType.HELPER)
       .filter((m) => {
         if (!schedule.isEbt) return true;
         if (m.language !== Language.ENGLISH) return true;
-        // Exception: keep if no non-EBT active dates are available
+        // 例外: EBT以外の有効日がない場合は候補に残す
         if (m.availableDates && m.availableDates.length > 0) {
           const hasNonEbtDate = activeDates.some(
             (s) => s.date !== dateStr && !s.isEbt && m.isAvailableOn(s.date),
@@ -379,7 +379,7 @@ export function generateAssignments(
 
     if (!schedule.isSplitClass) {
       // === 合同日: 3人×1グループ ===
-      // All members in a single pool (no UPPER/LOWER distinction)
+      // 全メンバーを1つのプールに入れる（UPPER/LOWER の区別なし）
       if (available.length < 3) {
         allViolations.push({
           type: ViolationType.UNEQUAL_COUNT,
@@ -429,7 +429,7 @@ export function generateAssignments(
       const upperBase = available.filter((m) => m.gradeGroup === GradeGroup.UPPER || m.gradeGroup === GradeGroup.ANY);
       const lowerBase = available.filter((m) => m.gradeGroup === GradeGroup.LOWER || m.gradeGroup === GradeGroup.ANY);
 
-      // On split-class days, allow bilingual (BOTH) members to cross grade boundaries
+      // 分級日では、バイリンガル（BOTH）メンバーが学年境界をまたげるようにする
       let upperMembers = upperBase;
       let lowerMembers = lowerBase;
       const upperBothCount = upperBase.filter((m) => m.language === Language.BOTH).length;
@@ -459,7 +459,7 @@ export function generateAssignments(
         if (upperMembers.length < 1 || lowerMembers.length < 1) continue;
       }
 
-      // Group 1 (UPPER): pick 2 from upperPool
+      // グループ1（UPPER）: upperPool から2名選ぶ
       const group1Result = pickBestPairSameGrade(
         upperMembers,
         context,
@@ -486,7 +486,7 @@ export function generateAssignments(
         const pk = pairKey(group1Result.member1.id, group1Result.member2.id);
         pastPairCounts.set(pk, (pastPairCounts.get(pk) ?? 0) + 1);
 
-        // Group 2 (LOWER): pick 2 from lowerPool, excluding members used in Group 1
+        // グループ2（LOWER）: グループ1で使ったメンバーを除き、lowerPool から2名選ぶ
         const usedIds = new Set([group1Result.member1.id, group1Result.member2.id]);
         const remainingLower = lowerMembers.filter((m) => !usedIds.has(m.id));
 
