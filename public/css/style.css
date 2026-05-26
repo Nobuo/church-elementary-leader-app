@@ -559,6 +559,15 @@ dialog::backdrop { background: rgba(0,0,0,0.3); }
   border-radius: 4px;
 }
 
+.input-assist-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: 6px;
+  font-size: 0.75rem;
+  color: #666;
+}
+
 .unassign-btn {
   padding: 2px 6px;
   font-size: 0.75rem;

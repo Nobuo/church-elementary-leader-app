@@ -266,6 +266,39 @@ describe('Assignment API', () => {
         }
       }
     });
+
+    it('3.23 includes unavailable-date candidates only when input assist is disabled', async () => {
+      const { members, schedules } = await setupMembersAndSchedule({ splitClass: false });
+      const unavailable = members.find((m: { name: string }) => m.name === '田中太郎')!;
+      await t.request
+        .put(`/api/members/${unavailable.id}`)
+        .send({
+          name: unavailable.name,
+          notes: unavailable.notes,
+          gender: unavailable.gender,
+          language: unavailable.language,
+          gradeGroup: unavailable.gradeGroup,
+          memberType: unavailable.memberType,
+          sameGenderOnly: unavailable.sameGenderOnly,
+          spouseId: unavailable.spouseId,
+          availableDates: ['2099-01-01'],
+        })
+        .expect(200);
+
+      const normal = await t.request
+        .get(`/api/assignments/candidates?date=${schedules[0].date}&excludeIds=&role=UPPER`)
+        .expect(200);
+      expect(normal.body.some((c: { id: string }) => c.id === unavailable.id)).toBe(false);
+
+      const expanded = await t.request
+        .get(`/api/assignments/candidates?date=${schedules[0].date}&excludeIds=&role=UPPER&includeNonRecommended=true`)
+        .expect(200);
+      const candidate = expanded.body.find((c: { id: string }) => c.id === unavailable.id);
+      expect(candidate).toBeDefined();
+      expect(candidate.recommended).toBe(false);
+      expect(candidate.hiddenByDefault).toBe(true);
+      expect(candidate.warnings).toContain('unavailableDate');
+    });
   });
 
   describe('Grade group: DTO and candidates filtering', () => {

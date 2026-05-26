@@ -145,6 +145,7 @@ export function createAssignmentController(
     const excludeIds = ((req.query.excludeIds as string) || '').split(',').filter(Boolean);
     const partnerId = (req.query.partnerId as string) || '';
     const role = (req.query.role as string) || '';
+    const includeNonRecommended = req.query.includeNonRecommended === 'true';
     if (!date) {
       res.status(400).json({ error: 'date is required' });
       return;
@@ -191,28 +192,32 @@ export function createAssignmentController(
 
     const candidates = activeMembers
       .filter((m) => !excludeIds.includes(m.id))
-      .filter((m) => m.isAvailableOn(date))
-      .filter((m) => !isEventDay || m.memberType !== MemberType.HELPER)
-      .filter((m) => {
-        if (!isEbtDay) return true;
-        if (m.language !== Language.ENGLISH) return true;
-        // 例外: EBT以外の有効日がない場合は候補に残す
-        if (m.availableDates && m.availableDates.length > 0) {
-          const hasNonEbtDate = allFiscalYearSchedules.some(
-            (s) => s.date !== date && !s.isExcluded && !s.isEbt && m.isAvailableOn(s.date),
-          );
-          if (!hasNonEbtDate) return true;
-        }
-        return false;
-      })
-      .filter((m) => {
-        if (!role || (role !== GradeGroup.UPPER && role !== GradeGroup.LOWER)) return true;
-        if (m.gradeGroup === role) return true;
-        if (isSplitClass && m.language === Language.BOTH) return true;
-        return false;
-      })
       .map((m) => {
-        const warnings: string[] = [];
+        const exclusionWarnings: string[] = [];
+
+        if (!m.isAvailableOn(date)) exclusionWarnings.push('unavailableDate');
+        if (isEventDay && m.memberType === MemberType.HELPER) exclusionWarnings.push('helperOnEventDay');
+
+        if (isEbtDay && m.language === Language.ENGLISH) {
+          let hasNonEbtDate = true;
+          if (m.availableDates && m.availableDates.length > 0) {
+            hasNonEbtDate = allFiscalYearSchedules.some(
+              (s) => s.date !== date && !s.isExcluded && !s.isEbt && m.isAvailableOn(s.date),
+            );
+          }
+          if (hasNonEbtDate) exclusionWarnings.push('ebtEnglish');
+        }
+
+        if (role && (role === GradeGroup.UPPER || role === GradeGroup.LOWER)) {
+          const isAllowedRole = m.gradeGroup === role || (isSplitClass && m.language === Language.BOTH);
+          if (!isAllowedRole) exclusionWarnings.push('gradeGroupMismatch');
+        }
+
+        return { member: m, exclusionWarnings };
+      })
+      .filter((entry) => includeNonRecommended || entry.exclusionWarnings.length === 0)
+      .map(({ member: m, exclusionWarnings }) => {
+        const warnings: string[] = [...exclusionWarnings];
 
         // 相手メンバーとのグループ制約を確認する
         if (partners.length > 0) {
@@ -242,7 +247,7 @@ export function createAssignmentController(
 
         // 学年グループ不一致
         const isCrossover = role ? m.gradeGroup !== role : false;
-        if (isCrossover) warnings.push('gradeGroupMismatch');
+        if (isCrossover && !warnings.includes('gradeGroupMismatch')) warnings.push('gradeGroupMismatch');
 
         return {
           id: m.id,
@@ -253,6 +258,7 @@ export function createAssignmentController(
           recommended: warnings.length === 0,
           gradeGroup: m.gradeGroup,
           isCrossover,
+          hiddenByDefault: exclusionWarnings.length > 0,
         };
       });
 

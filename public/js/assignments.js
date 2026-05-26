@@ -17,6 +17,32 @@ function renderInlineNotes(notes, memberId) {
   );
 }
 
+function renderCandidateOptions(candidates, timesLabel) {
+  const renderOption = (m) => {
+    const prefix = m.recommended ? '★ ' : '⚠ ';
+    const countLabel = m.count != null ? ` (${m.count}${timesLabel})` : '';
+    return `<option value="${escapeHtml(m.id)}">${escapeHtml(`${prefix}${m.name}${countLabel}`)}</option>`;
+  };
+  const regular = candidates.filter((c) => !c.hiddenByDefault);
+  const nonRecommended = candidates.filter((c) => c.hiddenByDefault);
+  const groups = [];
+  if (regular.length > 0) {
+    groups.push(
+      `<optgroup label="${escapeHtml(t('candidateRecommended'))}">` +
+      regular.map(renderOption).join('') +
+      '</optgroup>',
+    );
+  }
+  if (nonRecommended.length > 0) {
+    groups.push(
+      `<optgroup label="${escapeHtml(t('candidateNonRecommended'))}">` +
+      nonRecommended.map(renderOption).join('') +
+      '</optgroup>',
+    );
+  }
+  return groups.join('');
+}
+
 async function loadAssignments() {
   const year = getSelectedFiscalYear();
   const month = getSelectedMonth();
@@ -319,14 +345,6 @@ async function startReplace(assignmentId, memberId, btnEl) {
   const partnerId = btnEl.dataset.partnerId || '';
   const role = btnEl.dataset.role || '';
 
-  // サーバーから候補を取得する（参加可能日 + 有効状態 + 推奨で絞り込み）
-  let candidates;
-  try {
-    candidates = await API.get(`/api/assignments/candidates?date=${date}&excludeIds=${assignedIds.join(',')}&partnerId=${partnerId}&role=${role}`);
-  } catch (_) {
-    candidates = [];
-  }
-
   const wrapper = document.createElement('span');
   wrapper.className = 'replace-inline';
 
@@ -337,23 +355,35 @@ async function startReplace(assignmentId, memberId, btnEl) {
   defaultOpt.value = '';
   defaultOpt.textContent = '--';
   sel.appendChild(defaultOpt);
-  for (const m of candidates) {
-    const opt = document.createElement('option');
-    opt.value = m.id;
-    const prefix = m.recommended ? '★ ' : (m.warnings && m.warnings.length > 0 ? '⚠ ' : '');
-    const countLabel = m.count != null ? ` (${m.count}${timesLabel})` : '';
-    opt.textContent = `${prefix}${m.name}${countLabel}`;
-    sel.appendChild(opt);
-  }
 
   const notesEl = document.createElement('div');
   notesEl.className = 'candidate-notes';
+  let candidates = [];
   const updateNotes = () => {
     const selected = candidates.find((c) => c.id === sel.value);
     notesEl.innerHTML = selected?.notes ? escapeHtml(selected.notes).replace(/\n/g, '<br>') : '';
     notesEl.style.display = selected?.notes ? 'block' : 'none';
   };
   sel.addEventListener('change', updateNotes);
+
+  const assistLabel = document.createElement('label');
+  assistLabel.className = 'input-assist-toggle';
+  const assistToggle = document.createElement('input');
+  assistToggle.type = 'checkbox';
+  assistLabel.appendChild(assistToggle);
+  assistLabel.appendChild(document.createTextNode(t('disableInputAssist')));
+
+  const loadCandidates = async () => {
+    const suffix = assistToggle.checked ? '&includeNonRecommended=true' : '';
+    try {
+      candidates = await API.get(`/api/assignments/candidates?date=${date}&excludeIds=${assignedIds.join(',')}&partnerId=${partnerId}&role=${role}${suffix}`);
+    } catch (_) {
+      candidates = [];
+    }
+    sel.innerHTML = '<option value="">--</option>' + renderCandidateOptions(candidates, timesLabel);
+    updateNotes();
+  };
+  assistToggle.addEventListener('change', loadCandidates);
 
   const confirmBtn = document.createElement('button');
   confirmBtn.className = 'replace-btn';
@@ -366,11 +396,12 @@ async function startReplace(assignmentId, memberId, btnEl) {
   cancelBtn.addEventListener('click', () => wrapper.remove());
 
   wrapper.appendChild(sel);
+  wrapper.appendChild(assistLabel);
   wrapper.appendChild(notesEl);
   wrapper.appendChild(confirmBtn);
   wrapper.appendChild(cancelBtn);
   btnEl.after(wrapper);
-  updateNotes();
+  await loadCandidates();
 }
 
 async function doReplace(assignmentId, oldMemberId, newMemberId, wrapperEl) {
@@ -430,13 +461,6 @@ async function startAssign(assignmentId, btnEl) {
   const partnerId = btnEl.dataset.partnerId || '';
   const role = btnEl.dataset.role || '';
 
-  let candidates;
-  try {
-    candidates = await API.get(`/api/assignments/candidates?date=${date}&excludeIds=${assignedIds.join(',')}&partnerId=${partnerId}&role=${role}`);
-  } catch (_) {
-    candidates = [];
-  }
-
   const wrapper = document.createElement('span');
   wrapper.className = 'replace-inline';
 
@@ -447,23 +471,35 @@ async function startAssign(assignmentId, btnEl) {
   defaultOpt.value = '';
   defaultOpt.textContent = '--';
   sel.appendChild(defaultOpt);
-  for (const m of candidates) {
-    const opt = document.createElement('option');
-    opt.value = m.id;
-    const prefix = m.recommended ? '★ ' : (m.warnings && m.warnings.length > 0 ? '⚠ ' : '');
-    const countLabel = m.count != null ? ` (${m.count}${timesLabel})` : '';
-    opt.textContent = `${prefix}${m.name}${countLabel}`;
-    sel.appendChild(opt);
-  }
 
   const notesEl = document.createElement('div');
   notesEl.className = 'candidate-notes';
+  let candidates = [];
   const updateNotes = () => {
     const selected = candidates.find((c) => c.id === sel.value);
     notesEl.innerHTML = selected?.notes ? escapeHtml(selected.notes).replace(/\n/g, '<br>') : '';
     notesEl.style.display = selected?.notes ? 'block' : 'none';
   };
   sel.addEventListener('change', updateNotes);
+
+  const assistLabel = document.createElement('label');
+  assistLabel.className = 'input-assist-toggle';
+  const assistToggle = document.createElement('input');
+  assistToggle.type = 'checkbox';
+  assistLabel.appendChild(assistToggle);
+  assistLabel.appendChild(document.createTextNode(t('disableInputAssist')));
+
+  const loadCandidates = async () => {
+    const suffix = assistToggle.checked ? '&includeNonRecommended=true' : '';
+    try {
+      candidates = await API.get(`/api/assignments/candidates?date=${date}&excludeIds=${assignedIds.join(',')}&partnerId=${partnerId}&role=${role}${suffix}`);
+    } catch (_) {
+      candidates = [];
+    }
+    sel.innerHTML = '<option value="">--</option>' + renderCandidateOptions(candidates, timesLabel);
+    updateNotes();
+  };
+  assistToggle.addEventListener('change', loadCandidates);
 
   const confirmBtn = document.createElement('button');
   confirmBtn.className = 'replace-btn';
@@ -476,11 +512,12 @@ async function startAssign(assignmentId, btnEl) {
   cancelBtn.addEventListener('click', () => wrapper.remove());
 
   wrapper.appendChild(sel);
+  wrapper.appendChild(assistLabel);
   wrapper.appendChild(notesEl);
   wrapper.appendChild(confirmBtn);
   wrapper.appendChild(cancelBtn);
   btnEl.after(wrapper);
-  updateNotes();
+  await loadCandidates();
 }
 
 async function doAssign(assignmentId, memberId, wrapperEl) {
