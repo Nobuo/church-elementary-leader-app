@@ -121,6 +121,7 @@ export function generateMonthlyAssignments(
     members,
     existingAssignmentsAll,
     countMap,
+    allFiscalYearSchedules,
   );
 
   // 生成後に割り当て回数過多を確認する

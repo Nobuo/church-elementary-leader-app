@@ -8,6 +8,7 @@ import { MemberType } from '@domain/value-objects/member-type';
 import { MemberId, createMemberId } from '@shared/types';
 import { ViolationType } from '@domain/value-objects/constraint-violation';
 import { generateAssignments } from '@domain/services/assignment-generator';
+import { Assignment } from '@domain/entities/assignment';
 
 function makeMember(
   name: string,
@@ -1277,6 +1278,86 @@ describe('generateAssignments', () => {
       const englishMember = members.find((m) => m.language === Language.ENGLISH)!;
       const isAssigned = assignments.some((a) => a.memberIds.includes(englishMember.id));
       expect(isAssigned).toBe(true);
+    });
+  });
+
+  describe('minimum interval constraint (2-week gap)', () => {
+    it('penalizes and generates violations when assigned within 2 weeks', () => {
+      const members = [
+        makeMember('M1', { language: Language.JAPANESE }),
+        makeMember('M2', { language: Language.ENGLISH }),
+        makeMember('M3', { language: Language.BOTH }),
+        makeMember('M4', { language: Language.BOTH }),
+      ];
+
+      const prevSchedule = makeSchedule('2026-04-05');
+      const targetSchedule = makeSchedule('2026-04-12'); // 1週間後
+
+      // M1, M2, M3 が前週アサインされている
+      const prevAssignment = Assignment.create(prevSchedule.id, 1, [
+        members[0].id,
+        members[1].id,
+        members[2].id,
+      ]);
+
+      const counts = new Map<MemberId, number>();
+      members.forEach((m) => counts.set(m.id, 0));
+
+      const { assignments, violations } = generateAssignments(
+        [targetSchedule],
+        members,
+        [prevAssignment],
+        counts,
+        [prevSchedule, targetSchedule],
+      );
+
+      expect(assignments.length).toBe(1);
+      const targetAssignedIds = assignments[0].memberIds;
+
+      // 唯一前週アサインされていない M4 が選ばれているべき
+      expect(targetAssignedIds.includes(members[3].id)).toBe(true);
+
+      // 他の2名は前週から連続（1週間しか空いていない）でアサインされるため、違反警告があるはず
+      const minIntervalViolations = violations.filter(
+        (v) => v.type === ViolationType.MIN_INTERVAL,
+      );
+      expect(minIntervalViolations.length).toBeGreaterThan(0);
+    });
+
+    it('does not penalize if the assignment is exactly 2 weeks apart', () => {
+      const members = [
+        makeMember('M1', { language: Language.JAPANESE }),
+        makeMember('M2', { language: Language.ENGLISH }),
+        makeMember('M3', { language: Language.BOTH }),
+        makeMember('M4', { language: Language.BOTH }),
+      ];
+
+      const prevSchedule = makeSchedule('2026-04-05');
+      const targetSchedule = makeSchedule('2026-04-19'); // 2週間後 (14日後)
+
+      const prevAssignment = Assignment.create(prevSchedule.id, 1, [
+        members[0].id,
+        members[1].id,
+        members[2].id,
+      ]);
+
+      const counts = new Map<MemberId, number>();
+      members.forEach((m) => counts.set(m.id, 0));
+
+      const { assignments, violations } = generateAssignments(
+        [targetSchedule],
+        members,
+        [prevAssignment],
+        counts,
+        [prevSchedule, targetSchedule],
+      );
+
+      expect(assignments.length).toBe(1);
+      // 2週間空いているため、間隔制約違反（MIN_INTERVAL）は発生しないはず
+      const minIntervalViolations = violations.filter(
+        (v) => v.type === ViolationType.MIN_INTERVAL,
+      );
+      expect(minIntervalViolations.length).toBe(0);
     });
   });
 });

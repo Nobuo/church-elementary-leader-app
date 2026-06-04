@@ -10,7 +10,7 @@ import {
   ViolationType,
   Severity,
 } from '@domain/value-objects/constraint-violation';
-import { checkSameGenderGroup } from '@domain/services/constraint-checker';
+import { checkSameGenderGroup, checkMinInterval } from '@domain/services/constraint-checker';
 
 interface GenerationContext {
   schedules: Schedule[];
@@ -63,6 +63,7 @@ function scorePair(
   monthAssignments: Assignment[],
   dayAssignments: Assignment[],
   pastPairCounts: Map<string, number>,
+  dateStr: string,
   classContext?: ClassContext,
   isSplitClassDay?: boolean,
   poolMinCount?: number,
@@ -170,6 +171,21 @@ function scorePair(
     }
   }
 
+  // 最小間隔（2週間）のチェック
+  const allExisting = [...context.existingAssignments, ...monthAssignments];
+  for (const m of [member1, member2]) {
+    const intervalViolation = checkMinInterval(
+      m.id,
+      dateStr,
+      allExisting,
+      context.scheduleIdToDate,
+    );
+    if (intervalViolation) {
+      score += 1000;
+      violations.push(intervalViolation);
+    }
+  }
+
   // ペアの多様性（過去の同ペア1回につきペナルティ10）
   const pk = pairKey(member1.id, member2.id);
   const pairCount = pastPairCounts.get(pk) ?? 0;
@@ -188,6 +204,7 @@ function scoreTrio(
   monthAssignments: Assignment[],
   pastPairCounts: Map<string, number>,
   poolMinCount: number,
+  dateStr: string,
 ): { score: number; violations: ConstraintViolation[] } {
   let score = 0;
   const violations: ConstraintViolation[] = [];
@@ -260,6 +277,21 @@ function scoreTrio(
     }
   }
 
+  // 最小間隔（2週間）のチェック
+  const allExisting = [...context.existingAssignments, ...monthAssignments];
+  for (const m of members) {
+    const intervalViolation = checkMinInterval(
+      m.id,
+      dateStr,
+      allExisting,
+      context.scheduleIdToDate,
+    );
+    if (intervalViolation) {
+      score += 1000;
+      violations.push(intervalViolation);
+    }
+  }
+
   // ペアの多様性。3人組内の3ペアすべてを確認する
   for (let i = 0; i < members.length; i++) {
     for (let j = i + 1; j < members.length; j++) {
@@ -282,6 +314,7 @@ function pickBestTrio(
   context: GenerationContext,
   monthAssignments: Assignment[],
   pastPairCounts: Map<string, number>,
+  dateStr: string,
 ): TrioResult | null {
   if (candidates.length < 3) return null;
 
@@ -302,6 +335,7 @@ function pickBestTrio(
           monthAssignments,
           pastPairCounts,
           poolMinCount,
+          dateStr,
         );
 
         if (score < bestScore || (score === bestScore && Math.random() < 0.5)) {
@@ -320,6 +354,7 @@ export function generateAssignments(
   allMembers: Member[],
   existingAssignmentsAll: Assignment[],
   assignmentCounts: Map<MemberId, number>,
+  allSchedules?: Schedule[],
 ): GenerationResult {
   const activeMembers = allMembers.filter((m) => m.isActive);
   const allAssignments: Assignment[] = [];
@@ -327,7 +362,8 @@ export function generateAssignments(
 
   // スケジュールIDから日付へのマップを作る
   const scheduleIdToDate = new Map<ScheduleId, string>();
-  for (const s of schedules) {
+  const schedulesToMap = allSchedules ?? schedules;
+  for (const s of schedulesToMap) {
     scheduleIdToDate.set(s.id, s.date);
   }
   // 既存の割り当てから過去ペア回数を作る（2人または3人に対応）
@@ -397,6 +433,7 @@ export function generateAssignments(
         context,
         monthAssignments,
         pastPairCounts,
+        dateStr,
       );
 
       if (trioResult) {
@@ -466,6 +503,7 @@ export function generateAssignments(
         monthAssignments,
         dayAssignments,
         pastPairCounts,
+        dateStr,
         undefined,
         schedule.isSplitClass,
       );
@@ -500,6 +538,7 @@ export function generateAssignments(
           monthAssignments,
           dayAssignments,
           pastPairCounts,
+          dateStr,
           group2ClassContext,
           schedule.isSplitClass,
         );
@@ -557,6 +596,7 @@ function pickBestPairSameGrade(
   monthAssignments: Assignment[],
   dayAssignments: Assignment[],
   pastPairCounts: Map<string, number>,
+  dateStr: string,
   classContext?: ClassContext,
   isSplitClassDay?: boolean,
 ): PairResult | null {
@@ -578,6 +618,7 @@ function pickBestPairSameGrade(
         monthAssignments,
         dayAssignments,
         pastPairCounts,
+        dateStr,
         classContext,
         isSplitClassDay,
         poolMinCount,
