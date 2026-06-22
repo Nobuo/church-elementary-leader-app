@@ -116,6 +116,81 @@ describe('Member API', () => {
         .send({ name: 'Test' })
         .expect(400);
     });
+
+    it('1.10.1 updates PARENT_COUPLE spouseId with bidirectional link', async () => {
+      const resA = await t.request
+        .post('/api/members')
+        .send({ name: 'Member A', gender: 'MALE', language: 'JAPANESE', gradeGroup: 'UPPER', memberType: 'PARENT_COUPLE', sameGenderOnly: false })
+        .expect(201);
+
+      const resB = await t.request
+        .post('/api/members')
+        .send({ name: 'Member B', gender: 'FEMALE', language: 'JAPANESE', gradeGroup: 'UPPER', memberType: 'PARENT_COUPLE', sameGenderOnly: false })
+        .expect(201);
+
+      // Aの配偶者をBに更新する
+      const updateRes = await t.request
+        .put(`/api/members/${resA.body.id}`)
+        .send({ spouseId: resB.body.id })
+        .expect(200);
+
+      expect(updateRes.body.spouseId).toBe(resB.body.id);
+
+      // Bの配偶者もAになっていることを確認する
+      const membersRes = await t.request.get('/api/members?activeOnly=false').expect(200);
+      const b = membersRes.body.find((m: { id: string }) => m.id === resB.body.id);
+      expect(b.spouseId).toBe(resA.body.id);
+    });
+
+    it('1.10.2 clears spouseId from old spouse when unsetting spouseId (null)', async () => {
+      const resA = await t.request
+        .post('/api/members')
+        .send({ name: 'Member A', gender: 'MALE', language: 'JAPANESE', gradeGroup: 'UPPER', memberType: 'PARENT_COUPLE', sameGenderOnly: false })
+        .expect(201);
+
+      const resB = await t.request
+        .post('/api/members')
+        .send({ name: 'Member B', gender: 'FEMALE', language: 'JAPANESE', gradeGroup: 'UPPER', memberType: 'PARENT_COUPLE', sameGenderOnly: false, spouseId: resA.body.id })
+        .expect(201);
+
+      // Aの配偶者をnullに更新する
+      const updateRes = await t.request
+        .put(`/api/members/${resA.body.id}`)
+        .send({ spouseId: null })
+        .expect(200);
+
+      expect(updateRes.body.spouseId).toBeNull();
+
+      // Bの配偶者もnullになっていることを確認する
+      const membersRes = await t.request.get('/api/members?activeOnly=false').expect(200);
+      const b = membersRes.body.find((m: { id: string }) => m.id === resB.body.id);
+      expect(b.spouseId).toBeNull();
+    });
+
+    it('1.10.3 clears spouseId from old spouse when changing memberType away from PARENT_COUPLE', async () => {
+      const resA = await t.request
+        .post('/api/members')
+        .send({ name: 'Member A', gender: 'MALE', language: 'JAPANESE', gradeGroup: 'UPPER', memberType: 'PARENT_COUPLE', sameGenderOnly: false })
+        .expect(201);
+
+      const resB = await t.request
+        .post('/api/members')
+        .send({ name: 'Member B', gender: 'FEMALE', language: 'JAPANESE', gradeGroup: 'UPPER', memberType: 'PARENT_COUPLE', sameGenderOnly: false, spouseId: resA.body.id })
+        .expect(201);
+
+      // AのタイプをPARENT_SINGLEに更新する
+      const updateRes = await t.request
+        .put(`/api/members/${resA.body.id}`)
+        .send({ memberType: 'PARENT_SINGLE' })
+        .expect(200);
+
+      expect(updateRes.body.spouseId).toBeNull();
+
+      // Bの配偶者もnullになっていることを確認する
+      const membersRes = await t.request.get('/api/members?activeOnly=false').expect(200);
+      const b = membersRes.body.find((m: { id: string }) => m.id === resB.body.id);
+      expect(b.spouseId).toBeNull();
+    });
   });
 
   describe('POST /api/members/:id/deactivate', () => {
