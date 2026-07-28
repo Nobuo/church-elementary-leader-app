@@ -1,21 +1,25 @@
 # Security Policy
 
-## Supported Versions
+教会小学科リーダー担当決めアプリのセキュリティ運用。
 
-Use this section to tell people about which versions of your project are
-currently being supported with security updates.
+## 脆弱性の自動チェックと通知
 
-| Version | Supported          |
-| ------- | ------------------ |
-| 5.1.x   | :white_check_mark: |
-| 5.0.x   | :x:                |
-| 4.0.x   | :white_check_mark: |
-| < 4.0   | :x:                |
+- **週次監査**: `.github/workflows/security-audit.yml` が毎週木曜09:00(JST)に
+  `npm audit --audit-level=high` を実行。検出時は `security-audit:` で始まるタイトルの
+  GitHub Issueが自動起票される(既存Issueが開いていればコメント追記、緑に戻れば自動クローズ)。
+- **CIゲート**: push/PR時にも `npm audit --audit-level=high` が走る(`ci.yml`)。
+- **依存更新**: Dependabot(`.github/dependabot.yml`)が npm と GitHub Actions の
+  更新PRを週次で作成。セキュリティ更新は随時PRが立つ。
 
-## Reporting a Vulnerability
+## 対応手順
 
-Use this section to tell people how to report a vulnerability.
+1. 通知Issue(または赤いCI)を確認し、ローカルで `npm audit` を実行して詳細を見る。
+2. Dependabotの該当PRがあればそれをレビュー・マージ。無ければ `npm audit fix`、
+   それでも残る場合は該当依存の更新・置き換えを検討する。
+3. 解消後、次回の週次実行(または手動で Actions → Security Audit → Run workflow)で
+   Issueが自動クローズされることを確認する。
 
-Tell them where to go, how often they can expect to get an update on a
-reported vulnerability, what to expect if the vulnerability is accepted or
-declined, etc.
+## 脆弱性の報告
+
+このリポジトリの利用中に脆弱性を見つけた場合は、GitHub Issue(privateにしたい場合は
+リポジトリオーナーへ直接連絡)で報告してください。

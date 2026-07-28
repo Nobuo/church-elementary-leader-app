@@ -1,0 +1,55 @@
+name: Security Audit
+
+on:
+  schedule:
+    - cron: '0 0 * * 4' # 毎週木曜 00:00 UTC (09:00 JST)。月曜のCIフルランと分散
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
+        with:
+          node-version: '24'
+          cache: 'npm'
+      - run: npm ci
+      - name: npm audit
+        run: |
+          set -o pipefail
+          npm audit --audit-level=high 2>&1 | tee audit.log
+      - name: 検出時はIssueで通知(既存Issueがあればコメント追記)
+        if: failure()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          BODY="週次セキュリティ監査で high 以上の脆弱性を検出しました。
+
+          Run: ${RUN_URL}
+
+          \`\`\`
+          $(tail -c 60000 audit.log 2>/dev/null || echo 'audit.logなし(npm ci等の失敗の可能性。Runログを確認)')
+          \`\`\`
+
+          対応: ローカルで \`npm audit\` を確認し、Dependabot PRのマージか \`npm audit fix\` で解消してください。"
+          EXISTING=$(gh issue list --state open --search "security-audit in:title" --json number --jq '.[0].number')
+          if [ -n "$EXISTING" ]; then
+            gh issue comment "$EXISTING" --body "$BODY"
+          else
+            gh issue create --title "security-audit: npm依存に脆弱性を検出" --body "$BODY"
+          fi
+      - name: 緑に戻ったら監査Issueを自動クローズ
+        if: success()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          EXISTING=$(gh issue list --state open --search "security-audit in:title" --json number --jq '.[0].number')
+          if [ -n "$EXISTING" ]; then
+            gh issue close "$EXISTING" --comment "週次監査が緑に戻ったため自動クローズします。"
+          fi
