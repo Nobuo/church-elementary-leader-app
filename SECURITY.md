@@ -5,7 +5,7 @@
 ## 脆弱性の自動チェックと通知
 
 - **週次監査**: `.github/workflows/security-audit.yml` が毎週木曜09:00(JST)に
-  `npm audit --audit-level=high` を実行。検出時は `security-audit:` で始まるタイトルの
+  `npm audit --audit-level=high` を実行。検出時は security-auditラベル付きの
   GitHub Issueが自動起票される(既存Issueが開いていればコメント追記、緑に戻れば自動クローズ)。
 - **CIゲート**: push/PR時にも `npm audit --audit-level=high` が走る(`ci.yml`)。
 - **依存更新**: Dependabot(`.github/dependabot.yml`)が npm と GitHub Actions の

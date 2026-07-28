@@ -27,8 +27,10 @@ jobs:
         if: failure()
         env:
           GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
+          gh label create security-audit --force --description "自動セキュリティ監査" --color D93F0B
           BODY="週次セキュリティ監査で high 以上の脆弱性を検出しました。
 
           Run: ${RUN_URL}
@@ -38,18 +40,19 @@ jobs:
           \`\`\`
 
           対応: ローカルで \`npm audit\` を確認し、Dependabot PRのマージか \`npm audit fix\` で解消してください。"
-          EXISTING=$(gh issue list --state open --search "security-audit in:title" --json number --jq '.[0].number')
+          EXISTING=$(gh issue list --state open --label security-audit --json number --jq '.[0].number')
           if [ -n "$EXISTING" ]; then
             gh issue comment "$EXISTING" --body "$BODY"
           else
-            gh issue create --title "security-audit: npm依存に脆弱性を検出" --body "$BODY"
+            gh issue create --title "security-audit: npm依存に脆弱性を検出" --label security-audit --assignee "${{ github.repository_owner }}" --body "$BODY"
           fi
       - name: 緑に戻ったら監査Issueを自動クローズ
         if: success()
         env:
           GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
         run: |
-          EXISTING=$(gh issue list --state open --search "security-audit in:title" --json number --jq '.[0].number')
+          EXISTING=$(gh issue list --state open --label security-audit --json number --jq '.[0].number')
           if [ -n "$EXISTING" ]; then
             gh issue close "$EXISTING" --comment "週次監査が緑に戻ったため自動クローズします。"
           fi
