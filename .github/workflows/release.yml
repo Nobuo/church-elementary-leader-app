@@ -199,11 +199,13 @@ jobs:
 
           while IFS= read -r line; do
             [ -z "$line" ] && continue
+            # Conventional Commitsのスコープ付き(feat(ui): など)も拾う。
+            # セキュリティはスコープ側に現れるため(chore(security): 等)最初に判定する。
             case "$line" in
-              feat:*)                        FEAT="$FEAT"$'\n'"- $line" ;;
-              fix:*)                         FIX="$FIX"$'\n'"- $line" ;;
-              security:*|chore\(security\):*) SEC="$SEC"$'\n'"- $line" ;;
-              *)                             OTHER="$OTHER"$'\n'"- $line" ;;
+              security:*|*\(security\):*) SEC="$SEC"$'\n'"- $line" ;;
+              feat:*|feat\(*\):*)         FEAT="$FEAT"$'\n'"- $line" ;;
+              fix:*|fix\(*\):*)           FIX="$FIX"$'\n'"- $line" ;;
+              *)                          OTHER="$OTHER"$'\n'"- $line" ;;
             esac
           done <<< "$COMMITS"
 
