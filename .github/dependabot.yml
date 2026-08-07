@@ -6,6 +6,13 @@ updates:
     schedule:
       interval: "weekly"
     open-pull-requests-limit: 5
+    # 公開直後のバージョンはPRにしない(サプライチェーン攻撃対策)。
+    # cooldownはversion updatesのみに効き、セキュリティ更新は即日PRが立つ。
+    cooldown:
+      default-days: 7
+      semver-patch-days: 7
+      semver-minor-days: 7
+      semver-major-days: 14
     groups:
       minor-and-patch:
         update-types:
@@ -16,3 +23,5 @@ updates:
     directory: "/"
     schedule:
       interval: "weekly"
+    cooldown:
+      default-days: 7
