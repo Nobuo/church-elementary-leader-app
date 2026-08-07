@@ -39,7 +39,23 @@ jobs:
           $(tail -c 60000 audit.log 2>/dev/null || echo 'audit.logなし(npm ci等の失敗の可能性。Runログを確認)')
           \`\`\`
 
-          対応: ローカルで \`npm audit\` を確認し、Dependabot PRのマージか \`npm audit fix\` で解消してください。"
+          ## 対応手順
+
+          1. Dependabotのセキュリティ更新PRが出ていればマージする(cooldown対象外なので即日出る)
+          2. PRがなければローカルで \`npm audit fix\`
+
+          ### \`npm audit fix\` が「fixがblockされた」と言って失敗する場合
+
+          修正版が公開7日未満で、\`.npmrc\` の \`min-release-age=7\` に止められています。
+          その脆弱性の**該当パッケージだけ**ゲートを外してください:
+
+          \`\`\`
+          npm run audit:fix:urgent:preview -- <package>   # まず差分を確認
+          npm run audit:fix:urgent -- <package>           # 実行
+          \`\`\`
+
+          \`--min-release-age=0\` でも直せますが、依存ツリー全体のゲートが外れて
+          無関係な依存まで公開直後の版に上がるため、緊急時ほど対象を絞ってください。"
           EXISTING=$(gh issue list --state open --label security-audit --json number --jq '.[0].number')
           if [ -n "$EXISTING" ]; then
             gh issue comment "$EXISTING" --body "$BODY"
