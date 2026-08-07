@@ -55,31 +55,132 @@ jobs:
       - name: Build Windows x64
         run: bun build --compile --target=bun-windows-x64 ./src/main-bun.ts --outfile dist/leader-app-windows-x64.exe
 
-      # Create archives with public/ included
-      - name: Create archives
+      - name: Create Windows archive
         run: |
           VERSION=${{ steps.version.outputs.VERSION }}
-
-          # macOS ARM64
-          mkdir -p staging/leader-app
-          cp dist/leader-app-darwin-arm64 staging/leader-app/leader-app
-          cp -r public staging/leader-app/public
-          cd staging && tar czf ../dist/leader-app-${VERSION}-darwin-arm64.tar.gz leader-app && cd ..
-          rm -rf staging/leader-app
-
-          # macOS x64
-          mkdir -p staging/leader-app
-          cp dist/leader-app-darwin-x64 staging/leader-app/leader-app
-          cp -r public staging/leader-app/public
-          cd staging && tar czf ../dist/leader-app-${VERSION}-darwin-x64.tar.gz leader-app && cd ..
-          rm -rf staging/leader-app
-
-          # Windows x64
           mkdir -p staging/leader-app
           cp dist/leader-app-windows-x64.exe staging/leader-app/leader-app.exe
           cp -r public staging/leader-app/public
           cd staging && zip -r ../dist/leader-app-${VERSION}-windows-x64.zip leader-app && cd ..
           rm -rf staging/leader-app
+
+      # macOS版はLinux上でbunが付けたad-hoc署名がmacOS側で無効判定されるため、
+      # ここではアーカイブ化せず、バイナリのまま sign-macos ジョブへ渡す。
+      - name: Upload macOS binaries for signing
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: darwin-binaries
+          path: dist/leader-app-darwin-*
+          retention-days: 1
+
+      - name: Upload Windows archive
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: release-windows
+          path: dist/*.zip
+          retention-days: 1
+
+  # Linuxでクロスコンパイルしたdarwinバイナリは、bunが埋め込むad-hoc署名が
+  # macOS側で「invalid signature」と判定され、起動時にAMFIへSIGKILLされる。
+  # (v1.0.22以前の配布物は全てこの状態で、ダウンロードしても起動しなかった)
+  # macOSランナー上で署名し直し、配布物と同じ構成で実際に起動確認する。
+  sign-macos:
+    needs: build
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7
+        with:
+          name: darwin-binaries
+          path: dist
+
+      - name: Extract version
+        id: version
+        run: echo "VERSION=${GITHUB_REF_NAME}" >> "$GITHUB_OUTPUT"
+
+      - name: Re-sign macOS binaries
+        run: |
+          set -euo pipefail
+          for arch in arm64 x64; do
+            f="dist/leader-app-darwin-${arch}"
+            chmod +x "$f"   # upload-artifactは実行権限を保持しないため戻す
+            codesign --force --sign - "$f"
+            codesign --verify --verbose "$f"
+          done
+
+      # 配布されるtar.gzと同じ構成(バイナリの隣にpublic/)を作る。
+      # main-bun.ts が path.dirname(process.execPath) で public/ を探すため、
+      # この配置でないと静的ファイルを解決できない。
+      - name: Stage macOS archives
+        run: |
+          set -euo pipefail
+          for arch in arm64 x64; do
+            mkdir -p "staging-${arch}/leader-app"
+            cp "dist/leader-app-darwin-${arch}" "staging-${arch}/leader-app/leader-app"
+            cp -r public "staging-${arch}/leader-app/public"
+          done
+
+      # 署名が有効かを「実際に起動して」確認する。codesign --verify だけでは
+      # AMFIによるkillを検出できないため、配布物そのものをここで動かす。
+      - name: Smoke test (arm64)
+        run: |
+          set -uo pipefail
+          cd staging-arm64/leader-app
+          PORT=3999 DB_PATH="${RUNNER_TEMP}/smoke.db" ./leader-app > smoke.log 2>&1 &
+          PID=$!
+          for _ in $(seq 1 60); do
+            if curl -fs -o /dev/null "http://localhost:3999/api/members"; then
+              echo "API応答OK"
+              curl -fs -o /dev/null "http://localhost:3999/" && echo "静的ファイル配信OK"
+              kill "$PID" 2>/dev/null || true
+              exit 0
+            fi
+            if ! kill -0 "$PID" 2>/dev/null; then
+              echo "::error::署名後もバイナリが起動しない(AMFI killと同じ症状)"
+              cat smoke.log || true
+              exit 1
+            fi
+            sleep 0.5
+          done
+          echo "::error::起動タイムアウト"
+          cat smoke.log || true
+          kill "$PID" 2>/dev/null || true
+          exit 1
+
+      - name: Create macOS archives
+        run: |
+          set -euo pipefail
+          VERSION=${{ steps.version.outputs.VERSION }}
+          for arch in arm64 x64; do
+            rm -f "staging-${arch}/leader-app/smoke.log"
+            tar czf "dist/leader-app-${VERSION}-darwin-${arch}.tar.gz" -C "staging-${arch}" leader-app
+          done
+
+      - name: Upload macOS archives
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: release-macos
+          path: dist/*.tar.gz
+          retention-days: 1
+
+  release:
+    needs: [build, sign-macos]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          fetch-depth: 0
+
+      - uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7
+        with:
+          pattern: release-*
+          merge-multiple: true
+          path: dist
+
+      - name: Extract version
+        id: version
+        run: echo "VERSION=${GITHUB_REF_NAME}" >> "$GITHUB_OUTPUT"
 
       - name: Generate changelog
         id: changelog
@@ -99,10 +200,10 @@ jobs:
           while IFS= read -r line; do
             [ -z "$line" ] && continue
             case "$line" in
-              feat:*)     FEAT="$FEAT"$'\n'"- $line" ;;
-              fix:*)      FIX="$FIX"$'\n'"- $line" ;;
-              security:*) SEC="$SEC"$'\n'"- $line" ;;
-              *)          OTHER="$OTHER"$'\n'"- $line" ;;
+              feat:*)                        FEAT="$FEAT"$'\n'"- $line" ;;
+              fix:*)                         FIX="$FIX"$'\n'"- $line" ;;
+              security:*|chore\(security\):*) SEC="$SEC"$'\n'"- $line" ;;
+              *)                             OTHER="$OTHER"$'\n'"- $line" ;;
             esac
           done <<< "$COMMITS"
 
