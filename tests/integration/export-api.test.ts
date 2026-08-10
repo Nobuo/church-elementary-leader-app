@@ -14,7 +14,7 @@ describe('Export API', () => {
     }
     await t.request.post('/api/assignments/generate').send({ year: testYear, month: 4 }).expect(200);
   });
-  afterEach(() => { t.db.close(); });
+  afterEach(() => { t.close(); });
 
   describe('GET /api/assignments/export/csv', () => {
     it('4.1 exports CSV in Japanese with BOM', async () => {

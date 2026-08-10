@@ -17,7 +17,7 @@ describe('Yearly Combination Verification', () => {
     t = createTestApp();
   });
   afterEach(() => {
-    t.db.close();
+    t.close();
   });
 
   it('should generate all 12 months with no hard constraint violations and fair distribution', async () => {

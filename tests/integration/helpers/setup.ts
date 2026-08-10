@@ -5,12 +5,16 @@ import { SqliteScheduleRepository } from '@infrastructure/persistence/sqlite-sch
 import { SqliteAssignmentRepository } from '@infrastructure/persistence/sqlite-assignment-repository';
 import { createServer } from '@presentation/server';
 import type { Express } from 'express';
+import type { Server } from 'http';
 import request from 'supertest';
 
 export interface TestApp {
   app: Express;
   db: Database.Database;
+  server: Server;
   request: ReturnType<typeof request>;
+  /** サーバーとDBをまとめて閉じる。afterEachから呼ぶこと。 */
+  close: () => void;
 }
 
 export function createTestApp(): TestApp {
@@ -20,7 +24,24 @@ export function createTestApp(): TestApp {
   const scheduleRepo = new SqliteScheduleRepository(db);
   const assignmentRepo = new SqliteAssignmentRepository(db);
   const app = createServer(memberRepo, scheduleRepo, assignmentRepo);
-  return { app, db, request: request(app) };
+
+  // Expressアプリをそのまま渡すと、supertestはリクエストごとに
+  // http.createServer + listen(0) + close を繰り返す(lib/test.js:36,63,134)。
+  // 全テストで数千回の一時ポート確保となり、同一マシン上の他プロセスの
+  // リスナーとポートが衝突して、無関係なサーバーの応答が返ることがある。
+  // リスニング済みのserverを渡すとsupertestはlisten/closeせず、
+  // テストアプリごとにポートが1つで固定される。
+  const server = app.listen(0);
+  return {
+    app,
+    db,
+    server,
+    request: request(server),
+    close: () => {
+      server.close();
+      db.close();
+    },
+  };
 }
 
 export interface MemberInput {

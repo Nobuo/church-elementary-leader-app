@@ -6,7 +6,7 @@ describe('Full Workflow', () => {
   const testYear = new Date().getFullYear() + 1;
 
   beforeEach(() => { t = createTestApp(); });
-  afterEach(() => { t.db.close(); });
+  afterEach(() => { t.close(); });
 
   it('6.1-6.14 complete workflow: register → schedule → assign → adjust → export', async () => {
     // 6.1 10名のメンバーを登録

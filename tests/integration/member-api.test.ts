@@ -5,7 +5,7 @@ describe('Member API', () => {
   let t: TestApp;
 
   beforeEach(() => { t = createTestApp(); });
-  afterEach(() => { t.db.close(); });
+  afterEach(() => { t.close(); });
 
   describe('POST /api/members', () => {
     it('1.1 registers a member successfully', async () => {

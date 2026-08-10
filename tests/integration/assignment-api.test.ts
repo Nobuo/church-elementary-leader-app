@@ -6,7 +6,7 @@ describe('Assignment API', () => {
   const testYear = new Date().getFullYear() + 1;
 
   beforeEach(() => { t = createTestApp(); });
-  afterEach(() => { t.db.close(); });
+  afterEach(() => { t.close(); });
 
   async function setupMembersAndSchedule(options: { splitClass?: boolean } = { splitClass: true }) {
     const members = await seedStandardMembers(t.request);

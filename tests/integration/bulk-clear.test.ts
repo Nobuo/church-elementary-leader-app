@@ -8,7 +8,7 @@ describe('Bulk clear assignments', () => {
     t = createTestApp();
     await seedStandardMembers(t.request);
   });
-  afterEach(() => { t.db.close(); });
+  afterEach(() => { t.close(); });
 
   it('clears all assignments for a future month', async () => {
     // 常に未来日になるよう、十分先の月を使う

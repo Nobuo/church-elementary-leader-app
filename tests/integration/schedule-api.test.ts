@@ -6,7 +6,7 @@ describe('Schedule API', () => {
   const testYear = new Date().getFullYear() + 1;
 
   beforeEach(() => { t = createTestApp(); });
-  afterEach(() => { t.db.close(); });
+  afterEach(() => { t.close(); });
 
   describe('POST /api/schedules/generate', () => {
     it('2.1 generates schedule for April', async () => {

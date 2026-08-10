@@ -5,7 +5,7 @@ describe('Security', () => {
   let t: TestApp;
 
   beforeEach(() => { t = createTestApp(); });
-  afterEach(() => { t.db.close(); });
+  afterEach(() => { t.close(); });
 
   describe('Security headers (helmet)', () => {
     it('sets X-Content-Type-Options', async () => {
