@@ -151,7 +151,7 @@ function renderAssignments(assignments, scheduleMap = {}) {
         for (let vi = 0; vi < vacantCount; vi++) {
           memberSlots.push(
             `<span class="vacant-slot">${t('vacant')}` +
-            ` <button class="assign-btn" data-action="start-assign" data-assignment-id="${escapeHtml(g.id)}" data-date="${escapeHtml(date)}" data-assigned='${escapeHtml(JSON.stringify([...assignedOnDate]))}' data-partner-id="${g.members.map(om => om.id).join(',')}" data-role="${g.gradeGroup || ''}">${t('assign')}</button>` +
+            ` <button class="assign-btn" data-action="start-assign" data-assignment-id="${escapeHtml(g.id ?? '')}" data-schedule-id="${escapeHtml(g.scheduleId)}" data-group-number="${g.groupNumber}" data-date="${escapeHtml(date)}" data-assigned='${escapeHtml(JSON.stringify([...assignedOnDate]))}' data-partner-id="${g.members.map(om => om.id).join(',')}" data-role="${g.gradeGroup || ''}">${t('assign')}</button>` +
             `</span>`
           );
         }
@@ -504,7 +504,7 @@ async function startAssign(assignmentId, btnEl) {
   const confirmBtn = document.createElement('button');
   confirmBtn.className = 'replace-btn';
   confirmBtn.textContent = t('confirm');
-  confirmBtn.addEventListener('click', () => doAssign(assignmentId, sel.value, wrapper));
+  confirmBtn.addEventListener('click', () => doAssign(assignmentId, sel.value, wrapper, btnEl));
 
   const cancelBtn = document.createElement('button');
   cancelBtn.className = 'replace-btn';
@@ -520,10 +520,18 @@ async function startAssign(assignmentId, btnEl) {
   await loadCandidates();
 }
 
-async function doAssign(assignmentId, memberId, wrapperEl) {
+async function doAssign(assignmentId, memberId, wrapperEl, btnEl) {
   if (!memberId) return;
   try {
-    const result = await API.put(`/api/assignments/${assignmentId}/assign`, { memberId });
+    // 分級日で片方のグループがまだ実体を持たない場合、assignmentIdは空になる。
+    // その時はグループごと作る(合同日として組んだ後に分級へ切り替えた日など)。
+    const result = assignmentId
+      ? await API.put(`/api/assignments/${assignmentId}/assign`, { memberId })
+      : await API.post('/api/assignments/group', {
+          scheduleId: btnEl.dataset.scheduleId,
+          groupNumber: Number(btnEl.dataset.groupNumber),
+          memberId,
+        });
     showViolations(result.violations || []);
     loadAssignments();
   } catch (e) {

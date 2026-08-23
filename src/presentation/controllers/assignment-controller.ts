@@ -10,6 +10,7 @@ import {
   adjustAssignment,
   unassignMember,
   assignToVacantSlot,
+  createAssignmentGroup,
   deleteAssignments,
   getAssignmentsForMonth,
 } from '@application/use-cases/generate-assignments';
@@ -99,6 +100,29 @@ export function createAssignmentController(
       return;
     }
     res.json(result.value);
+  });
+
+  // 分級日で存在しないグループを、担当1人を入れて新規に作る。
+  // 既存の /:id/assign は assignment が既にあることが前提のため、こちらが要る。
+  router.post('/group', (req: Request, res: Response) => {
+    const { scheduleId, groupNumber, memberId } = req.body;
+    if (!scheduleId || !memberId) {
+      res.status(400).json({ error: 'scheduleId and memberId are required' });
+      return;
+    }
+    const result = createAssignmentGroup(
+      String(scheduleId),
+      Number(groupNumber),
+      String(memberId),
+      assignmentRepo,
+      memberRepo,
+      scheduleRepo,
+    );
+    if (!result.ok) {
+      res.status(400).json({ error: result.error });
+      return;
+    }
+    res.status(201).json(result.value);
   });
 
   router.delete('/', (req: Request, res: Response) => {
