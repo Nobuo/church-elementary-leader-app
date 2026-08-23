@@ -1,6 +1,7 @@
 import { Result, ok, err } from '@shared/result';
-import { MemberId, ScheduleId, asMemberId, asAssignmentId } from '@shared/types';
+import { MemberId, ScheduleId, asMemberId, asAssignmentId, asScheduleId } from '@shared/types';
 import { Member } from '@domain/entities/member';
+import { Assignment } from '@domain/entities/assignment';
 import { MemberRepository } from '@domain/repositories/member-repository';
 import { ScheduleRepository } from '@domain/repositories/schedule-repository';
 import { AssignmentRepository } from '@domain/repositories/assignment-repository';
@@ -32,7 +33,8 @@ export interface AssignmentMemberDto {
 }
 
 export interface AssignmentDto {
-  id: string;
+  /** まだ実体のないグループ(分級日で片方が未作成)は null */
+  id: string | null;
   scheduleId: string;
   date: string;
   groupNumber: number;
@@ -362,7 +364,7 @@ export function getAssignmentsForMonth(
     scheduleById.set(s.id, s);
   }
 
-  return assignments.map((a) => {
+  const dtos: AssignmentDto[] = assignments.map((a) => {
     const max = maxMembersForSchedule(scheduleById.get(a.scheduleId));
     return {
       id: a.id,
@@ -379,6 +381,41 @@ export function getAssignmentsForMonth(
       vacantSlots: Math.max(0, max - a.memberIds.length),
     };
   });
+
+  return withPlaceholderGroups(dtos, schedules);
+}
+
+/**
+ * 分級日は高学年・低学年の2グループが要るが、合同日(1グループ3人)として割り当てた後に
+ * 分級へ切り替えると片方のグループが存在しない。欠けている側を空き枠として補い、
+ * そこへ担当を追加できるようにする。
+ *
+ * 割り当てが1つも無い日は対象外。未生成の日まで空欄で並べると一覧の意味が変わるため。
+ */
+function withPlaceholderGroups(dtos: AssignmentDto[], schedules: Schedule[]): AssignmentDto[] {
+  const result = [...dtos];
+
+  for (const schedule of schedules) {
+    if (!schedule.isSplitClass) continue;
+
+    const existing = dtos.filter((d) => d.scheduleId === schedule.id);
+    if (existing.length === 0) continue;
+
+    for (const groupNumber of [1, 2] as const) {
+      if (existing.some((d) => d.groupNumber === groupNumber)) continue;
+      result.push({
+        id: null,
+        scheduleId: schedule.id,
+        date: schedule.date,
+        groupNumber,
+        gradeGroup: assignmentGradeGroup(0, groupNumber),
+        members: [],
+        vacantSlots: maxMembersForSchedule(schedule),
+      });
+    }
+  }
+
+  return result;
 }
 
 export interface UnassignMemberResult {
@@ -432,6 +469,65 @@ export function unassignMember(
   };
 
   return ok({ assignment: dto, deleted: false });
+}
+
+/**
+ * 分級日で存在しないグループを、担当1人を入れた状態で新規に作る。
+ * 合同日(1グループ3人)として割り当てた後に分級へ切り替えた日は、
+ * 片方のグループが存在せず既存の assignToVacantSlot では埋められない。
+ *
+ * 制約チェックは行わない。1人だけのグループには相手がおらず判定材料がないため、
+ * 2人目を assignToVacantSlot で入れた時点で通常どおり全チェックが走る。
+ */
+export function createAssignmentGroup(
+  scheduleId: string,
+  groupNumber: number,
+  memberId: string,
+  assignmentRepo: AssignmentRepository,
+  memberRepo: MemberRepository,
+  scheduleRepo: ScheduleRepository,
+): Result<AdjustAssignmentResult> {
+  if (groupNumber !== 1 && groupNumber !== 2) {
+    return err('groupNumber must be 1 or 2');
+  }
+
+  const schedule = scheduleRepo.findById(asScheduleId(scheduleId));
+  if (!schedule) return err('Schedule not found');
+
+  const existing = assignmentRepo.findByScheduleId(schedule.id);
+  if (existing.some((a) => a.groupNumber === groupNumber)) {
+    return err('Group already exists');
+  }
+
+  const newMember = memberRepo.findById(asMemberId(memberId));
+  if (!newMember) return err('Member not found');
+
+  if (schedule.isEvent && newMember.memberType === MemberType.HELPER) {
+    return err('HELPER members cannot be assigned on event days');
+  }
+
+  const created = Assignment.createPartial(schedule.id, groupNumber, [asMemberId(memberId)]);
+  assignmentRepo.save(created);
+
+  const max = maxMembersForSchedule(schedule);
+  const dto: AssignmentDto = {
+    id: created.id,
+    scheduleId: created.scheduleId,
+    date: schedule.date,
+    groupNumber: created.groupNumber,
+    gradeGroup: assignmentGradeGroup(created.memberIds.length, created.groupNumber),
+    members: [
+      {
+        id: newMember.id,
+        name: newMember.name,
+        notes: newMember.notes ?? '',
+        gradeGroup: newMember.gradeGroup,
+      },
+    ],
+    vacantSlots: Math.max(0, max - created.memberIds.length),
+  };
+
+  return ok({ assignment: dto, violations: [] });
 }
 
 export function assignToVacantSlot(

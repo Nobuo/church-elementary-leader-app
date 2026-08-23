@@ -3,6 +3,33 @@ import { Assignment } from '@domain/entities/assignment';
 import { createScheduleId, asMemberId } from '@shared/types';
 
 describe('Assignment', () => {
+  describe('createPartial', () => {
+    it('creates an assignment with a single member', () => {
+      const scheduleId = createScheduleId();
+      const m1 = asMemberId('member-1');
+
+      const assignment = Assignment.createPartial(scheduleId, 2, [m1]);
+
+      expect(assignment.memberIds).toEqual([m1]);
+      expect(assignment.groupNumber).toBe(2);
+    });
+
+    it('throws when given 0 members', () => {
+      const scheduleId = createScheduleId();
+      expect(() => Assignment.createPartial(scheduleId, 1, [])).toThrow(
+        'Assignment requires 1 to 3 members',
+      );
+    });
+
+    it('throws when given 4 members', () => {
+      const scheduleId = createScheduleId();
+      const ids = ['m1', 'm2', 'm3', 'm4'].map(asMemberId);
+      expect(() => Assignment.createPartial(scheduleId, 1, ids)).toThrow(
+        'Assignment requires 1 to 3 members',
+      );
+    });
+  });
+
   describe('create', () => {
     it('creates an assignment with 2 members', () => {
       const scheduleId = createScheduleId();

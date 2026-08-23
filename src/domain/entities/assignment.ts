@@ -36,6 +36,26 @@ export class Assignment {
     });
   }
 
+  /**
+   * 埋まりきっていないグループを作る。自動生成は必ず2〜3人を揃えるので create() を使うが、
+   * 手作業で担当を足していく場合は1人から始まる(合同日として組んだ後に分級へ切り替えた日など)。
+   */
+  static createPartial(
+    scheduleId: ScheduleId,
+    groupNumber: 1 | 2,
+    memberIds: MemberId[],
+  ): Assignment {
+    if (memberIds.length < 1 || memberIds.length > 3) {
+      throw new Error('Assignment requires 1 to 3 members');
+    }
+    return new Assignment({
+      id: createAssignmentId(),
+      scheduleId,
+      groupNumber,
+      memberIds,
+    });
+  }
+
   static reconstruct(props: AssignmentProps): Assignment {
     return new Assignment(props);
   }
