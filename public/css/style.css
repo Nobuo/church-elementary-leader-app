@@ -626,3 +626,52 @@ dialog::backdrop { background: rgba(0,0,0,0.3); }
   opacity: 0.5;
   cursor: not-allowed;
 }
+
+/* Member Assignment Tooltip on Hover */
+.count-row-wrapper {
+  position: relative;
+  border-bottom: 1px solid #f3f4f6;
+  padding: 4px 0;
+}
+.count-row-wrapper:hover {
+  background: #f9fafb;
+}
+.count-row {
+  user-select: none;
+}
+.count-dates {
+  display: none;
+  position: absolute;
+  left: 135px;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 10;
+  width: max-content;
+  max-width: 250px;
+  padding: 6px 10px;
+  font-size: 0.85rem;
+  color: #ffffff;
+  background: #1f2937;
+  border-radius: 4px;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  line-height: 1.4;
+  word-break: break-all;
+}
+/* Tooltip Arrow */
+.count-dates::before {
+  content: "";
+  position: absolute;
+  right: 100%;
+  top: 50%;
+  transform: translateY(-50%);
+  border-width: 5px;
+  border-style: solid;
+  border-color: transparent #1f2937 transparent transparent;
+}
+.count-row-wrapper:hover .count-dates {
+  display: block;
+}
+.count-dates.empty-dates {
+  color: #9ca3af;
+  font-style: italic;
+}

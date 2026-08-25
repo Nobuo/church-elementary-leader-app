@@ -319,11 +319,28 @@ function renderAssignmentCounts(data) {
         labelHtml = `<span class="count-label too-few">${t('tooFew')}</span>`;
       }
     }
-    return `<div class="count-row">
-      <span class="count-name">${escapeHtml(m.name)}</span>
-      <div class="count-bar-container"><div class="${barClass}" style="width:${pct}%"></div></div>
-      <span class="count-value">${m.count}${t('times')}</span>
-      ${labelHtml}
+
+    let datesHtml = '';
+    if (m.assignedDates && m.assignedDates.length > 0) {
+      const formattedDates = m.assignedDates.map(d => {
+        const parts = d.date.split('-');
+        const monthDay = `${parseInt(parts[1])}/${parseInt(parts[2])}`;
+        const groupLabel = d.groupNumber ? `(G${d.groupNumber})` : '';
+        return `${monthDay}${groupLabel}`;
+      }).join(', ');
+      datesHtml = `<div class="count-dates">${escapeHtml(formattedDates)}</div>`;
+    } else {
+      datesHtml = `<div class="count-dates empty-dates">${escapeHtml(t('noAssignments'))}</div>`;
+    }
+
+    return `<div class="count-row-wrapper">
+      <div class="count-row">
+        <span class="count-name">${escapeHtml(m.name)}</span>
+        <div class="count-bar-container"><div class="${barClass}" style="width:${pct}%"></div></div>
+        <span class="count-value">${m.count}${t('times')}</span>
+        ${labelHtml}
+      </div>
+      ${datesHtml}
     </div>`;
   }).join('');
 }

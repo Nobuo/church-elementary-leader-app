@@ -6,6 +6,7 @@ export interface AssignmentCountDto {
   id: string;
   name: string;
   count: number;
+  assignedDates?: { date: string; groupNumber: number }[];
 }
 
 export interface AssignmentCountSummary {
@@ -30,27 +31,51 @@ export function getAssignmentCounts(
   const members = memberRepo.findAll(false);
   const countMap = assignmentRepo.countAllByFiscalYear(fiscalYear);
 
-  const memberCounts: AssignmentCountDto[] = members
-    .filter((m) => m.isActive || (countMap.get(m.id) ?? 0) > 0)
-    .map((m) => ({
-      id: m.id,
-      name: m.name,
-      count: countMap.get(m.id) ?? 0,
-    }))
-    .sort((a, b) => b.count - a.count);
-
-  // 未割り当て週を計算する
+  // Gather specific assignment dates for each member
   let unassignedWeeks = 0;
+  const memberDatesMap = new Map<string, { date: string; groupNumber: number }[]>();
+
   if (scheduleRepo) {
     const allSchedules = scheduleRepo.findByFiscalYear(fiscalYear);
     const activeSchedules = allSchedules.filter((s) => !s.isExcluded);
     const activeScheduleIds = activeSchedules.map((s) => s.id);
     const allAssignments = assignmentRepo.findByScheduleIds(activeScheduleIds);
+
+    const scheduleDateMap = new Map<string, string>();
+    for (const s of activeSchedules) {
+      scheduleDateMap.set(s.id, s.date);
+    }
+
+    for (const a of allAssignments) {
+      const date = scheduleDateMap.get(a.scheduleId);
+      if (!date) continue;
+      for (const mid of a.memberIds) {
+        if (!memberDatesMap.has(mid)) {
+          memberDatesMap.set(mid, []);
+        }
+        memberDatesMap.get(mid)!.push({ date, groupNumber: a.groupNumber });
+      }
+    }
+
     const assignedScheduleIds = new Set(allAssignments.map((a) => a.scheduleId));
     unassignedWeeks = activeSchedules.filter(
       (s) => !assignedScheduleIds.has(s.id),
     ).length;
   }
+
+  const memberCounts: AssignmentCountDto[] = members
+    .filter((m) => m.isActive || (countMap.get(m.id) ?? 0) > 0)
+    .map((m) => {
+      const assignedDates = memberDatesMap.get(m.id) ?? [];
+      assignedDates.sort((a, b) => a.date.localeCompare(b.date));
+      return {
+        id: m.id,
+        name: m.name,
+        count: countMap.get(m.id) ?? 0,
+        assignedDates,
+      };
+    })
+    .sort((a, b) => b.count - a.count);
 
   if (memberCounts.length === 0) {
     return {
