@@ -21,7 +21,7 @@
     "build:binary:all": "bun build --compile --target=bun-darwin-arm64 ./src/main-bun.ts --outfile dist/leader-app-darwin-arm64 && bun build --compile --target=bun-darwin-x64 ./src/main-bun.ts --outfile dist/leader-app-darwin-x64 && bun build --compile --target=bun-windows-x64 ./src/main-bun.ts --outfile dist/leader-app-windows-x64.exe"
   },
   "engines": {
-    "node": ">=20"
+    "node": "^22.12.0 || ^24.0.0 || >=26.0.0"
   },
   "dependencies": {
     "better-sqlite3": "^13.0.3",

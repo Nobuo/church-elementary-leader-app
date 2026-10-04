@@ -67,7 +67,7 @@ cd leader-app
 
 ## 前提条件
 
-- **Node.js** 20 以上（推奨: 22.x）
+- **Node.js** 22.12.0 以上の22系、24系、または26以上（推奨: 24系）
 - **npm**
 
 ```bash
@@ -75,7 +75,7 @@ cd leader-app
 node -v
 ```
 
-> asdf を使っている場合は `.tool-versions` に `nodejs 22.13.0` が指定されています。
+> mise / asdf を使っている場合は `.tool-versions` に `nodejs 24.15.0` が指定されています。Vitest 5はNode.js 20に対応していません。
 
 ## セットアップ
 
