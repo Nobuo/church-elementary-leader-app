@@ -67,8 +67,8 @@ cd leader-app
 
 ## 前提条件
 
-- **Node.js** 22.12.0 以上の22系、24系、または26以上（推奨: 24系）
-- **npm**
+- **Node.js** 24.15.0（miseで固定）
+- **pnpm** 12.10.1（`packageManager`とmiseで固定）
 
 ```bash
 # Node.js のバージョン確認
@@ -82,15 +82,19 @@ node -v
 ```bash
 git clone <リポジトリURL>
 cd mach-leader
-npm install
+mise trust
+mise install
+pnpm install --frozen-lockfile
 ```
 
 これだけで準備完了です。データベース（SQLite）はサーバー初回起動時に自動で作成されます。
 
+依存管理のセキュリティ設定と緊急更新の手順は [SECURITY.md](SECURITY.md) を参照してください。
+
 ## 起動方法
 
 ```bash
-npm run dev
+pnpm run dev
 ```
 
 ブラウザで **http://localhost:3000** を開きます。
@@ -239,31 +243,31 @@ src/
 
 ## トラブルシューティング
 
-### `npm test` で `NODE_MODULE_VERSION` エラーが出る場合
+### `pnpm test` で `NODE_MODULE_VERSION` エラーが出る場合
 
 ```
 Error: The module '.../better_sqlite3.node' was compiled against a different Node.js version
 using NODE_MODULE_VERSION XXX. This version of Node.js requires NODE_MODULE_VERSION YYY.
 ```
 
-`better-sqlite3` はネイティブアドオン（C++）のため、`npm install` 時のNode.jsバージョン向けにコンパイルされます。Node.jsのバージョンが変わった場合（asdfでの切り替え、Bunインストール後など）、以下のコマンドで再コンパイルしてください:
+`better-sqlite3` はNode.jsのABIに依存するネイティブアドオンです。まず `mise install` と `mise exec -- node -v` でNode.js 24.15.0を確認してください。現在の13.0.3はプリビルドを含むため、別バージョンのNodeやBun向けに手動で再コンパイルせず、固定lockfileから依存を再インストールします。
 
 ```bash
-npm rebuild better-sqlite3
+pnpm install --frozen-lockfile --force
 ```
 
 ## 開発者向けコマンド
 
 ```bash
-npm run dev            # 開発サーバー起動（http://localhost:3000）
-npm test               # 全テスト実行（単体 + 結合）
-npm run test:unit      # 単体テストのみ
-npm run test:integration  # 結合テスト（API）のみ
-npm run test:e2e       # E2Eテスト（Playwright / Chromium）
-npm run test:e2e:ui    # E2Eテスト（UIモード）
-npm run typecheck      # 型チェック
-npm run lint           # リント
-npm run build          # ビルド
+pnpm run dev            # 開発サーバー起動（http://localhost:3000）
+pnpm test               # 全テスト実行（単体 + 結合）
+pnpm run test:unit      # 単体テストのみ
+pnpm run test:integration  # 結合テスト（API）のみ
+pnpm run test:e2e       # E2Eテスト（Playwright / Chromium）
+pnpm run test:e2e:ui    # E2Eテスト（UIモード）
+pnpm run typecheck      # 型チェック
+pnpm run lint           # リント
+pnpm run build          # ビルド
 ```
 
 ## ライセンス

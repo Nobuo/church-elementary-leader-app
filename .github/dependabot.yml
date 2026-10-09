@@ -15,7 +15,7 @@ updates:
       semver-major-days: 14
     ignore:
       # @typescript-eslint/* のpeerが typescript ">=4.8.4 <6.1.0" のため、
-      # TS6以降を入れると npm ci が ERESOLVE で失敗する(PR #13)。
+      # TS6以降を入れると pnpm install がpeer依存エラー で失敗する(PR #13)。
       # typescript-eslintが対応したらこのignoreを外す。
       - dependency-name: "typescript"
         update-types: ["version-update:semver-major"]

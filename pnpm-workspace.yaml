@@ -1,0 +1,30 @@
+# 公開後7日待つ。既存lockfileも検証し、日時不明の依存は拒否する。
+minimumReleaseAge: 10080
+minimumReleaseAgeStrict: true
+minimumReleaseAgeIgnoreMissingTime: false
+trustPolicy: no-downgrade
+trustLockfile: false
+blockExoticSubdeps: true
+
+# 未審査のスクリプトを拒否。esbuildはbinary選択・検証、fseventsは実行不要。
+strictDepBuilds: true
+allowBuilds:
+  esbuild@0.28.1: true
+  fsevents@2.3.3: false
+verifyStoreIntegrity: true
+strictStorePkgContentCheck: true
+sideEffectsCache: false
+verifyDepsBeforeRun: error
+nodeVersion: 24.15.0
+engineStrict: true
+strictPeerDependencies: true
+saveExact: true
+# mise / CIがpnpmを供給し、preinstallが版違いを拒否する。
+pmOnFail: ignore
+
+# npmで適用していたセキュリティ修正を維持する。
+overrides:
+  brace-expansion@5: ^5.0.9
+  js-yaml@4: ^4.3.0
+  nanoid@3: ^3.3.18
+  postcss: ^8.5.18

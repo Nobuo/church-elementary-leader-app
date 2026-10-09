@@ -15,13 +15,13 @@
     "test:e2e:ui": "playwright test --ui",
     "lint": "eslint src/ tests/",
     "typecheck": "tsc --noEmit",
-    "audit:fix:urgent": "npm audit fix --min-release-age-exclude",
-    "audit:fix:urgent:preview": "npm audit fix --dry-run --min-release-age-exclude",
     "build:binary": "bun build --compile ./src/main-bun.ts --outfile dist/leader-app",
-    "build:binary:all": "bun build --compile --target=bun-darwin-arm64 ./src/main-bun.ts --outfile dist/leader-app-darwin-arm64 && bun build --compile --target=bun-darwin-x64 ./src/main-bun.ts --outfile dist/leader-app-darwin-x64 && bun build --compile --target=bun-windows-x64 ./src/main-bun.ts --outfile dist/leader-app-windows-x64.exe"
+    "build:binary:all": "bun build --compile --target=bun-darwin-arm64 ./src/main-bun.ts --outfile dist/leader-app-darwin-arm64 && bun build --compile --target=bun-darwin-x64 ./src/main-bun.ts --outfile dist/leader-app-darwin-x64 && bun build --compile --target=bun-windows-x64 ./src/main-bun.ts --outfile dist/leader-app-windows-x64.exe",
+    "preinstall": "node scripts/check-toolchain.mjs"
   },
   "engines": {
-    "node": "^22.12.0 || ^24.0.0 || >=26.0.0"
+    "node": ">=24.15.0 <25",
+    "pnpm": "12.10.1"
   },
   "dependencies": {
     "better-sqlite3": "^13.0.3",
@@ -29,12 +29,6 @@
     "express-rate-limit": "^8.7.0",
     "helmet": "^8.1.0",
     "uuid": "^14.0.2"
-  },
-  "overrides": {
-    "brace-expansion@5": "^5.0.9",
-    "js-yaml@4": "^4.3.0",
-    "nanoid@3": "^3.3.18",
-    "postcss": "^8.5.18"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
@@ -51,5 +45,6 @@
     "typescript": "^5.9.3",
     "typescript-eslint": "^8.70.1",
     "vitest": "^5.0.1"
-  }
+  },
+  "packageManager": "pnpm@12.10.1"
 }
