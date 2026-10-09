@@ -20,15 +20,19 @@ jobs:
       - uses: cicd-sensor/cicd-sensor-action@6511eb44c91d71b2b93d71193b1bf2cb18352f66 # v0.0.38
 
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
+        with:
+          run_install: false
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
         with:
-          node-version: '24'
-          cache: 'npm'
-      - run: npm ci
-      - name: npm audit
+          node-version: '24.15.0'
+          cache: 'pnpm'
+          cache-dependency-path: pnpm-lock.yaml
+      - run: pnpm install --frozen-lockfile
+      - name: pnpm audit
         run: |
           set -o pipefail
-          npm audit --audit-level=high 2>&1 | tee audit.log
+          pnpm audit --audit-level=high 2>&1 | tee audit.log
       - name: 検出時はIssueで通知(既存Issueがあればコメント追記)
         if: failure()
         env:
@@ -42,31 +46,21 @@ jobs:
           Run: ${RUN_URL}
 
           \`\`\`
-          $(tail -c 60000 audit.log 2>/dev/null || echo 'audit.logなし(npm ci等の失敗の可能性。Runログを確認)')
+          $(tail -c 60000 audit.log 2>/dev/null || echo 'audit.logなし(pnpm install --frozen-lockfile等の失敗の可能性。Runログを確認)')
           \`\`\`
 
           ## 対応手順
 
           1. Dependabotのセキュリティ更新PRが出ていればマージする(cooldown対象外なので即日出る)
-          2. PRがなければローカルで \`npm audit fix\`
+          2. PRがなければローカルで対象依存を \`pnpm update <package>\` し、lockfile差分とテストを確認する
+          3. 修正版が公開7日未満の場合は SECURITY.md の手順で対象バージョンだけ例外を追加する
 
-          ### \`npm audit fix\` が「fixがblockされた」と言って失敗する場合
-
-          修正版が公開7日未満で、\`.npmrc\` の \`min-release-age=7\` に止められています。
-          その脆弱性の**該当パッケージだけ**ゲートを外してください:
-
-          \`\`\`
-          npm run audit:fix:urgent:preview -- <package>   # まず差分を確認
-          npm run audit:fix:urgent -- <package>           # 実行
-          \`\`\`
-
-          \`--min-release-age=0\` でも直せますが、依存ツリー全体のゲートが外れて
-          無関係な依存まで公開直後の版に上がるため、緊急時ほど対象を絞ってください。"
+          公開待機やビルド許可を全体で無効化しないでください。"
           EXISTING=$(gh issue list --state open --label security-audit --json number --jq '.[0].number')
           if [ -n "$EXISTING" ]; then
             gh issue comment "$EXISTING" --body "$BODY"
           else
-            gh issue create --title "security-audit: npm依存に脆弱性を検出" --label security-audit --assignee "${{ github.repository_owner }}" --body "$BODY"
+            gh issue create --title "security-audit: pnpm依存に脆弱性を検出" --label security-audit --assignee "${{ github.repository_owner }}" --body "$BODY"
           fi
       - name: 緑に戻ったら監査Issueを自動クローズ
         if: success()

@@ -12,7 +12,7 @@ export default defineConfig({
     screenshot: 'only-on-failure',
   },
   webServer: {
-    command: 'npx tsx src/main.ts',
+    command: 'pnpm exec tsx src/main.ts',
     port: 3001,
     env: {
       PORT: '3001',

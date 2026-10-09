@@ -4,7 +4,7 @@
  * 本番DBのコピーを使い、2026/4〜2027/3の全12ヶ月を
  * 「全クリア→4月から再生成」×3回繰り返して検証する。
  *
- * 使い方: npx tsx scripts/verify-yearly-combinations.ts
+ * 使い方: pnpm exec tsx scripts/verify-yearly-combinations.ts
  */
 
 import fs from 'fs';

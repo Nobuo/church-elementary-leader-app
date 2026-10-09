@@ -23,7 +23,7 @@ export function createServer(
   scheduleRepo: ScheduleRepository,
   assignmentRepo: AssignmentRepository,
   options?: ServerOptions,
-) {
+): express.Express {
   const app = express();
 
   // セキュリティヘッダー（インライン onclick ハンドラーを完全に除去するまで CSP は無効）
