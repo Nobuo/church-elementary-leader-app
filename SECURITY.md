@@ -8,6 +8,12 @@ Node.js 24.15.0 / pnpm 12.10.1をmise・packageManager・CIで固定します。
 `pnpm install --frozen-lockfile` を通常のセットアップに使い、`pnpm-lock.yaml` をレビュー対象にします。
 `preinstall` は異なるNode / パッケージマネージャーによるインストールを拒否します。
 
+### Takumi Guardレジストリ
+
+`.npmrc` の `registry=https://npm.flatt.tech/` により、ローカル開発とCIの依存取得にTakumi Guardのパッケージブロックを適用します。トークン不要の匿名利用であり、ダウンロード追跡・感染通知は有効にしません。pnpmの既存lockfileと整合性ハッシュはそのまま使います。既にローカルストアに存在するパッケージが再検査されたことを意味する設定ではありません。
+
+[公式セットアップ](https://shisho.dev/docs/ja/t/guard/quickstart/npm/)。パッケージ実体の取得時には、Takumi Guardによる判定後に公式レジストリへリダイレクトされる場合があります。
+
 `pnpm-workspace.yaml` の設定:
 
 - `minimumReleaseAge: 10080`: 公開後7日待機。推移依存と既存lockfileにも適用し、公開日時不明のパッケージや待機未満へのフォールバックを拒否します。
