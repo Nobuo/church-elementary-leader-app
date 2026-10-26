@@ -2,6 +2,9 @@
 minimumReleaseAge: 10080
 minimumReleaseAgeStrict: true
 minimumReleaseAgeIgnoreMissingTime: false
+# GHSA-27r3-jxmh-p828: 2026-10-29 11:39:39 UTC以降に例外を削除する。
+minimumReleaseAgeExclude:
+  - body-parser@2.4.0
 trustPolicy: no-downgrade
 trustLockfile: false
 blockExoticSubdeps: true
@@ -24,6 +27,8 @@ pmOnFail: ignore
 
 # npmで適用していたセキュリティ修正を維持する。
 overrides:
+  'body-parser@>=2.0.0 <2.4.0': 2.4.0
+  'ip-address@<10.7.4': 10.7.4
   brace-expansion@5: ^5.0.9
   js-yaml@4: ^4.3.0
   nanoid@3: ^3.3.18

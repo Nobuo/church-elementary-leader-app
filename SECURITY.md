@@ -47,6 +47,24 @@ Node.js 24.15.0 / pnpm 12.10.1をmise・packageManager・CIで固定します。
    通常の依存更新と同じ検証を行い、理由をPRに記載します。7日経過後は例外を削除します。`minimumReleaseAge: 0`、ワイルドカード例外、全ビルドスクリプトの許可は使いません。
 5. 次の週次監査かActionsの手動実行でIssueの状態を確認します。
 
+## 2026-10-26の依存脆弱性対応
+
+定期CIで検出した[body-parserのDoS脆弱性](https://github.com/advisories/GHSA-27r3-jxmh-p828)
+は、脆弱な2.xだけを`2.4.0`へ置き換えて修正します。
+修正版は2026-10-22 11:39:38.614 UTC公開で、未認証リクエストによるプロセス終了を
+防ぐ緊急修正のため、`minimumReleaseAgeExclude`は`body-parser@2.4.0`だけに限定します。
+公式npmの配布元は`https://registry.npmjs.org/body-parser/-/body-parser-2.4.0.tgz`、
+integrityは`sha512-Ifk1KcLrxaGt1occQagQNFNNOqRt1LFuehEnHHzB8Z6cRgIxRU1TBaiIsUiCdA+gy5PL7Y1IX31DNKkRmxtXjQ==`です。
+Takumi Guard経由のメタデータと一致することを確認しています。
+**2026-10-29 11:39:39 UTC（20:39:39 JST）以降**、公開後7日を経過したらこの例外を削除します。
+公式修正は、読み取り済みの展開ストリームを切り離し、後続エラーでプロセスが終了する経路を閉じます。
+Expressが修正版を解決するようになった後、overrideを外して監査と全ゲートが通れば削除します。
+
+併せてVitestを`5.0.3`へ更新して`@vitest/mocker`のmoderate 2件を修正し、
+`ip-address <10.7.4`を`10.7.4`へ置き換えてmoderate 1件を修正します。
+これらの版は公開後7日を経過しており、待機例外は不要です。
+`minimumReleaseAge`、`trustPolicy`、ビルドスクリプト承認は維持します。
+
 ## Cloudflare CLI
 
 このアプリはExpress / SQLiteのローカルアプリです。Wrangler依存やCloudflare構成はありません。
