@@ -18,7 +18,7 @@ jobs:
       # 同一ワークフロー実行内の複数ジョブが出すと後発が409になる。actionはwarningに
       # するだけなのでジョブは緑のまま、レポートだけ黙って消える。artifactの発行は
       # buildジョブに任せ、ここは検出のみ(検出結果はジョブログとStep Summaryに出る)。
-      - uses: cicd-sensor/cicd-sensor-action@6511eb44c91d71b2b93d71193b1bf2cb18352f66 # v0.0.38
+      - uses: cicd-sensor/cicd-sensor-action@cb0546d5707fcb68bf755006cb97817b3750996b # v0.0.39
         with:
           enable-html-report: 'false'
           enable-attestation-artifact: 'false'
@@ -46,7 +46,7 @@ jobs:
       # 依存のインストールやビルド中に起きる不審なプロセス・通信・ファイル操作を捕まえる。
       # ログ・イベントは外部に送られずこのリポジトリのartifactに留まる。
       # 必ず最初のステップに置く(以降のステップを監視対象にするため)。
-      - uses: cicd-sensor/cicd-sensor-action@6511eb44c91d71b2b93d71193b1bf2cb18352f66 # v0.0.38
+      - uses: cicd-sensor/cicd-sensor-action@cb0546d5707fcb68bf755006cb97817b3750996b # v0.0.39
 
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
@@ -199,7 +199,7 @@ jobs:
       # 同一ワークフロー実行内の複数ジョブが出すと後発が409になる。actionはwarningに
       # するだけなのでジョブは緑のまま、レポートだけ黙って消える。artifactの発行は
       # buildジョブに任せ、ここは検出のみ(検出結果はジョブログとStep Summaryに出る)。
-      - uses: cicd-sensor/cicd-sensor-action@6511eb44c91d71b2b93d71193b1bf2cb18352f66 # v0.0.38
+      - uses: cicd-sensor/cicd-sensor-action@cb0546d5707fcb68bf755006cb97817b3750996b # v0.0.39
         with:
           enable-html-report: 'false'
           enable-attestation-artifact: 'false'
